@@ -1,0 +1,616 @@
+openapi: 3.0.0
+info:
+  title: Glacic Firewall API
+  description: Control plane API for Glacic Firewall
+  version: 1.0.0
+servers:
+  - url: /api
+    description: Local API Server
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+    apiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: APIKey
+
+  schemas:
+    Status:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "online"
+        uptime:
+          type: string
+          example: "2h35m"
+
+    Config:
+      type: object
+      description: Full firewall configuration
+      properties:
+        schema_version:
+          type: string
+        ip_forwarding:
+          type: boolean
+        interfaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterfaceConfig'
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneConfig'
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyConfig'
+        nat:
+          type: array
+          items:
+            $ref: '#/components/schemas/NATConfig'
+        ipsets:
+          type: array
+          items:
+            $ref: '#/components/schemas/IPSetConfig'
+        dhcp_server:
+          $ref: '#/components/schemas/DHCPConfig'
+        dns_server:
+          $ref: '#/components/schemas/DNSConfig'
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteConfig'
+        vpn:
+          $ref: '#/components/schemas/VPNConfig'
+
+    InterfaceConfig:
+      type: object
+      properties:
+        Name:
+          type: string
+        Zone:
+          type: string
+        IPv4:
+          type: array
+          items:
+            type: string
+        DHCP:
+          type: boolean
+        Description:
+          type: string
+
+    ZoneConfig:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+        description:
+          type: string
+
+    PolicyConfig:
+      type: object
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleConfig'
+
+    RuleConfig:
+      type: object
+      properties:
+        name:
+          type: string
+        action:
+          type: string
+          enum: [accept, drop, reject]
+        protocol:
+          type: string
+        dest_port:
+          type: integer
+
+    NATConfig:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [masquerade, dnat, snat]
+        interface:
+          type: string
+        protocol:
+          type: string
+        destination:
+          type: string
+        to_address:
+          type: string
+        to_port:
+          type: string
+        description:
+          type: string
+
+    IPSetConfig:
+      type: object
+      properties:
+        name:
+          type: string
+        firehol_list:
+          type: string
+        auto_update:
+          type: boolean
+        refresh_hours:
+          type: integer
+        action:
+          type: string
+        apply_to:
+          type: string
+
+    DHCPConfig:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        scopes:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              interface:
+                type: string
+              range_start:
+                type: string
+              range_end:
+                type: string
+              router:
+                type: string
+
+    DNSConfig:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        listen_on:
+          type: array
+          items:
+            type: string
+        forwarders:
+          type: array
+          items:
+            type: string
+
+    RouteConfig:
+      type: object
+      properties:
+        destination:
+          type: string
+        gateway:
+          type: string
+        interface:
+          type: string
+        metric:
+          type: integer
+
+    VPNConfig:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        interface:
+          type: string
+        listen_port:
+          type: integer
+        peers:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              public_key:
+                type: string
+              endpoint:
+                type: string
+              allowed_ips:
+                type: string
+
+    TopologyNode:
+      type: object
+      properties:
+        name:
+          type: string
+        ip:
+          type: string
+        role:
+          type: string
+          enum: [gateway, switch, ap, server, client]
+        clients:
+          type: integer
+
+    ScanResult:
+      type: object
+      properties:
+        ssid:
+          type: string
+        bssid:
+          type: string
+        signal:
+          type: integer
+        channel:
+          type: integer
+        security:
+          type: string
+
+security:
+  - cookieAuth: []
+  - apiKeyAuth: []
+
+paths:
+  /brand:
+    get:
+      summary: Get branding information
+      security: []
+      responses:
+        '200':
+          description: Branding info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: "Glacic"
+
+  /status:
+    get:
+      summary: Get system status
+      security: []
+      responses:
+        '200':
+          description: System is online
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+
+  /auth/login:
+    post:
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+
+  /auth/status:
+    get:
+      summary: Check auth status
+      security: []
+      responses:
+        '200':
+          description: Auth status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                  username:
+                    type: string
+                  setup_required:
+                    type: boolean
+
+  /auth/logout:
+    post:
+      summary: Logout
+      responses:
+        '200':
+          description: Logged out
+
+  /config:
+    get:
+      summary: Get current configuration
+      responses:
+        '200':
+          description: Full configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+
+  /config/policies:
+    post:
+      summary: Update firewall policies
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PolicyConfig'
+      responses:
+        '200':
+          description: Policies updated
+
+  /config/nat:
+    post:
+      summary: Update NAT rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/NATConfig'
+      responses:
+        '200':
+          description: NAT updated
+
+  /config/zones:
+    post:
+      summary: Update zones
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ZoneConfig'
+      responses:
+        '200':
+          description: Zones updated
+
+  /config/dhcp:
+    post:
+      summary: Update DHCP configuration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DHCPConfig'
+      responses:
+        '200':
+          description: DHCP updated
+
+  /config/dns:
+    post:
+      summary: Update DNS configuration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DNSConfig'
+      responses:
+        '200':
+          description: DNS updated
+
+  /config/routes:
+    post:
+      summary: Update static routes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/RouteConfig'
+      responses:
+        '200':
+          description: Routes updated
+
+  /config/vpn:
+    post:
+      summary: Update VPN configuration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VPNConfig'
+      responses:
+        '200':
+          description: VPN updated
+
+  /config/ip-forwarding:
+    post:
+      summary: Toggle IP forwarding
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Forwarding updated
+
+  /interfaces:
+    get:
+      summary: Get interfaces status
+      responses:
+        '200':
+          description: Interface list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InterfaceConfig'
+
+  /vlans:
+    post:
+      summary: Create VLAN interface
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parent:
+                  type: string
+                vlan_id:
+                  type: integer
+                zone:
+                  type: string
+      responses:
+        '200':
+          description: VLAN created
+
+  /bonds:
+    post:
+      summary: Create bond interface
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                zone:
+                  type: string
+                members:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Bond created
+
+  /services:
+    get:
+      summary: Get services status
+      responses:
+        '200':
+          description: Service status list
+
+  /leases:
+    get:
+      summary: Get DHCP leases
+      responses:
+        '200':
+          description: Active leases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ip:
+                      type: string
+                    mac:
+                      type: string
+                    hostname:
+                      type: string
+                    interface:
+                      type: string
+                    active:
+                      type: boolean
+
+  /ipsets:
+    post:
+      summary: Refresh all IPSets
+      parameters:
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [refresh]
+      responses:
+        '200':
+          description: IPSets refreshed
+
+  /ipsets/{name}:
+    post:
+      summary: Refresh specific IPSet
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [refresh]
+      responses:
+        '200':
+          description: IPSet refreshed
+
+  /topology/nodes:
+    get:
+      summary: Get network topology nodes
+      responses:
+        '200':
+          description: Topology nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopologyNode'
+
+  /scanner/results:
+    get:
+      summary: Get WiFi scanner results
+      responses:
+        '200':
+          description: Scan results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScanResult'
+
+  /scanner/scan:
+    post:
+      summary: Trigger new scan
+      responses:
+        '200':
+          description: Scan started
+
+  /system/reboot:
+    post:
+      summary: Reboot system
+      responses:
+        '200':
+          description: Reboot initiated
+
+tags:
+  - name: System
+  - name: Config
+  - name: Auth
+  - name: Interfaces
+  - name: Topology
+  - name: Scanner
+

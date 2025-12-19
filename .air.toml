@@ -1,0 +1,48 @@
+# Air - Live reload for Go apps during development
+# https://github.com/cosmtrek/air
+#
+# Usage: air  (runs tuidemo by default)
+# Usage: air -c .air.api.toml  (for API server)
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  # TUI demo
+  cmd = "go build -o ./tmp/tuidemo ./cmd/tuidemo"
+  bin = "./tmp/tuidemo"
+
+  # Watch these extensions
+  include_ext = ["go"]
+
+  # Exclude directories
+  exclude_dir = ["vendor", "tmp", "ui", "build", "node_modules"]
+
+  # Exclude files
+  exclude_file = []
+
+  # Delay before rebuild (milliseconds)
+  delay = 500
+
+  # Stop running old binary when building new binary
+  stop_on_error = true
+
+  # Send Interrupt signal before killing process, to let process exit gracefully
+  send_interrupt = true
+
+  # Wait for process to exit before killing
+  kill_delay = 500
+
+[log]
+  # Show log time
+  time = false
+
+[color]
+  main = "yellow"
+  watcher = "cyan"
+  build = "green"
+  runner = "magenta"
+
+[misc]
+  # Delete tmp directory on exit
+  clean_on_exit = true
