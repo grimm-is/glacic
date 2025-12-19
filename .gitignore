@@ -1,0 +1,62 @@
+# Build artifacts
+build/
+dist/
+
+# Binaries in root (should be in build/)
+/glacic
+/glacic-linux
+/vmbuilder
+/initramfs.cpio
+
+# Test artifacts
+test_mount_*/
+*.log
+test_output.txt
+net_test_fail.txt
+tests/backups/
+tests/results/
+coverage.out
+*.test
+
+# Demo artifacts
+/tmp/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.out
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# UI dependencies
+# Node
+ui/node_modules/
+node_modules/
+
+# Generated files
+internal/brand/brand.env
+
+# Runtime backups (created by appliance)
+/backups/
+
+# Note: ui/dist/ is NOT ignored - it's embedded in the Go binary
+# Run 'cd ui && npm install && npm run build' to generate it
+
+# Vendor (managed by go mod)
+vendor/
+/vendor/
+/local/
