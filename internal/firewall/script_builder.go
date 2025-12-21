@@ -257,7 +257,26 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 	sb.AddRule("output", "meta l4proto icmpv6 accept")
 	sb.AddRule("output", "icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert, nd-router-solicit, nd-router-advert } accept")
 
-	// Drop mDNS noise on VPN interfaces
+	// mDNS Reflector Rules (Must be before generic drops)
+	if cfg.MDNS != nil && cfg.MDNS.Enabled && len(cfg.MDNS.Interfaces) > 0 {
+		var mdnsIfaces []string
+		for _, iface := range cfg.MDNS.Interfaces {
+			mdnsIfaces = append(mdnsIfaces, forceQuote(iface))
+		}
+		ifacesStr := strings.Join(mdnsIfaces, ", ")
+
+		// Allow INPUT multicast (query/response) on enabled interfaces
+		// Match both specific multicast IP and port ensuring we only accept mDNS traffic
+		sb.AddRule("input", fmt.Sprintf("iifname { %s } ip daddr 224.0.0.251 udp dport 5353 accept", ifacesStr))
+		sb.AddRule("input", fmt.Sprintf("iifname { %s } ip6 daddr ff02::fb udp dport 5353 accept", ifacesStr))
+
+		// Allow OUTPUT multicast (reflector sending)
+		sb.AddRule("output", fmt.Sprintf("oifname { %s } ip daddr 224.0.0.251 udp dport 5353 accept", ifacesStr))
+		sb.AddRule("output", fmt.Sprintf("oifname { %s } ip6 daddr ff02::fb udp dport 5353 accept", ifacesStr))
+	}
+
+	// Drop mDNS noise on VPN interfaces (unless explicitly enabled above?)
+	// Note: If a VPN interface was in MDNS.Interfaces, the rule above would have accepted it first.
 	sb.AddRule("input", "iifname \"wg*\" udp dport 5353 limit rate 5/minute log group 0 prefix \"DROP_MDNS: \" counter drop")
 	sb.AddRule("input", "iifname \"tun*\" udp dport 5353 limit rate 5/minute log group 0 prefix \"DROP_MDNS: \" counter drop")
 

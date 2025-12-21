@@ -7,6 +7,7 @@ import (
 
 	"grimm.is/glacic/internal/toolbox/agent"
 	"grimm.is/glacic/internal/toolbox/harness"
+	"grimm.is/glacic/internal/toolbox/mcast"
 	"grimm.is/glacic/internal/toolbox/orca"
 )
 
@@ -53,6 +54,11 @@ func main() {
 		case "prove":
 			if err := harness.Run(args); err != nil {
 				fmt.Fprintf(os.Stderr, "prove error: %v\n", err)
+				os.Exit(1)
+			}
+		case "mcast":
+			if err := mcast.Run(args); err != nil {
+				fmt.Fprintf(os.Stderr, "mcast error: %v\n", err)
 				os.Exit(1)
 			}
 		default:

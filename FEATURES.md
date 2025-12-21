@@ -32,9 +32,9 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Interfaces | Bond/LACP | 🟧 L2 | Parsing works, needs hardware |
 | Routing | IPv4 Static Routes | 🟩 L4 | Works, tested |
 | Routing | Default Gateway | 🟩 L4 | Works, tested |
-| Routing | IPv6 Addressing | 🟨 L3 | Basic support, sparse testing |
-| Routing | IPv6 Routing | 🟧 L2 | Config exists, minimal testing |
-| Routing | Policy Routing (fwmark) | 🟧 L2 | Code exists, not integration tested |
+| Routing | IPv6 Addressing | 🟩 L4 | Confirmed via `t/01-sanity/ipv6_test.sh` |
+| Routing | IPv6 Routing | 🟩 L4 | Confirmed via `t/01-sanity/ipv6_test.sh` |
+| Routing | Policy Routing (fwmark) | 🟩 L4 | Confirmed via `t/30-firewall/policy_routing_test.sh` |
 | Routing | Multi-WAN Failover | 🔲 L1 | Config structures only |
 | Routing | Multi-WAN Load Balance | ⬜ L0 | Not started |
 | Routing | User/UID-Based Routing | 🔲 L1 | Config structures only |
@@ -45,7 +45,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Rules | nftables Rule Generation | 🟩 L4 | inet family, IPv4+IPv6 |
 | Rules | Stateful Connection Tracking | 🟩 L4 | Enabled by default |
 | Rules | Rule Logging (nflog) | 🟨 L3 | Rules log, viewer works |
-| Rules | Rate Limiting | 🟨 L3 | Basic rules exist |
+| Rules | Rate Limiting | 🟩 L4 | Confirmed via `t/65-qos/qos_test.sh` |
 | Rules | GeoIP Matching | 🔲 L1 | Config only, no implementation |
 | Rules | Time-of-Day Rules | 🔲 L1 | Parsing exists, scheduler incomplete |
 | Rules | Layer 7 / Application ID | 🔲 L1 | SNI hooks exist, no L7 filtering |
@@ -67,8 +67,8 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Server | Lease Persistence | 🟩 L4 | SQLite, survives restarts |
 | Server | Static Reservations | 🟩 L4 | MAC→IP mapping works |
 | Server | Lease Expiration | 🟩 L4  | Logic works, unit tests pass |
-| Server | DHCP Options (basic) | 🟨 L3 | Router, DNS, domain work |
-| Server | DHCP Options (custom) | 🟨 L3 | Type prefixes (ip:, str:, hex:, u8:, u16:, u32:, bool:) work |
+| Server | DHCP Options (basic) | 🟩 L4 | Confirmed via `t/20-dhcp/dhcp_options_test.sh` |
+| Server | DHCP Options (custom) | 🟩 L4 | Confirmed via `t/20-dhcp/dhcp_options_test.sh` |
 | Server | DHCPv6 | ⬜ L0 | Not started |
 | Server | DHCP Relay | ⬜ L0 | Not started |
 | Server | DNS Dynamic Updates | 🟨 L3 | Hostname→IP added to DNS |
@@ -90,8 +90,8 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | WoL | Wake-on-LAN | 🟩 L4 | Magic packet works |
 | IPv6 | Router Advertisements | 🟧 L2 | Basic RA, limited testing |
 | Discovery | LLDP Listener | 🟧 L2 | Stub implementation |
-| Threat Intel | IP/Domain Blocklists | � L3 | Fetches URLs, updates ipsets |
-| Services | mDNS Reflector | 🟨 L3 | Multi-interface reflection, loop prevention |
+| Threat Intel | IP/Domain Blocklists | 🟩 L4 | Fetches URLs, updates ipsets (`t/50-security/threat_intel_test.sh`) |
+| Services | mDNS Reflector | 🟩 L4 | Tested via `t/40-network/mdns_test.sh` |
 | Future | UPnP/NAT-PMP | ⬜ L0 | Not started |
 | Future | NTP Server | ⬜ L0 | Not started |
 | Future | Syslog Server | ⬜ L0 | Not started |
@@ -134,7 +134,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Config | Schema Versioning | 🟨 L3 | Framework works |
 | Config | Schema Migration | 🟧 L2 | Framework exists, few migrations |
 | Config | Config Hot Reload | 🟨 L3 | Works for most services |
-| Config | Atomic Apply + Rollback | � L4 | Apply works, rollback timer, connectivity check |
+| Config | Atomic Apply + Rollback | 🟩 L4 | Apply works, rollback timer, connectivity check |
 | Upgrade | Seamless Upgrade | 🟨 L3 | Handoff works, delta sync untested |
 | State | State Store (SQLite) | 🟩 L4 | Works, buckets for all services |
 | State | State Replication (HA) | 🟧 L2 | Primary→replica sync works |

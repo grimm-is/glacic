@@ -13,6 +13,7 @@ type Config struct {
 	API               *config.APIConfig // For DisableSandbox check in NAT rules
 	VPN               *config.VPNConfig
 	DNS               *config.DNS // For dns.inspect rules
+	MDNS              *config.MDNSConfig
 	Features          *config.Features
 	Protections       []config.InterfaceProtection
 	EnableFlowOffload bool
@@ -40,6 +41,7 @@ func FromGlobalConfig(g *config.Config) *Config {
 		API:               g.API,
 		VPN:               g.VPN,
 		DNS:               g.DNS,
+		MDNS:              g.MDNS,
 		Features:          g.Features,
 		Protections:       g.Protections,
 		EnableFlowOffload: g.EnableFlowOffload,

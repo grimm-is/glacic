@@ -447,7 +447,7 @@ func (s *Server) initRoutes() {
 		mux.HandleFunc("POST /api/devices/unlink", s.handleUnlinkMAC)
 
 		// Quick Wins
-		mux.HandleFunc("GET /api/config/diff", s.require(s.handleGetConfigDiff))
+		mux.Handle("GET /api/config/diff", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleGetConfigDiff)))
 		mux.HandleFunc("GET /public/ca.crt", s.handlePublicCert) // Public, no auth required
 
 

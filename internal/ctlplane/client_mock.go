@@ -185,6 +185,11 @@ func (m *MockControlPlaneClient) SaveConfig() (*SaveConfigReply, error) {
 	return callArgs.Get(0).(*SaveConfigReply), callArgs.Error(1)
 }
 
+func (m *MockControlPlaneClient) GetConfigDiff() (string, error) {
+	args := m.Called()
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockControlPlaneClient) ListBackups() (*ListBackupsReply, error) {
 	callArgs := m.Called()
 	if callArgs.Get(0) == nil {

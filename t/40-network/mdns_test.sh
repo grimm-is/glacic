@@ -1,0 +1,144 @@
+#!/bin/sh
+# mDNS Reflector Integration Test
+# Verifies that mDNS packets are forwarded between interfaces.
+
+TEST_TIMEOUT=30
+
+# Source common functions
+. "$(dirname "$0")/../common.sh"
+
+# require_socat removed
+
+require_root
+require_binary
+
+# Locate toolbox binary (assumes it's in the same build dir as APP_BIN)
+TOOLBOX_BIN="$(dirname "$APP_BIN")/toolbox-linux"
+if [ ! -x "$TOOLBOX_BIN" ]; then
+    echo "1..0 # SKIP toolbox not found at $TOOLBOX_BIN"
+    exit 0
+fi
+
+# Define helper to keep command short
+MDNS_TOOL="$TOOLBOX_BIN mcast"
+
+# --- Setup ---
+plan 6
+
+diag "Starting mDNS Reflector Test using $MDNS_TOOL"
+
+cleanup() {
+    diag "Cleanup..."
+    teardown_test_topology
+    rm -f "$TEST_CONFIG" 2>/dev/null
+    stop_ctl
+}
+trap cleanup EXIT
+
+# 1. Create config
+TEST_CONFIG=$(mktemp_compatible "mdns_test.hcl")
+cat > "$TEST_CONFIG" << 'EOF'
+schema_version = "1.0"
+ip_forwarding = true
+
+interface "veth-lan" {
+  zone = "lan"
+  ipv4 = ["192.168.100.1/24"]
+}
+
+interface "veth-wan" {
+  zone = "wan"
+  ipv4 = ["10.99.99.1/24"]
+}
+
+zone "lan" {
+  interfaces = ["veth-lan"]
+}
+
+zone "wan" {
+  interfaces = ["veth-wan"]
+}
+
+# Enable mDNS reflector between LAN and WAN
+mdns {
+  enabled = true
+  interfaces = ["veth-lan", "veth-wan"]
+}
+EOF
+
+# 2. Setup Topology
+setup_test_topology
+ok 0 "Test topology created"
+
+# 3. Start Control Plane
+export GLACIC_LOG_FILE=stdout
+start_ctl "$TEST_CONFIG"
+ok 0 "Firewall started"
+
+# Give service time to start and join multicast groups
+sleep 5
+
+# 4. Verify mDNS sockets are bound
+if grep -q "Starting reflector on" "$CTL_LOG"; then
+    ok 0 "Reflector service started"
+else
+    ok 1 "Reflector service failed to start"
+    cat "$CTL_LOG"
+fi
+
+# 5. IPv4 Reflector Test
+# Receiver on WAN side (test_server)
+RCV_FILE=$(mktemp_compatible "mdns_rcv.log")
+
+diag "Starting mDNS listener on WAN side (test_server)..."
+# mdns_tool listen on veth-server (inside ns)
+# veth-server interface address 10.99.99.100.
+# mdns_tool needs interface name. Inside test_server (WAN), interface is veth-server.
+ip netns exec test_server $MDNS_TOOL -mode listen -iface veth-server -timeout 5s > "$RCV_FILE" 2>&1 &
+RCV_PID=$!
+
+sleep 2
+
+diag "Sending mDNS packet from LAN side (test_client)..."
+PAYLOAD="GLACIC_MDNS_TEST_PAYLOAD_$(date +%s)"
+# Inside test_client (LAN), interface is veth-client.
+ip netns exec test_client $MDNS_TOOL -mode send -iface veth-client -msg "$PAYLOAD"
+
+sleep 2
+
+# Check reception
+if grep -q "$PAYLOAD" "$RCV_FILE"; then
+    ok 0 "mDNS packet forwarded LAN -> WAN"
+else
+    ok 1 "mDNS packet NOT received on WAN"
+    diag "Receiver Log:"
+    cat "$RCV_FILE"
+    diag "Ctl Log:"
+    cat "$CTL_LOG"
+fi
+
+# 6. Check Loop Prevention (Reverse check)
+RCV_FILE_LAN=$(mktemp_compatible "mdns_rcv_lan.log")
+diag "Starting mDNS listener on LAN side (test_client)..."
+ip netns exec test_client $MDNS_TOOL -mode listen -iface veth-client -timeout 5s > "$RCV_FILE_LAN" 2>&1 &
+RCV_PID_LAN=$!
+
+sleep 2
+
+diag "Sending mDNS packet from WAN side (test_server)..."
+PAYLOAD_REV="GLACIC_MDNS_REVERSE_$(date +%s)"
+ip netns exec test_server $MDNS_TOOL -mode send -iface veth-server -msg "$PAYLOAD_REV"
+
+sleep 2
+
+if grep -q "$PAYLOAD_REV" "$RCV_FILE_LAN"; then
+    ok 0 "mDNS packet forwarded WAN -> LAN"
+else
+    ok 1 "mDNS packet NOT received on LAN"
+fi
+
+if [ $failed_count -eq 0 ]; then
+    exit 0
+else
+    exit 1
+fi

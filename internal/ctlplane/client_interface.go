@@ -41,6 +41,7 @@ type ControlPlaneClient interface {
 	DeleteSectionByLabel(sectionType string, labels ...string) (*DeleteSectionReply, error)
 	ValidateHCL(hcl string) (*ValidateHCLReply, error)
 	SaveConfig() (*SaveConfigReply, error)
+	GetConfigDiff() (string, error)
 
 	// --- Backup Management ---
 	ListBackups() (*ListBackupsReply, error)
