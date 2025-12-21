@@ -44,6 +44,7 @@ var apkPackages = []string{
 	// Networking stack
 	"iproute2",    // ip command (427 uses in tests)
 	"iproute2-ss", // ss command (netstat replacement)
+	"iproute2-tc", // tc command (QoS)
 	
 	// Firewall & connection tracking
 	"nftables",        // nft command (342 uses)
@@ -387,6 +388,17 @@ if cat /proc/cmdline | grep -q "test_mode=true"; then
         test_exit=$?
         qemu_exit $test_exit
     fi
+elif cat /proc/cmdline | grep -q "agent_mode=true"; then
+    echo "⚡ Starting in AGENT-ONLY mode..."
+    # Run the agent binary directly (no ctl/api)
+    if [ -x ` + vmMountPath + `/build/glacic-agent ]; then
+        exec ` + vmMountPath + `/build/glacic-agent agent
+    elif [ -x ` + vmMountPath + `/build/toolbox-linux ]; then
+        exec ` + vmMountPath + `/build/toolbox-linux agent
+    else
+        echo "❌ Agent binary not found"
+        qemu_exit 1
+    fi
 elif cat /proc/cmdline | grep -q "dev_mode=true"; then
     if [ -f ` + vmMountPath + `/scripts/vm/entrypoint-dev.sh ]; then
         echo "⚡ Starting in development mode..."
@@ -443,10 +455,10 @@ func (b *Builder) createDiskImage(path string, sizeMB int) error {
 		return nil // Already exists
 	}
 
-	fmt.Printf("💿 Creating blank disk image (%d MB)...\n", sizeMB)
+	fmt.Printf("💿 Creating sparse disk image (%d MB)...\n", sizeMB)
 
-	cmd := exec.Command("dd", "if=/dev/zero", "of="+path, "bs=1M",
-		fmt.Sprintf("count=%d", sizeMB), "status=none")
+	// Use qemu-img for sparse QCOW2 creation
+	cmd := exec.Command("qemu-img", "create", "-f", "qcow2", path, fmt.Sprintf("%dM", sizeMB))
 	return cmd.Run()
 }
 
@@ -489,7 +501,7 @@ func (b *Builder) Build() error {
 	}
 
 	// Create disk image
-	diskPath := filepath.Join(b.buildDir, "rootfs.ext4")
+	diskPath := filepath.Join(b.buildDir, "rootfs.qcow2")
 	if err := b.createDiskImage(diskPath, DiskSizeMB); err != nil {
 		return fmt.Errorf("failed to create disk image: %w", err)
 	}
@@ -507,7 +519,7 @@ func (b *Builder) Build() error {
 		"-kernel", filepath.Join(b.buildDir, "vmlinuz-virt-"+AlpineFullVer),
 		"-initrd", filepath.Join(b.buildDir, "initramfs-virt-"+AlpineFullVer),
 		"-append", kernelAppend,
-		"-drive", fmt.Sprintf("file=%s,format=raw,if=virtio", diskPath),
+		"-drive", fmt.Sprintf("file=%s,format=qcow2,if=virtio", diskPath),
 		"-netdev", "user,id=net0",
 		"-device", "virtio-net-pci,netdev=net0",
 	)
@@ -620,7 +632,7 @@ func (b *Builder) Build() error {
 	fmt.Println("\n🎉 Build completed successfully!")
 	fmt.Printf("   Kernel:    %s/vmlinuz\n", b.buildDir)
 	fmt.Printf("   Initramfs: %s/initramfs\n", b.buildDir)
-	fmt.Printf("   Disk:      %s/rootfs.ext4\n", b.buildDir)
+	fmt.Printf("   Disk:      %s/rootfs.qcow2\n", b.buildDir)
 
 	return nil
 }

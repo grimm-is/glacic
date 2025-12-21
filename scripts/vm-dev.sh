@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+echo "Script Starting..."
 
 # ==============================================================================
 # Configuration
@@ -34,14 +35,14 @@ SOCKET_BASE=${SOCKET_BASE:-1234}
 # Find an available port
 find_free_port() {
     local port=$1
-    while lsof -i :$port >/dev/null 2>&1; do
+    while lsof -n -i :$port >/dev/null 2>&1; do
         port=$((port + 1))
     done
     echo $port
 }
 
 # Find available socket port if default is in use
-if lsof -i :${SOCKET_BASE} >/dev/null 2>&1; then
+if lsof -n -i :${SOCKET_BASE} >/dev/null 2>&1; then
     SOCKET_BASE=$(find_free_port ${SOCKET_BASE})
 fi
 
@@ -199,6 +200,9 @@ $QEMU_BIN \
     \
     -virtfs local,path="${1:-$(pwd)}",mount_tag=host_share,security_model=none,id=host_share \
     \
+    -device virtio-serial-pci \
+    -chardev socket,path=${ORCHESTRATION_SOCKET:-/tmp/glacic-vm${VM_ID:-1}.sock},server=on,wait=off,id=channel0 \
+    -device virtserialport,chardev=channel0,name=glacic.agent \
     $WAN_NETDEV -device virtio-net-pci,netdev=wan,mac=$MAC_WAN \
     -netdev socket,listen=:${SOCKET_BASE},id=lan1 -device virtio-net-pci,netdev=lan1,mac=$MAC_LAN1 \
     -netdev socket,connect=:${SOCKET_BASE},id=lan2 -device virtio-net-pci,netdev=lan2,mac=$MAC_LAN2 \
