@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -15,21 +16,60 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
-
-	"strings"
 
 	"grimm.is/glacic/internal/api"
 	"grimm.is/glacic/internal/api/storage"
 	"grimm.is/glacic/internal/auth"
 	"grimm.is/glacic/internal/brand"
+	"grimm.is/glacic/internal/config"
 	"grimm.is/glacic/internal/ctlplane"
 	"grimm.is/glacic/internal/logging"
 	"grimm.is/glacic/internal/pki"
 	"grimm.is/glacic/internal/state"
 	"grimm.is/glacic/internal/tls"
 )
+
+// Named constants replacing magic numbers
+const (
+	// listenerFD is the inherited listener file descriptor (first ExtraFile)
+	listenerFD = 3
+
+	// Lock acquisition parameters (30 seconds total, 500ms intervals)
+	lockRetryCount    = 60
+	lockRetryInterval = 500 * time.Millisecond
+
+	// Control plane connection parameters (30 seconds total, 1s intervals)
+	ctlRetryCount    = 30
+	ctlRetryInterval = time.Second
+
+	// Server ports
+	httpsPort = "8443"
+	httpPort  = "8080"
+)
+
+// APIRuntimeConfig holds all runtime configuration for the API server.
+// Environment variables are parsed once at startup and stored here.
+type APIRuntimeConfig struct {
+	ListenAddr     string
+	DropUser       string
+	NoSandbox      bool   // GLACIC_NO_SANDBOX=1
+	LocalUIDistDir string // GLACIC_UI_DIST
+	ForceTLS       bool   // GLACIC_FORCE_TLS=1
+}
+
+// NewAPIRuntimeConfig parses environment variables and CLI args into config.
+func NewAPIRuntimeConfig(listenAddr, dropUser string) *APIRuntimeConfig {
+	return &APIRuntimeConfig{
+		ListenAddr:     listenAddr,
+		DropUser:       dropUser,
+		NoSandbox:      os.Getenv("GLACIC_NO_SANDBOX") == "1",
+		LocalUIDistDir: os.Getenv("GLACIC_UI_DIST"),
+		ForceTLS:       os.Getenv("GLACIC_FORCE_TLS") != "",
+	}
+}
 
 // tlsFilteredLogger filters out noisy TLS handshake errors from self-signed certificates.
 // These errors are expected and benign when clients don't trust our certificate.
@@ -66,27 +106,195 @@ func newTLSFilteredLogger() *log.Logger {
 	return log.New(&tlsFilteredLogger{rateLimit: 60 * time.Second}, "", 0)
 }
 
-// RunAPI runs the unprivileged API server
-// This process should run as a non-root user and communicates
-// with the control plane via RPC over Unix socket
-func RunAPI(uiAssets embed.FS, listenAddr string, dropUser string) {
-	// Check for inherited listener (FD 3) - implementing socket handoff
-	var inheritedListener net.Listener
-	listenerFile := os.NewFile(3, "listener") // FD 3 is the first ExtraFile
-
-	// Check if FD is valid by attempting to turn it into a listener
-	if l, err := net.FileListener(listenerFile); err == nil {
-		inheritedListener = l
-		// If we are getting a specific listener, logging it is good
-		if tcpAddr, ok := l.Addr().(*net.TCPAddr); ok {
-			// We can update listenAddr to match truth
-			listenAddr = fmt.Sprintf(":%d", tcpAddr.Port)
+// stripCIDR removes the network prefix from a CIDR address, returning just the IP.
+// Uses net.ParseCIDR for proper validation instead of string manipulation.
+func stripCIDR(cidr string) string {
+	ip, _, err := net.ParseCIDR(cidr)
+	if err != nil {
+		// Fallback: might just be a bare IP
+		if parsed := net.ParseIP(cidr); parsed != nil {
+			return cidr
 		}
-		// Don't log here yet, logger not init
+		return cidr // Return as-is if unparseable
+	}
+	return ip.String()
+}
+
+// alreadyRunningError is returned when another API instance holds the lock.
+type alreadyRunningError struct {
+	cfg            *config.Config
+	sandboxEnabled bool
+}
+
+func (e *alreadyRunningError) Error() string {
+	return "glacic api is already running"
+}
+
+// LogAccessURLs prints the URLs where the running instance can be accessed.
+func (e *alreadyRunningError) LogAccessURLs() {
+	protocol := "https"
+	port := httpsPort
+	if !e.sandboxEnabled {
+		protocol = "http"
+		port = httpPort
 	}
 
-	// Check for sandbox bypass (for testing)
-	noSandbox := os.Getenv("GLACIC_NO_SANDBOX") == "1"
+	logging.Info("Glacic API is already running.")
+	logging.Info(fmt.Sprintf("Web Interface: %s://<DEVICE_IP>:%s", protocol, port))
+
+	for _, iface := range e.cfg.Interfaces {
+		if iface.AccessWebUI || iface.Zone == "management" || iface.Zone == "lan" {
+			if len(iface.IPv4) > 0 {
+				ip := stripCIDR(iface.IPv4[0])
+				logging.Info(fmt.Sprintf(" -> %s://%s:%s", protocol, ip, port))
+			}
+		}
+	}
+}
+
+// connectToControlPlane establishes a connection to the control plane with retries.
+// Returns the client and config, or an error after ctlRetryCount attempts.
+func connectToControlPlane() (*ctlplane.Client, *config.Config, error) {
+	var client *ctlplane.Client
+	var err error
+
+	for i := 0; i < ctlRetryCount; i++ {
+		client, err = ctlplane.NewClient()
+		if err == nil {
+			break
+		}
+		if i%5 == 0 {
+			logging.Info(fmt.Sprintf("Waiting for control plane... (%v)", err))
+		}
+		time.Sleep(ctlRetryInterval)
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to connect to control plane after %ds: %w", ctlRetryCount, err)
+	}
+
+	// Verify connection
+	status, err := client.GetStatus()
+	if err != nil {
+		client.Close()
+		return nil, nil, fmt.Errorf("failed to get status from control plane: %w", err)
+	}
+	logging.Info(fmt.Sprintf("Connected to control plane (uptime: %s)", status.Uptime))
+
+	cfg, err := client.GetConfig()
+	if err != nil {
+		client.Close()
+		return nil, nil, fmt.Errorf("failed to get config from control plane: %w", err)
+	}
+
+	return client, cfg, nil
+}
+
+// resolveDropUser looks up the target user for privilege dropping.
+// Must be called before chroot (needs /etc/passwd).
+func resolveDropUser(username string) (uid, gid int, err error) {
+	if username == "" {
+		return 0, 0, nil
+	}
+	u, err := user.Lookup(username)
+	if err != nil {
+		return 0, 0, fmt.Errorf("user %s not found: %w", username, err)
+	}
+	uid, _ = strconv.Atoi(u.Uid)
+	gid, _ = strconv.Atoi(u.Gid)
+	return uid, gid, nil
+}
+
+// buildAntiLockoutInterfaces returns the list of interfaces that should bypass firewall rules.
+func buildAntiLockoutInterfaces(cfg *config.Config) []string {
+	interfaces := []string{"lo"}
+	seen := map[string]bool{"lo": true}
+
+	// From interface config
+	for _, iface := range cfg.Interfaces {
+		if iface.AccessWebUI && !iface.DisableAntiLockout && !seen[iface.Name] {
+			interfaces = append(interfaces, iface.Name)
+			seen[iface.Name] = true
+		}
+	}
+
+	// From zone config
+	if cfg.Zones != nil {
+		for _, zone := range cfg.Zones {
+			if zone.Management != nil && (zone.Management.WebUI || zone.Management.SSH) {
+				for _, ifaceName := range zone.Interfaces {
+					if seen[ifaceName] {
+						continue
+					}
+					disabled := false
+					for _, iface := range cfg.Interfaces {
+						if iface.Name == ifaceName && iface.DisableAntiLockout {
+							disabled = true
+							break
+						}
+					}
+					if !disabled {
+						interfaces = append(interfaces, ifaceName)
+						seen[ifaceName] = true
+					}
+				}
+			}
+		}
+	}
+	return interfaces
+}
+
+// acquireSingleInstanceLock attempts to acquire an exclusive lock to ensure single instance.
+// Returns the lock file descriptor (caller must keep it open) or an error.
+func acquireSingleInstanceLock(cfg *config.Config, sandboxEnabled bool) (int, error) {
+	lockFile := "/var/run/glacic_api.lock"
+	fd, err := syscall.Open(lockFile, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0600)
+	if err != nil {
+		return -1, fmt.Errorf("failed to open lock file %s: %w", lockFile, err)
+	}
+
+	var lockErr error
+	for i := 0; i < lockRetryCount; i++ {
+		lockErr = syscall.Flock(fd, syscall.LOCK_EX|syscall.LOCK_NB)
+		if lockErr == nil {
+			return fd, nil
+		}
+		if lockErr != syscall.EWOULDBLOCK && lockErr != syscall.EAGAIN {
+			syscall.Close(fd)
+			return -1, fmt.Errorf("lock error: %w", lockErr)
+		}
+		if i%5 == 0 {
+			fmt.Printf("Waiting for previous API instance to release lock... (%d/%d)\n", i, lockRetryCount)
+		}
+		time.Sleep(lockRetryInterval)
+	}
+
+	syscall.Close(fd)
+	return -1, &alreadyRunningError{cfg: cfg, sandboxEnabled: sandboxEnabled}
+}
+
+// checkInheritedListener checks for an inherited listener from socket handoff during upgrade.
+func checkInheritedListener() (net.Listener, *os.File) {
+	listenerFile := os.NewFile(listenerFD, "listener")
+	if l, err := net.FileListener(listenerFile); err == nil {
+		return l, listenerFile
+	}
+	return nil, nil
+}
+
+// RunAPI runs the unprivileged API server.
+// This process should run as a non-root user and communicates
+// with the control plane via RPC over Unix socket.
+func RunAPI(uiAssets embed.FS, listenAddr string, dropUser string) {
+	// Parse all configuration upfront
+	rtCfg := NewAPIRuntimeConfig(listenAddr, dropUser)
+
+	// Check for inherited listener (socket handoff during upgrade)
+	inheritedListener, listenerFile := checkInheritedListener()
+	if inheritedListener != nil {
+		if tcpAddr, ok := inheritedListener.Addr().(*net.TCPAddr); ok {
+			rtCfg.ListenAddr = fmt.Sprintf(":%d", tcpAddr.Port)
+		}
+	}
 
 	// Initialize structured logging
 	logCfg := logging.DefaultConfig()
@@ -94,329 +302,216 @@ func RunAPI(uiAssets embed.FS, listenAddr string, dropUser string) {
 	logger := logging.New(logCfg).WithComponent("API")
 	logging.SetDefault(logger)
 
-	// 2. Initialize dependencies (Host Side - for both Setup and Runtime)
-	// Connect to control plane (opens socket FD)
-	var client *ctlplane.Client
-	var err error
-
-	// Retry connection for up to 30 seconds
-	for i := 0; i < 30; i++ {
-		client, err = ctlplane.NewClient()
-		if err == nil {
-			break
-		}
-		if i%5 == 0 { // Log every 5 seconds
-			logging.Info(fmt.Sprintf("Waiting for control plane... (%v)", err))
-		}
-		time.Sleep(1 * time.Second)
-	}
-
+	// Connect to control plane
+	client, cfg, err := connectToControlPlane()
 	if err != nil {
-		logging.Error(fmt.Sprintf("Failed to connect to control plane after 30s: %v", err))
+		logging.Error(err.Error())
 		logging.Info("Make sure 'glacic ctl' is running first.")
 		os.Exit(1)
 	}
 	defer client.Close()
 
-	// Verify connection by getting status
-	status, err := client.GetStatus()
-	if err != nil {
-		logging.Error(fmt.Sprintf("Failed to get status from control plane: %v", err))
-		os.Exit(1)
-	}
-	logging.Info(fmt.Sprintf("Connected to control plane (uptime: %s)", status.Uptime))
+	// Determine sandbox state from config and environment
+	sandboxEnabled := !rtCfg.NoSandbox && (cfg.API == nil || !cfg.API.DisableSandbox)
+	isolated := runtime.GOOS == "linux" && isIsolated()
 
-	// Get config from control plane
-	cfg, err := client.GetConfig()
-	if err != nil {
-		logging.Error(fmt.Sprintf("Failed to get config from control plane: %v", err))
-		os.Exit(1)
-	}
-
-	// 0. Setup Network Namespace Isolation (Linux Root Only)
-	// Default to sandbox enabled unless explicitly disabled in config or env
-	sandboxEnabled := true
-	if cfg.API != nil && cfg.API.DisableSandbox {
-		sandboxEnabled = false
-	}
-	// Fallback for env var bypass (legacy/testing)
-	if noSandbox {
-		sandboxEnabled = false
-	}
-
-	// Capture isolation state early (before chroot might break it)
-	isolated := false
-	if runtime.GOOS == "linux" {
-		isolated = isIsolated()
-	}
-
-	// Single Instance Lock (Parent Only, before netns setup)
+	// Parent process: setup isolation and re-exec into namespace
 	if runtime.GOOS == "linux" && syscall.Geteuid() == 0 && sandboxEnabled && !isolated {
-		lockFile := "/var/run/glacic_api.lock"
-		// Use O_CLOEXEC to prevent inheritance by child processes (netns/ip)
-		fd, err := syscall.Open(lockFile, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0600)
-		if err != nil {
-			log.Printf("Failed to open lock file %s: %v", lockFile, err)
-			os.Exit(1)
-		}
-		// Try to acquire lock (Non-blocking) with retry
-		// During upgrade, the old process might still be shutting down.
-		// We give it 30 seconds to release the lock.
-		var flopErr error
-		for i := 0; i < 60; i++ {
-			flopErr = syscall.Flock(int(fd), syscall.LOCK_EX|syscall.LOCK_NB)
-			if flopErr == nil {
-				break
-			}
-			if flopErr != syscall.EWOULDBLOCK && flopErr != syscall.EAGAIN {
-				break // Fatal error
-			}
-			if i%5 == 0 { // Log every 2.5s roughly
-				// We use fmt here because logger might not be fully init or we want raw output
-				fmt.Printf("Waiting for previous API instance to release lock... (%d/60)\n", i)
-			}
-			// Wait and retry
-			time.Sleep(500 * time.Millisecond)
-		}
-
-		if flopErr != nil {
-			if flopErr == syscall.EWOULDBLOCK || flopErr == syscall.EAGAIN {
-				fmt.Println("Glacic API is already running.")
-
-				// Determine likely protocol/port based on config
-				protocol := "https"
-				port := "8443"
-				if !sandboxEnabled {
-					protocol = "http"
-					port = "8080"
-				}
-
-				logging.Info("Glacic API is already running.")
-				logging.Info(fmt.Sprintf("Web Interface: %s://<DEVICE_IP>:%s", protocol, port))
-				// Determine management IPs from config for convenience
-				for _, iface := range cfg.Interfaces {
-					if iface.AccessWebUI || iface.Zone == "management" || iface.Zone == "lan" {
-						if len(iface.IPv4) > 0 {
-							// Strip CIDR
-							ip := iface.IPv4[0]
-							/*
-							   Primitive strip CIDR (since we don't want to import net/ip just for this if possible,
-							   but we probably should to be safe. Actually we have strings.)
-							*/
-							for i, c := range ip {
-								if c == '/' {
-									ip = ip[:i]
-									break
-								}
-							}
-							logging.Info(fmt.Sprintf(" -> %s://%s:%s", protocol, ip, port))
-						}
-					}
-				}
-				os.Exit(1)
-			}
-			logging.Error(fmt.Sprintf("Failed to acquire lock on %s: %v", lockFile, err))
-			os.Exit(1)
-		}
-		// We hold the lock fd open. It will be closed (and lock released) when process exits.
-		// NOTE: During re-exec, file descriptors are inherited by default?
-		// We want the PARENT to hold it. The child (in netns) is a separate process.
-		// But wait, the parent waits for the child.
-		// So parent holding lock is correct.
-
-		logging.Info("Setting up network isolation namespace...")
-		if err := setupNetworkNamespace(); err != nil {
-			logging.Error(fmt.Sprintf("Failed to setup network namespace: %v", err))
-			os.Exit(1)
-		}
-
-		// Calculate allowed interfaces for Anti-Lockout
-		// Always include loopback
-		antiLockoutInterfaces := []string{"lo"}
-
-		// Add configured interfaces that have WebUI access enabled (directly or via Zone) and AntiLockout NOT disabled
-		// 1. Direct Interface Config
-		for _, iface := range cfg.Interfaces {
-			if iface.AccessWebUI && !iface.DisableAntiLockout {
-				antiLockoutInterfaces = append(antiLockoutInterfaces, iface.Name)
-			}
-		}
-
-		// 2. Zone Config (Management)
-		if cfg.Zones != nil {
-			for _, zone := range cfg.Zones {
-				// If management WebUI or SSH is enabled for the zone
-				// CHECK FOR NIL MANAGEMENT POINTER
-				if zone.Management != nil && (zone.Management.WebUI || zone.Management.SSH) {
-					for _, ifaceName := range zone.Interfaces {
-						// Check if interface explicitly disables protection
-						// We need to look up the interface config
-						disabled := false
-						for _, iface := range cfg.Interfaces {
-							if iface.Name == ifaceName && iface.DisableAntiLockout {
-								disabled = true
-								break
-							}
-						}
-						if !disabled {
-							// Append unique
-							exists := false
-							for _, existing := range antiLockoutInterfaces {
-								if existing == ifaceName {
-									exists = true
-									break
-								}
-							}
-							if !exists {
-								antiLockoutInterfaces = append(antiLockoutInterfaces, ifaceName)
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// Initialize PKI and Ensure Certs exist (Host Side to capture external IPs)
-		// This is critical so the certificate SANs include the external interfaces
-		certDir := filepath.Join(brand.GetStateDir(), "certs")
-		if err := os.MkdirAll(certDir, 0700); err == nil {
-			cm := pki.NewCertManager(certDir)
-			if err := cm.EnsureCert(); err != nil {
-				logging.Warn(fmt.Sprintf("Failed to generate certs on host: %v", err))
-			}
-		}
-
-		if err := configureHostFirewall(antiLockoutInterfaces); err != nil {
-			logging.Warn(fmt.Sprintf("Failed to configure host firewall: %v", err))
-		}
-
-		// Re-exec inside the namespace
-		self, err := os.Executable()
-		if err != nil {
-			logging.Error(fmt.Sprintf("Failed to get executable: %v", err))
-			os.Exit(1)
-		}
-
-		args := append([]string{"netns", "exec", brand.LowerName + "-api", self}, os.Args[1:]...)
-		cmd := exec.Command("ip", args...)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Env = os.Environ()
-
-		// Pass inherited listener failure to child if it exists
-		if inheritedListener != nil {
-			cmd.ExtraFiles = []*os.File{listenerFile}
-		}
-
-		logging.Info(fmt.Sprintf("Re-executing inside namespace %s-api...", brand.LowerName), "self", self)
-
-		if err := cmd.Start(); err != nil {
-			logging.Error(fmt.Sprintf("Failed to start re-exec: %v", err))
-			os.Exit(1)
-		}
-
-		// Forward signals to child
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-		go func() {
-			sig := <-sigCh
-			if cmd.Process != nil {
-				cmd.Process.Signal(sig)
-			}
-		}()
-
-		if err := cmd.Wait(); err != nil {
-			// This determines the exit code of the parent
-			if exitError, ok := err.(*exec.ExitError); ok {
-				os.Exit(exitError.ExitCode())
-			}
-			// Don't log error if it was a signal kill from us
-			logging.Error(fmt.Sprintf("Failed to re-exec: %v", err))
-			os.Exit(1)
-		}
-		// Parent exits successfully after child is done
-		os.Exit(0)
+		exitCode := runParentProcess(cfg, sandboxEnabled, inheritedListener, listenerFile)
+		os.Exit(exitCode)
 	}
 
-	// 1. Resolve user BEFORE chroot (needs /etc/passwd)
-	var uid, gid int
-	if dropUser != "" {
-		u, err := user.Lookup(dropUser)
-		if err != nil {
-			logging.Error(fmt.Sprintf("Error: user %s not found: %v", dropUser, err))
-			os.Exit(1)
+	// Child process (or dev mode): run the actual server
+	if err := runServerProcess(rtCfg, cfg, client, uiAssets, sandboxEnabled, isolated, inheritedListener); err != nil {
+		logging.Error(err.Error())
+		os.Exit(1)
+	}
+}
+
+// runParentProcess handles namespace setup and re-execution into the isolated namespace.
+// Returns the exit code to use.
+func runParentProcess(cfg *config.Config, sandboxEnabled bool, inheritedListener net.Listener, listenerFile *os.File) int {
+	// Acquire single instance lock
+	_, err := acquireSingleInstanceLock(cfg, sandboxEnabled)
+	if err != nil {
+		var alreadyRunning *alreadyRunningError
+		if errors.As(err, &alreadyRunning) {
+			alreadyRunning.LogAccessURLs()
+			return 1
 		}
-		uid, _ = strconv.Atoi(u.Uid)
-		gid, _ = strconv.Atoi(u.Gid)
+		logging.Error(err.Error())
+		return 1
+	}
+	// Lock fd is intentionally kept open - will be closed when parent exits
+
+	// Setup network namespace
+	logging.Info("Setting up network isolation namespace...")
+	if err := setupNetworkNamespace(); err != nil {
+		logging.Error(fmt.Sprintf("Failed to setup network namespace: %v", err))
+		return 1
 	}
 
-	// Ensure auth directory exists with proper permissions BEFORE chroot/drop
+	// Initialize PKI (host side - captures external IPs for SANs)
+	certDir := filepath.Join(brand.GetStateDir(), "certs")
+	if err := os.MkdirAll(certDir, 0700); err == nil {
+		cm := pki.NewCertManager(certDir)
+		if err := cm.EnsureCert(); err != nil {
+			logging.Warn(fmt.Sprintf("Failed to generate certs on host: %v", err))
+		}
+	}
+
+	// Configure anti-lockout firewall rules
+	antiLockoutInterfaces := buildAntiLockoutInterfaces(cfg)
+	if err := configureHostFirewall(antiLockoutInterfaces); err != nil {
+		logging.Warn(fmt.Sprintf("Failed to configure host firewall: %v", err))
+	}
+
+	// Re-exec inside the namespace
+	return reexecInNamespace(inheritedListener, listenerFile)
+}
+
+// reexecInNamespace re-executes the current binary inside the isolated network namespace.
+func reexecInNamespace(inheritedListener net.Listener, listenerFile *os.File) int {
+	self, err := os.Executable()
+	if err != nil {
+		logging.Error(fmt.Sprintf("Failed to get executable: %v", err))
+		return 1
+	}
+
+	args := append([]string{"netns", "exec", brand.LowerName + "-api", self}, os.Args[1:]...)
+	cmd := exec.Command("ip", args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ()
+
+	// Pass inherited listener to child if it exists
+	if inheritedListener != nil {
+		cmd.ExtraFiles = []*os.File{listenerFile}
+	}
+
+	logging.Info(fmt.Sprintf("Re-executing inside namespace %s-api...", brand.LowerName), "self", self)
+
+	if err := cmd.Start(); err != nil {
+		logging.Error(fmt.Sprintf("Failed to start re-exec: %v", err))
+		return 1
+	}
+
+	// Forward signals to child
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		sig := <-sigCh
+		if cmd.Process != nil {
+			cmd.Process.Signal(sig)
+		}
+	}()
+
+	if err := cmd.Wait(); err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return exitError.ExitCode()
+		}
+		logging.Error(fmt.Sprintf("Failed to re-exec: %v", err))
+		return 1
+	}
+	return 0
+}
+
+// runServerProcess runs the actual HTTP server (inside namespace or dev mode).
+func runServerProcess(
+	rtCfg *APIRuntimeConfig,
+	cfg *config.Config,
+	client *ctlplane.Client,
+	uiAssets embed.FS,
+	sandboxEnabled bool,
+	isolated bool,
+	inheritedListener net.Listener,
+) error {
+	// Resolve user for privilege dropping (must be before chroot)
+	uid, gid, err := resolveDropUser(rtCfg.DropUser)
+	if err != nil {
+		return err
+	}
+
+	// Ensure auth directory exists with proper permissions
 	authDir := brand.GetStateDir()
 	if err := os.MkdirAll(authDir, 0755); err != nil {
 		logging.Warn(fmt.Sprintf("Warning: failed to create auth directory: %v", err))
 	}
 
-	// Change ownership of auth directory to drop user
-	if dropUser != "" {
-		os.Chown(authDir, uid, gid)
-		os.Chown(filepath.Join(authDir, "auth.json"), uid, gid)
-
-		// Also fix certs dir permissions since Parent created it as root
-		certsDir := filepath.Join(authDir, "certs")
-		os.Chown(certsDir, uid, gid)
-		filepath.Walk(certsDir, func(path string, info fs.FileInfo, err error) error {
-			if err == nil {
-				os.Chown(path, uid, gid)
-			}
-			return nil
-		})
+	// Fix ownership of auth directory for drop user
+	if rtCfg.DropUser != "" {
+		fixAuthDirOwnership(authDir, uid, gid)
 	}
 
-	// 2. Initialize dependencies (Inside NS or Dev Mode)
-
-	// Initialize auth store (loads from host path)
-	authStore, err := auth.NewStore("")
-	if err != nil {
-		logging.Warn(fmt.Sprintf("Warning: auth not available: %v", err))
-	}
-
-	// Client is already initialized at start of function
-	// But if we re-execed, we are in a new process, so we need to init again?
-	// WAIT: If we re-execed, the parent exited.
-	// So we ARE the child process here (or dev mode).
-	// The child process starts from main() -> RunAPI().
-	// So the code at the top of RunAPI runs AGAIN in the child.
-	// So "client" is valid here too.
-
-	// 3. Setup and Enter Chroot (Only if running as root AND sandbox enabled)
+	// Setup and enter chroot (only if root and sandbox enabled)
 	if syscall.Geteuid() == 0 && sandboxEnabled {
 		jailPath := "/run/" + brand.LowerName + "-api-jail"
 		if err := setupChroot(jailPath); err != nil {
-			logging.Error(fmt.Sprintf("Failed to setup chroot: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to setup chroot: %w", err)
 		}
-
 		logging.Info(fmt.Sprintf("Entering chroot jail at %s", jailPath))
 		if err := enterChroot(jailPath); err != nil {
-			logging.Error(fmt.Sprintf("Failed to enter chroot: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to enter chroot: %w", err)
 		}
 	} else {
 		logging.Warn("Warning: Not running as root or sandbox disabled, chroot sandbox disabled")
 	}
 
-	// 4. Drop Privileges (Inside Chroot)
-	if dropUser != "" {
+	// Drop privileges
+	if rtCfg.DropUser != "" {
 		if err := applyPrivileges(uid, gid); err != nil {
 			logging.Warn(fmt.Sprintf("Warning: failed to drop privileges: %v", err))
 		} else {
-			logging.Info(fmt.Sprintf("Dropped privileges to user %s (uid=%d, gid=%d)", dropUser, uid, gid))
+			logging.Info(fmt.Sprintf("Dropped privileges to user %s (uid=%d, gid=%d)", rtCfg.DropUser, uid, gid))
 		}
 	}
 
-	// Start API server with auth
-	logging.Info(fmt.Sprintf("Starting API server on %s", listenAddr))
+	// Initialize auth store
+	authStore, err := auth.NewStore("")
+	if err != nil {
+		logging.Warn(fmt.Sprintf("Warning: auth not available: %v", err))
+	}
+
+	// Initialize API server
+	apiServer, err := initializeAPIServer(rtCfg, cfg, client, uiAssets, authStore, authDir)
+	if err != nil {
+		return err
+	}
+
+	// Setup TLS
+	certFile, keyFile, useTLS := setupTLS(rtCfg, cfg, isolated)
+
+	// Start HTTP server
+	return startHTTPServer(rtCfg, cfg, apiServer, certFile, keyFile, useTLS, inheritedListener)
+}
+
+// fixAuthDirOwnership changes ownership of auth directory and its contents.
+func fixAuthDirOwnership(authDir string, uid, gid int) {
+	os.Chown(authDir, uid, gid)
+	os.Chown(filepath.Join(authDir, "auth.json"), uid, gid)
+
+	certsDir := filepath.Join(authDir, "certs")
+	os.Chown(certsDir, uid, gid)
+	filepath.Walk(certsDir, func(path string, info fs.FileInfo, err error) error {
+		if err == nil {
+			os.Chown(path, uid, gid)
+		}
+		return nil
+	})
+}
+
+// initializeAPIServer creates and configures the API server instance.
+func initializeAPIServer(
+	rtCfg *APIRuntimeConfig,
+	cfg *config.Config,
+	client *ctlplane.Client,
+	uiAssets embed.FS,
+	authStore *auth.Store,
+	authDir string,
+) (*api.Server, error) {
+	// Log auth store status
+	logging.Info(fmt.Sprintf("Starting API server on %s", rtCfg.ListenAddr))
 	if authStore != nil {
 		users := authStore.ListUsers()
 		logging.Info(fmt.Sprintf("Auth Store Path: %s, Users found: %d", filepath.Join(authDir, "auth.json"), len(users)))
@@ -425,122 +520,102 @@ func RunAPI(uiAssets embed.FS, listenAddr string, dropUser string) {
 		}
 	}
 
-	var apiServer *api.Server
-	requireAuth := true
-	if cfg.API != nil && !cfg.API.RequireAuth {
-		requireAuth = false
-	}
+	// Determine auth requirement
+	requireAuth := cfg.API == nil || cfg.API.RequireAuth
 
+	// Load UI assets
 	var assets fs.FS
-
-	if localDist := os.Getenv("GLACIC_UI_DIST"); localDist != "" {
-		logging.Info(fmt.Sprintf("Using local UI assets from %s", localDist))
-		assets = os.DirFS(localDist)
+	if rtCfg.LocalUIDistDir != "" {
+		logging.Info(fmt.Sprintf("Using local UI assets from %s", rtCfg.LocalUIDistDir))
+		assets = os.DirFS(rtCfg.LocalUIDistDir)
 	} else {
+		var err error
 		assets, err = fs.Sub(uiAssets, "ui/dist")
 		if err != nil {
 			logging.Warn(fmt.Sprintf("Warning: failed to load UI assets (ui/dist not found?): %v", err))
-			// Continue without assets (UI will be disabled)
 			assets = nil
 		}
 	}
 
-	if requireAuth {
-		if authStore != nil && authStore.HasUsers() {
-			logging.Info("Authentication enabled")
-		} else {
-			logging.Info("No users configured - running in setup mode")
-		}
-
-		// Initialize API Key Manager - ALWAYS when auth is required
-		// Even if cfg.API is nil, we need the manager for CLI-generated keys
-		var apiKeyManager *api.APIKeyManager
-		{
-			// API Key Persistence
-			// Use SQLite backed store as requested
-			dbPath := filepath.Join(authDir, "api_state.db")
-
-			// Initialize state store
-			stateOpts := state.DefaultOptions(dbPath)
-			stateStore, err := state.NewSQLiteStore(stateOpts)
-			if err != nil {
-				logging.Warn(fmt.Sprintf("Warning: failed to initialize persistent state store for API keys: %v (falling back to memory)", err))
-				// Fallback? If state fails, we probably can't persist.
-			}
-
-			var store storage.APIKeyStore
-			if stateStore != nil {
-				persistentStore, err := storage.NewStateAPIKeyStore(stateStore)
-				if err != nil {
-					logging.Warn(fmt.Sprintf("Warning: failed to create persistent key store: %v", err))
-				} else {
-					store = persistentStore
-					logging.Info(fmt.Sprintf("Initialized persistent API key store at %s", dbPath))
-				}
-			}
-
-			if store == nil {
-				// Fallback to memory if everything failed
-				store = storage.NewMemoryAPIKeyStore()
-			}
-
-			apiKeyManager = api.NewAPIKeyManager(store)
-
-			// Load keys from config (if api{} block exists)
-			if cfg.API != nil {
-				for _, k := range cfg.API.Keys {
-					perms := make([]storage.Permission, len(k.Permissions))
-					for i, p := range k.Permissions {
-						perms[i] = storage.Permission(p)
-					}
-
-					// Import key
-					// Note: PersistentAPIKeyStore handles duplicates cleanly
-					if err := apiKeyManager.ImportKey(k.Name, k.Key, perms,
-						api.WithAllowedIPs(k.AllowedIPs),
-						api.WithAllowedPaths(k.AllowedPaths),
-						api.WithRateLimit(k.RateLimit),
-						api.WithDescription(k.Description),
-					); err != nil {
-						// We don't error on duplicates since config is applied on every start
-						// But we should log real errors
-						// fmt.Printf("Warning: failed to import key %s: %v\n", k.Name, err)
-					} else {
-						logging.Info(fmt.Sprintf("Loaded API key from config: %s", k.Name))
-					}
-				}
-			}
-		}
-
-		apiServer, err = api.NewServer(api.ServerOptions{
-			Config:        cfg,
-			Assets:        assets,
-			Client:        client,
-			AuthStore:     authStore,
-			APIKeyManager: apiKeyManager,
-		})
-	} else {
+	if !requireAuth {
 		logging.Info("Authentication disabled by configuration")
-		apiServer, err = api.NewServer(api.ServerOptions{
+		return api.NewServer(api.ServerOptions{
 			Config: cfg,
 			Assets: assets,
 			Client: client,
 		})
 	}
 
-	if err != nil {
-		logging.Error(fmt.Sprintf("Failed to initialize API server: %v", err))
-		os.Exit(1)
+	// Auth required path
+	if authStore != nil && authStore.HasUsers() {
+		logging.Info("Authentication enabled")
+	} else {
+		logging.Info("No users configured - running in setup mode")
 	}
 
-	// 4. Initialize PKI and Ensure Certs exist (only if using HTTPS)
-	// Priority:
-	// 1. Explicit Config in HCL (API.TLSCert/Key) -> Use specified paths
-	// 2. Default/Isolated Mode -> Use global state dir paths
+	// Initialize API Key Manager
+	apiKeyManager := initializeAPIKeyManager(cfg, authDir)
 
-	var certFile, keyFile string
-	useTLS := false
+	return api.NewServer(api.ServerOptions{
+		Config:        cfg,
+		Assets:        assets,
+		Client:        client,
+		AuthStore:     authStore,
+		APIKeyManager: apiKeyManager,
+	})
+}
 
+// initializeAPIKeyManager creates and populates the API key manager.
+func initializeAPIKeyManager(cfg *config.Config, authDir string) *api.APIKeyManager {
+	dbPath := filepath.Join(authDir, "api_state.db")
+
+	stateOpts := state.DefaultOptions(dbPath)
+	stateStore, err := state.NewSQLiteStore(stateOpts)
+	if err != nil {
+		logging.Warn(fmt.Sprintf("Warning: failed to initialize persistent state store for API keys: %v (falling back to memory)", err))
+	}
+
+	var store storage.APIKeyStore
+	if stateStore != nil {
+		persistentStore, err := storage.NewStateAPIKeyStore(stateStore)
+		if err != nil {
+			logging.Warn(fmt.Sprintf("Warning: failed to create persistent key store: %v", err))
+		} else {
+			store = persistentStore
+			logging.Info(fmt.Sprintf("Initialized persistent API key store at %s", dbPath))
+		}
+	}
+
+	if store == nil {
+		store = storage.NewMemoryAPIKeyStore()
+	}
+
+	apiKeyManager := api.NewAPIKeyManager(store)
+
+	// Load keys from config
+	if cfg.API != nil {
+		for _, k := range cfg.API.Keys {
+			perms := make([]storage.Permission, len(k.Permissions))
+			for i, p := range k.Permissions {
+				perms[i] = storage.Permission(p)
+			}
+
+			if err := apiKeyManager.ImportKey(k.Name, k.Key, perms,
+				api.WithAllowedIPs(k.AllowedIPs),
+				api.WithAllowedPaths(k.AllowedPaths),
+				api.WithRateLimit(k.RateLimit),
+				api.WithDescription(k.Description),
+			); err == nil {
+				logging.Info(fmt.Sprintf("Loaded API key from config: %s", k.Name))
+			}
+		}
+	}
+
+	return apiKeyManager
+}
+
+// setupTLS determines TLS configuration and ensures certificates exist.
+func setupTLS(rtCfg *APIRuntimeConfig, cfg *config.Config, isolated bool) (certFile, keyFile string, useTLS bool) {
 	// Check HCL Config first
 	if cfg.API != nil && cfg.API.TLSCert != "" && cfg.API.TLSKey != "" {
 		useTLS = true
@@ -548,55 +623,54 @@ func RunAPI(uiAssets embed.FS, listenAddr string, dropUser string) {
 		keyFile = cfg.API.TLSKey
 		logging.Info(fmt.Sprintf("Using configured TLS certificate: %s", certFile))
 
-		// Ensure they exist (Autogen if missing)
 		if _, err := tls.EnsureCertificate(certFile, keyFile, 365); err != nil {
 			logging.Error(fmt.Sprintf("failed to ensure configured TLS certificates: %v", err))
 			os.Exit(1)
 		}
-	} else {
-		// Fallback to default behavior (Isolated or Forced)
-		// Default: Only in isolated mode (production).
-		// Overrides: GLACIC_FORCE_TLS=1 forces TLS in dev/no-sandbox.
-		if (isolated && !noSandbox) || os.Getenv("GLACIC_FORCE_TLS") != "" {
-			useTLS = true
-			certDir := filepath.Join(brand.GetStateDir(), "certs")
-			if err := os.MkdirAll(certDir, 0700); err != nil {
-				logging.Error(fmt.Sprintf("failed to create cert dir: %v", err))
-				os.Exit(1)
-			}
-			
-			certFile = filepath.Join(certDir, "cert.pem")
-			keyFile = filepath.Join(certDir, "key.pem")
+		return
+	}
 
-			// Use PKI manager for default certs (better IP discovery)
-			cm := pki.NewCertManager(certDir)
-			if err := cm.EnsureCert(); err != nil {
-				logging.Error(fmt.Sprintf("failed to ensure TLS certificates: %v", err))
-				os.Exit(1)
-			}
-			// Start Auto-Renew (Daily check)
-			cm.StartAutoRenew(context.Background(), 24*time.Hour)
+	// Fallback to default behavior
+	if (isolated && !rtCfg.NoSandbox) || rtCfg.ForceTLS {
+		useTLS = true
+		certDir := filepath.Join(brand.GetStateDir(), "certs")
+		if err := os.MkdirAll(certDir, 0700); err != nil {
+			logging.Error(fmt.Sprintf("failed to create cert dir: %v", err))
+			os.Exit(1)
 		}
-	}
 
-	// 5. Start API Server
-	// HTTPS (8443) if TLS enabled, otherwise HTTP (8080)
-	// Allow config override for listen address? 
-	// cfg.API.Listen takes precedence if set?
-	// Existing code didn't use cfg.API.Listen. 
-	// We should probably respect it if possible, but the requirement was about TLS.
-	// Let's stick to the generated address logic but switch port based on TLS.
-	
-	serverListenAddr := "0.0.0.0:8443"
-	if !useTLS {
-		serverListenAddr = "0.0.0.0:8080"
+		certFile = filepath.Join(certDir, "cert.pem")
+		keyFile = filepath.Join(certDir, "key.pem")
+
+		cm := pki.NewCertManager(certDir)
+		if err := cm.EnsureCert(); err != nil {
+			logging.Error(fmt.Sprintf("failed to ensure TLS certificates: %v", err))
+			os.Exit(1)
+		}
+		cm.StartAutoRenew(context.Background(), 24*time.Hour)
 	}
-	// If config has listen addr, use it?
+	return
+}
+
+// startHTTPServer starts the HTTP/HTTPS server and blocks until shutdown.
+func startHTTPServer(
+	rtCfg *APIRuntimeConfig,
+	cfg *config.Config,
+	apiServer *api.Server,
+	certFile, keyFile string,
+	useTLS bool,
+	inheritedListener net.Listener,
+) error {
+	// Determine listen address
+	serverListenAddr := "0.0.0.0:" + httpsPort
+	if !useTLS {
+		serverListenAddr = "0.0.0.0:" + httpPort
+	}
 	if cfg.API != nil && cfg.API.Listen != "" {
 		serverListenAddr = cfg.API.Listen
 	}
 
-	// Use secure default configuration (Timeouts)
+	// Create server with secure defaults
 	serverConfig := api.DefaultServerConfig()
 	srv := &http.Server{
 		Addr:              serverListenAddr,
@@ -609,65 +683,10 @@ func RunAPI(uiAssets embed.FS, listenAddr string, dropUser string) {
 		ErrorLog:          newTLSFilteredLogger(),
 	}
 
+	// Start server in goroutine
 	go func() {
 		if useTLS {
-			logging.Info(fmt.Sprintf("Starting API server on %s (HTTPS)", serverListenAddr))
-
-			if inheritedListener != nil {
-				logging.Info("Resuming operation on inherited socket")
-				go func() {
-					if err := srv.ServeTLS(inheritedListener, certFile, keyFile); err != nil && err != http.ErrServerClosed {
-						logging.Error(fmt.Sprintf("API server failed: %v", err))
-						os.Exit(1)
-					}
-				}()
-			} else {
-				go func() {
-					if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
-						logging.Error(fmt.Sprintf("API server failed: %v", err))
-						os.Exit(1)
-					}
-				}()
-			}
-
-			// Start HTTP -> HTTPS Redirect Server on port 8080
-			// Only if we are not listening on 8080 already
-			if !strings.HasSuffix(serverListenAddr, ":8080") {
-				// DNAT rules forward host:8080 -> ns:8080, so we need to listen here.
-				logging.Info("Starting HTTP redirect server on :8080")
-				go func() {
-					redirectSrv := &http.Server{
-						Addr:              ":8080",
-						ReadHeaderTimeout: 5 * time.Second,
-						ReadTimeout:       5 * time.Second,
-						WriteTimeout:      5 * time.Second,
-						Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-							// Redirect to same host but https port 8443 (or whatever configured)
-							// If we configured a custom port, we assume 8443 unless we parse serverListenAddr
-							targetPort := "8443"
-							if _, p, err := net.SplitHostPort(serverListenAddr); err == nil {
-								targetPort = p
-							}
-
-							target := "https://" + r.Host
-							if host, _, err := net.SplitHostPort(r.Host); err == nil {
-								target = "https://" + host
-							}
-							
-							// Reconstruct URL
-							target = target + ":" + targetPort + r.URL.Path
-							if r.URL.RawQuery != "" {
-								target += "?" + r.URL.RawQuery
-							}
-
-							http.Redirect(w, r, target, http.StatusMovedPermanently)
-						}),
-					}
-					if err := redirectSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-						logging.Warn(fmt.Sprintf("HTTP redirect server failed: %v", err))
-					}
-				}()
-			}
+			startTLSServer(srv, serverListenAddr, certFile, keyFile, inheritedListener)
 		} else {
 			logging.Info(fmt.Sprintf("Dev Mode: Starting API server on %s (HTTP)", serverListenAddr))
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -677,7 +696,7 @@ func RunAPI(uiAssets embed.FS, listenAddr string, dropUser string) {
 		}
 	}()
 
-	// Wait for signal
+	// Wait for shutdown signal
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
@@ -685,11 +704,67 @@ func RunAPI(uiAssets embed.FS, listenAddr string, dropUser string) {
 	logging.Info("Shutting down API server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		logging.Error(fmt.Sprintf("API server shutdown failed: %v", err))
-		os.Exit(1)
+	return srv.Shutdown(ctx)
+}
+
+// startTLSServer starts the HTTPS server with optional HTTP redirect.
+func startTLSServer(srv *http.Server, serverListenAddr, certFile, keyFile string, inheritedListener net.Listener) {
+	logging.Info(fmt.Sprintf("Starting API server on %s (HTTPS)", serverListenAddr))
+
+	if inheritedListener != nil {
+		logging.Info("Resuming operation on inherited socket")
+		go func() {
+			if err := srv.ServeTLS(inheritedListener, certFile, keyFile); err != nil && err != http.ErrServerClosed {
+				logging.Error(fmt.Sprintf("API server failed: %v", err))
+				os.Exit(1)
+			}
+		}()
+	} else {
+		go func() {
+			if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+				logging.Error(fmt.Sprintf("API server failed: %v", err))
+				os.Exit(1)
+			}
+		}()
 	}
-} // This is the closing brace for the RunAPI function.
+
+	// Start HTTP -> HTTPS redirect server if not listening on 8080
+	if !strings.HasSuffix(serverListenAddr, ":"+httpPort) {
+		logging.Info("Starting HTTP redirect server on :" + httpPort)
+		go startHTTPRedirectServer(serverListenAddr)
+	}
+}
+
+// startHTTPRedirectServer starts a server that redirects HTTP to HTTPS.
+func startHTTPRedirectServer(httpsAddr string) {
+	redirectSrv := &http.Server{
+		Addr:              ":" + httpPort,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			targetPort := httpsPort
+			if _, p, err := net.SplitHostPort(httpsAddr); err == nil {
+				targetPort = p
+			}
+
+			target := "https://" + r.Host
+			if host, _, err := net.SplitHostPort(r.Host); err == nil {
+				target = "https://" + host
+			}
+
+			target = target + ":" + targetPort + r.URL.Path
+			if r.URL.RawQuery != "" {
+				target += "?" + r.URL.RawQuery
+			}
+
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
+		}),
+	}
+	if err := redirectSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logging.Warn(fmt.Sprintf("HTTP redirect server failed: %v", err))
+	}
+}
 
 // applyPrivileges drops root privileges to the specified uid/gid
 func applyPrivileges(uid, gid int) error {

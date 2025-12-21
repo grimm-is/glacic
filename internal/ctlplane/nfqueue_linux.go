@@ -9,7 +9,6 @@ import (
 	"log"
 	"net"
 	"sync"
-	"time"
 
 	"grimm.is/glacic/internal/clock"
 
