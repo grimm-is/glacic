@@ -656,8 +656,26 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 
 	// Add final drop rules (already in chain policy, but explicit for logging)
 	// Add final drop rules with rate-limited logging to prevent "Log Spam Death Spiral"
-	sb.AddRule("input", "limit rate 10/minute burst 5 packets log group 0 prefix \"DROP_INPUT: \" counter drop")
-	sb.AddRule("forward", "limit rate 10/minute burst 5 packets log group 0 prefix \"DROP_FWD: \" counter drop")
+	//
+	// When inline learning mode is enabled, we use nfqueue instead of drop.
+	// This holds packets until the learning engine returns a verdict, fixing the
+	// "first packet" problem where the first packet of a new flow would be dropped
+	// before the allow rule could be added.
+	if cfg.RuleLearning != nil && cfg.RuleLearning.Enabled && cfg.RuleLearning.InlineMode {
+		// Use nfqueue for inline mode
+		// 'bypass' flag = accept if queue full (fail-open)
+		queueGroup := cfg.RuleLearning.LogGroup
+		if queueGroup == 0 {
+			queueGroup = 100
+		}
+		sb.AddRule("input", fmt.Sprintf("queue num %d bypass", queueGroup))
+		sb.AddRule("forward", fmt.Sprintf("queue num %d bypass", queueGroup))
+	} else {
+		// Standard async mode with nflog
+		sb.AddRule("input", "limit rate 10/minute burst 5 packets log group 0 prefix \"DROP_INPUT: \" counter drop")
+		sb.AddRule("forward", "limit rate 10/minute burst 5 packets log group 0 prefix \"DROP_FWD: \" counter drop")
+	}
+
 
 	return sb, nil
 }

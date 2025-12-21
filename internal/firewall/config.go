@@ -20,6 +20,7 @@ type Config struct {
 	MSSClamping       bool
 	MarkRules         []config.MarkRule
 	UIDRouting        []config.UIDRouting
+	RuleLearning      *config.RuleLearningConfig // For inline mode nfqueue support
 }
 
 // FromGlobalConfig extracts the firewall configuration from the global config.
@@ -48,5 +49,6 @@ func FromGlobalConfig(g *config.Config) *Config {
 		MSSClamping:       g.MSSClamping,
 		MarkRules:         g.MarkRules,
 		UIDRouting:        g.UIDRouting,
+		RuleLearning:      g.RuleLearning,
 	}
 }

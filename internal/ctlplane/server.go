@@ -43,6 +43,7 @@ type Server struct {
 	backupManager *config.BackupManager // For versioned backups
 	nflogReader   LogReader             // For netfilter log capture (interface)
 	sniReader     LogReader             // For SNI log capture (Group 100)
+	nfqueueReader *NFQueueReader        // For inline packet inspection (learning mode)
 	scheduler     *scheduler.Scheduler  // For scheduled tasks
 	listener      net.Listener          // The RPC listener (for upgrade handoff)
 
@@ -193,6 +194,64 @@ func (s *Server) SubscribeNFLog() <-chan NFLogEntry {
 func (s *Server) SetLearningService(svc *learning.Service) {
 	s.learningService = svc
 
+	// Check if inline mode is enabled (uses nfqueue instead of nflog)
+	if s.config != nil && s.config.RuleLearning != nil && s.config.RuleLearning.InlineMode {
+		s.startInlineLearning(svc)
+		return
+	}
+
+	// Default: async mode using nflog
+	s.startAsyncLearning(svc)
+}
+
+// startInlineLearning uses nfqueue for synchronous packet inspection.
+// This fixes the "first packet" problem by holding packets until a verdict is returned.
+func (s *Server) startInlineLearning(svc *learning.Service) {
+	group := uint16(100) // Default group
+	if s.config.RuleLearning.LogGroup > 0 {
+		group = uint16(s.config.RuleLearning.LogGroup)
+	}
+
+	s.nfqueueReader = NewNFQueueReader(group)
+	s.nfqueueReader.SetVerdictFunc(func(entry NFLogEntry) bool {
+		// Convert NFLogEntry to PacketInfo
+		pkt := learning.PacketInfo{
+			SrcMAC:    entry.SrcMAC,
+			SrcIP:     entry.SrcIP,
+			DstIP:     entry.DstIP,
+			DstPort:   int(entry.DstPort),
+			Protocol:  entry.Protocol,
+			Interface: entry.InDevName,
+		}
+		if pkt.SrcMAC == "" {
+			pkt.SrcMAC = entry.HwAddr
+		}
+		if pkt.Interface == "" {
+			pkt.Interface = entry.InDev
+		}
+
+		// Get verdict from learning engine synchronously
+		verdict, err := svc.Engine().ProcessPacket(&pkt)
+		if err != nil {
+			log.Printf("[CTL] NFQueue verdict error: %v (accepting packet)", err)
+			return true // Fail-open: accept on error
+		}
+		return verdict
+	})
+
+	if err := s.nfqueueReader.Start(); err != nil {
+		log.Printf("[CTL] Warning: failed to start nfqueue reader: %v", err)
+		log.Printf("[CTL] Falling back to async nflog mode")
+		s.startAsyncLearning(svc)
+		return
+	}
+
+	log.Printf("[CTL] Learning service started in INLINE mode (nfqueue group %d)", group)
+}
+
+// startAsyncLearning uses nflog for async packet logging (original behavior).
+// The first packet of a new flow may be dropped before the allow rule is added.
+func (s *Server) startAsyncLearning(svc *learning.Service) {
 	bridge := func(reader LogReader) {
 		if reader == nil {
 			return
@@ -234,6 +293,8 @@ func (s *Server) SetLearningService(svc *learning.Service) {
 	go bridge(s.nflogReader)
 	// Group 100 (Learning/SNI)
 	go bridge(s.sniReader)
+
+	log.Printf("[CTL] Learning service started in ASYNC mode (nflog)")
 }
 
 // SetLearningEngine injects the learning engine and starts SNI forwarding
@@ -383,6 +444,10 @@ func (s *Server) Upgrade(args *UpgradeArgs, reply *UpgradeReply) error {
 	if s.sniReader != nil {
 		log.Printf("[CTL] Releasing SNI reader for upgrade...")
 		s.sniReader.Stop()
+	}
+	if s.nfqueueReader != nil {
+		log.Printf("[CTL] Releasing NFQUEUE reader for upgrade...")
+		s.nfqueueReader.Stop()
 	}
 
 	log.Printf("[CTL] Upgrade negotiation complete. Scheduled exit.")

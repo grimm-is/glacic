@@ -379,6 +379,13 @@ type RuleLearningConfig struct {
 	// TOFU (Trust On First Use) mode
 	LearningMode bool `hcl:"learning_mode,optional" json:"learning_mode"`
 
+	// InlineMode uses nfqueue instead of nflog for packet inspection.
+	// This holds packets until a verdict is returned, fixing the "first packet" problem
+	// where the first packet of a new flow would be dropped before an allow rule is added.
+	// Trade-off: Adds latency (~microseconds) and requires the engine to be running.
+	// Recommended: Enable only during initial learning phase, disable after flows are learned.
+	InlineMode bool `hcl:"inline_mode,optional" json:"inline_mode"`
+
 	// NOTE: DNS visibility is now configured via dns { inspect "[zone]" { mode = "passive" } }
 }
 

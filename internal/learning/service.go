@@ -155,6 +155,13 @@ func (s *Service) IsRunning() bool {
 	return s.running
 }
 
+// Engine returns the underlying learning engine.
+// This is used for inline mode (nfqueue) where the control plane needs
+// to call ProcessPacket synchronously to return verdicts.
+func (s *Service) Engine() *Engine {
+	return s.engine
+}
+
 // GetPendingRules returns all pending rules
 func (s *Service) GetPendingRules(status string) ([]*PendingRule, error) {
 	if s.engine == nil {
