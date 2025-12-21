@@ -40,7 +40,7 @@ EOF
 
 # Start Control Plane
 log "Starting Control Plane..."
-$APP_BIN ctl "$CONFIG_FILE" > /tmp/ctl_crud.log 2>&1 &
+GLACIC_LOG_FILE=stdout $APP_BIN ctl "$CONFIG_FILE" > /tmp/ctl_crud.log 2>&1 &
 CTL_PID=$!
 track_pid $CTL_PID
 
@@ -156,6 +156,92 @@ if command -v curl >/dev/null 2>&1; then
 else
     fail "curl required"
 fi
+
+# Test 5: Update DNS Config
+log "Testing UpdateDNS (Minimal)..."
+DATA='{
+  "dns_server": {
+    "mode": "forward",
+    "listen_on": ["127.0.0.1"],
+    "enabled": true,
+    "forwarders": ["8.8.8.8"]
+  }
+}'
+RESULT=$(api_post "/config/dns" "$DATA")
+CODE=$(echo "$RESULT" | awk '{print $1}')
+if [ "$CODE" = "200" ]; then
+    pass "UpdateDNS returned 200"
+else
+    fail "UpdateDNS failed: $RESULT"
+fi
+
+# Test 6: Update IPSets
+log "Testing UpdateIPSets..."
+DATA='[
+  {
+    "name": "blacklist",
+    "type": "ipv4_addr",
+    "entries": ["1.2.3.4", "5.6.7.8"]
+  }
+]'
+RESULT=$(api_post "/config/ipsets" "$DATA")
+CODE=$(echo "$RESULT" | awk '{print $1}')
+if [ "$CODE" = "200" ]; then
+    pass "UpdateIPSets returned 200"
+else
+    fail "UpdateIPSets failed: $RESULT"
+fi
+
+# Step 7: Apply Changes (Push Staged Config to Control Plane)
+log "Applying Configuration (Second Pass)..."
+sleep 2
+RESULT=$(api_post "/config/apply" "{}")
+CODE=$(echo "$RESULT" | awk '{print $1}')
+if [ "$CODE" = "200" ]; then
+    pass "ApplyConfig (2) returned 200"
+else
+    fail "ApplyConfig (2) failed: $RESULT"
+fi
+
+# Test 8: Verify DNS persistence via GET
+log "Verifying DNS..."
+if command -v curl >/dev/null 2>&1; then
+    OUT=$(curl -s -H "$AUTH_HEADER" "$API_URL/config/dns")
+    if echo "$OUT" | grep -q "8.8.8.8"; then
+        pass "Forwarder '8.8.8.8' found in GET response"
+    else
+        fail "DNS verification failed: $OUT"
+    fi
+else
+    fail "curl required"
+fi
+
+# Test 9: Verify IPSet persistence via GET
+log "Verifying IPSets..."
+if command -v curl >/dev/null 2>&1; then
+    OUT=$(curl -s -H "$AUTH_HEADER" "$API_URL/config/ipsets")
+    if echo "$OUT" | grep -q "blacklist"; then
+        pass "IPSet 'blacklist' found in GET response"
+    else
+        fail "IPSet verification failed: $OUT"
+    fi
+else
+    fail "curl required"
+fi
+
+# Test 9: Verify IPSet persistence via GET
+log "Verifying IPSets..."
+if command -v curl >/dev/null 2>&1; then
+    OUT=$(curl -s -H "$AUTH_HEADER" "$API_URL/config/ipsets")
+    if echo "$OUT" | grep -q "blacklist"; then
+        pass "IPSet 'blacklist' found in GET response"
+    else
+        fail "IPSet verification failed: $OUT"
+    fi
+else
+    fail "curl required"
+fi
+
 
 log "API CRUD Tests PASSED"
 exit 0

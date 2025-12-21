@@ -150,8 +150,8 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Endpoints | Interface CRUD | 🟩 L4 | Works (Tested via `api_crud_test.sh`) |
 | Endpoints | Firewall/Policy CRUD | 🟩 L4 | Basic works (Tested via `api_crud_test.sh`) |
 | Endpoints | DHCP Endpoints | 🟩 L4 | Leases work, scopes partial (Tested via `api_crud_test.sh`) |
-| Endpoints | DNS Endpoints | 🟨 L3 | Records work |
-| Endpoints | IPSet Endpoints | 🟨 L3 | List/refresh work |
+| Endpoints | DNS Endpoints | 🟩 L4 | CRUD for DNS settings/records (Tested) |
+| Endpoints | IPSet Endpoints | 🟩 L4 | CRUD for IPSets (Tested) |
 | Endpoints | VPN Endpoints | 🟨 L3 | `vpn_test.sh` confirms status via `/api/interfaces` |
 | Endpoints | Learning Endpoints | 🟨 L3 | CRUD works |
 | Endpoints | System (reboot, upgrade) | 🟨 L3 | Works |
