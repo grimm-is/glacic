@@ -60,7 +60,7 @@ var state = &AgentState{}
 // Run is the entrypoint for the agent subcommand
 func Run(args []string) error {
 	fmt.Println("Glacic Agent Starting...")
-	_ = os.WriteFile("/mnt/glacic/agent_alive.txt", []byte("I AM ALIVE\n"), 0666)
+	_ = os.WriteFile("/tmp/agent_alive.txt", []byte("I AM ALIVE\n"), 0666)
 
 	// Try vsock first (Linux), fall back to virtio-serial (macOS)
 	if runtime.GOOS == "linux" {

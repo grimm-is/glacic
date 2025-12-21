@@ -10,7 +10,16 @@ trap "poweroff" EXIT
 
 echo "===== DEV MODE (Privilege Separated) ====="
 
-CONFIG_FILE="${1:-firewall.hcl}"
+# Parse kernel args for config_file override
+for arg in $(cat /proc/cmdline); do
+    case $arg in
+        config_file=*)
+            KERNEL_CONFIG="${arg#*=}"
+            ;;
+    esac
+done
+
+CONFIG_FILE="${KERNEL_CONFIG:-${1:-firewall.hcl}}"
 FIREWALL_BIN="$MOUNT_PATH/build/glacic"
 CONFIG_PATH="$MOUNT_PATH/$CONFIG_FILE"
 

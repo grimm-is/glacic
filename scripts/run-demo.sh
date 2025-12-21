@@ -210,14 +210,14 @@ start_firewall() {
     # Copy demo config to expected location (only if not in dev mode)
     if [ "${1:-}" != "dev" ]; then
         if [ -f "$DEMO_CONFIG" ]; then
-             cp "$DEMO_CONFIG" firewall.hcl
+             cp "$DEMO_CONFIG" build/firewall.hcl
         fi
     fi
 
     # Start firewall in background using dev_mode kernel param
     # vm-dev.sh args: $1=mount_path $2=unused $3=kernel_params
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    "$SCRIPT_DIR/vm-dev.sh" "$(pwd)" "" "dev_mode=true api_port=${API_PORT}" > /tmp/firewall-demo.log 2>&1 &
+    "$SCRIPT_DIR/vm-dev.sh" "$(pwd)" "" "dev_mode=true api_port=${API_PORT} config_file=build/firewall.hcl" > /tmp/firewall-demo.log 2>&1 &
     local pid=$!
     echo $pid > "$FIREWALL_PID_FILE"
 
