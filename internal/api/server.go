@@ -375,6 +375,7 @@ func (s *Server) initRoutes() {
 		// Staging & Diff
 		mux.Handle("GET /api/config/diff", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleGetConfigDiff)))
 		mux.Handle("POST /api/config/discard", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleDiscardConfig)))
+		mux.Handle("GET /api/config/pending-status", s.require(storage.PermReadConfig, http.HandlerFunc(s.handlePendingStatus)))
 	} else if s.authStore == nil {
 		// No auth configured (Dev/Test mode) - allow access
 		mux.HandleFunc("GET /api/config", s.handleConfig)
@@ -487,6 +488,7 @@ func (s *Server) initRoutes() {
 		// Quick Wins
 		mux.HandleFunc("GET /api/config/diff", s.handleGetConfigDiff)
 		mux.HandleFunc("POST /api/config/discard", s.handleDiscardConfig)
+		mux.HandleFunc("GET /api/config/pending-status", s.handlePendingStatus)
 		mux.HandleFunc("GET /public/ca.crt", s.handlePublicCert) // Public, no auth required
 
 
@@ -1637,6 +1639,37 @@ func (s *Server) handleDiscardConfig(w http.ResponseWriter, r *http.Request) {
 	// Overwrite staged config
 	s.Config = cfg
 	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handlePendingStatus returns whether there are pending changes
+func (s *Server) handlePendingStatus(w http.ResponseWriter, r *http.Request) {
+	if s.client == nil {
+		WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"has_changes": false,
+			"reason":      "no control plane",
+		})
+		return
+	}
+
+	// Get Running Config
+	runningCfg, err := s.client.GetConfig()
+	if err != nil {
+		WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"has_changes": false,
+			"reason":      "failed to get running config",
+		})
+		return
+	}
+
+	// Compare by JSON serialization
+	runningJSON, _ := json.Marshal(runningCfg)
+	stagedJSON, _ := json.Marshal(s.Config)
+
+	hasChanges := string(runningJSON) != string(stagedJSON)
+
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"has_changes": hasChanges,
+	})
 }
 
 // --- Config Update Handlers ---

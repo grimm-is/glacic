@@ -60,6 +60,7 @@ export const brand = writable({
 export const config = writable<any>(null);
 export const status = writable<any>(null);
 export const leases = writable<any[]>([]);
+export const hasPendingChanges = writable<boolean>(false);
 
 // ============================================================================
 // Config Normalization (lowercase -> PascalCase for UI compatibility)
@@ -418,6 +419,35 @@ export const api = {
         const data = await apiRequest('/config');
         config.set(normalizeConfig(data));
         return data;
+    },
+
+    // ========================================
+    // Config Staging
+    // ========================================
+
+    async checkPendingChanges() {
+        try {
+            const data = await apiRequest('/config/pending-status');
+            hasPendingChanges.set(data.has_changes ?? false);
+            return data.has_changes;
+        } catch (e) {
+            console.error('Failed to check pending changes', e);
+            return false;
+        }
+    },
+
+    async applyConfig() {
+        const result = await apiRequest('/config/apply', { method: 'POST' });
+        hasPendingChanges.set(false);
+        await this.reloadConfig();
+        return result;
+    },
+
+    async discardConfig() {
+        const result = await apiRequest('/config/discard', { method: 'POST' });
+        hasPendingChanges.set(false);
+        await this.reloadConfig();
+        return result;
     },
 
     // ========================================

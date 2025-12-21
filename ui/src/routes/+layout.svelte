@@ -1,10 +1,12 @@
 <script lang="ts">
   import "../lib/styles/global.css";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { api, currentView, brand } from "$lib/stores/app";
   import AlertModal from "$lib/components/AlertModal.svelte";
+  import StagedChangesBar from "$lib/components/StagedChangesBar.svelte";
 
   let { children } = $props();
+  let pendingCheckInterval: ReturnType<typeof setInterval> | null = null;
 
   onMount(async () => {
     // Load brand info
@@ -20,6 +22,18 @@
     } else {
       await api.loadDashboard();
       currentView.set("app");
+
+      // Start periodic pending changes check
+      api.checkPendingChanges();
+      pendingCheckInterval = setInterval(() => {
+        api.checkPendingChanges();
+      }, 5000);
+    }
+  });
+
+  onDestroy(() => {
+    if (pendingCheckInterval) {
+      clearInterval(pendingCheckInterval);
     }
   });
 </script>
@@ -36,3 +50,4 @@
 {@render children()}
 
 <AlertModal />
+<StagedChangesBar />
