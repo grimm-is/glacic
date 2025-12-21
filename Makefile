@@ -30,7 +30,7 @@ BINARY := $(BUILD_DIR)/$(BRAND_BINARY)
 BINARY_DARWIN := $(BUILD_DIR)/$(BRAND_BINARY)-darwin
 UI_DIR := ui
 SCRIPTS_DIR := scripts
-VM_IMAGE := $(BUILD_DIR)/rootfs.ext4
+VM_IMAGE := $(BUILD_DIR)/rootfs.qcow2
 
 # Default target
 help:
@@ -133,6 +133,21 @@ build-qemu-exit:
 	@GOOS=linux GOARCH=arm64 go build -o $(BUILD_DIR)/qemu-exit-arm64 ./cmd/qemu-exit
 	@echo "$(GREEN)✓ qemu-exit built for amd64 and arm64$(NC)"
 
+build-toolbox:
+	@echo "$(BLUE)Building Toolbox...$(NC)"
+	@mkdir -p build
+	@# Host build (for Orchestrator)
+	@go build -ldflags "$(LDFLAGS)" -o build/toolbox ./cmd/toolbox
+	@ln -sf toolbox build/glacic-orca
+	@echo "$(GREEN)✓ Host toolbox built: build/toolbox (-> glacic-orchestrator)$(NC)"
+
+	@# Guest build (for Agent/Harness) - Static Linux
+	@CGO_ENABLED=0 GOOS=linux GOARCH=$(LINUX_ARCH) go build -ldflags "$(LDFLAGS)" -o build/toolbox-linux ./cmd/toolbox
+	@# Create symlinks in build dir for easy testing/inspection
+	@ln -sf toolbox-linux build/agent
+	@ln -sf toolbox-linux build/prove
+	@echo "$(GREEN)✓ Guest toolbox built: build/toolbox-linux (-> agent, prove)$(NC)"
+
 brand-env:
 	@echo "$(BLUE)Generating brand.env from brand.json...$(NC)"
 	@jq -r 'to_entries[] | "\(.key)=\(.value | @sh)"' internal/brand/brand.json | \
@@ -166,7 +181,7 @@ build-tests:
 	done
 	@echo "$(GREEN)✓ Test binaries built in $(BUILD_DIR)/tests/$(NC)"
 
-test-int: vm-ensure build-go build-tests brand-env
+test-int-legacy: vm-ensure build-go build-tests brand-env
 	@echo "$(BLUE)Running integration tests in VM (Alpine)...$(NC)"
 ifdef FILTER
 	@echo "$(YELLOW)Filter: $(FILTER)$(NC)"
@@ -183,6 +198,18 @@ test-int-rerun: vm-ensure build-go build-tests brand-env
 test-int-verbose: vm-ensure build-go build-tests brand-env
 	@echo "$(BLUE)Running integration tests in verbose mode...$(NC)"
 	@t/run-tests.sh verbose
+
+# New Go-based parallel test orchestrator
+test-int: vm-ensure build-go build-tests brand-env build-toolbox
+	@mkdir -p t/system
+	@cp build/glacic t/system/glacic-v1
+	@cp build/glacic t/system/glacic-v2
+	@echo "$(BLUE)Calculating optimal parallelism...$(NC)"
+	@JOBS=$$(./scripts/calc_jobs.sh); \
+	 echo "$(BLUE)Running integration tests via parallel orca (JOBS=$$JOBS)...$(NC)"; \
+	 ./build/toolbox orca test -j $$JOBS $(ARGS)
+
+test-orca: test-int
 
 test-uroot:
 	@echo "$(BLUE)Running Go integration tests in VM (u-root)...$(NC)"
