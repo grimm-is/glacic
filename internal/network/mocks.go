@@ -129,3 +129,38 @@ func (m *MockCommandExecutor) RunCommand(name string, arg ...string) (string, er
 	args := m.Called(argsSlice...)
 	return args.String(0), args.Error(1)
 }
+
+// MockNFTManager is a mock implementation of the NFTManager interface.
+type MockNFTManager struct {
+	mock.Mock
+}
+
+func (m *MockNFTManager) AddMarkRule(chain, srcNet string, ctState string, mark uint32, comment string) error {
+	args := m.Called(chain, srcNet, ctState, mark, comment)
+	return args.Error(0)
+}
+
+func (m *MockNFTManager) AddNumgenMarkRule(chain, srcNet string, weights []NumgenWeight, comment string) error {
+	args := m.Called(chain, srcNet, weights, comment)
+	return args.Error(0)
+}
+
+func (m *MockNFTManager) AddConnmarkRestore(chain, iface string) error {
+	args := m.Called(chain, iface)
+	return args.Error(0)
+}
+
+func (m *MockNFTManager) AddSNAT(chain string, mark uint32, oif, snatIP string) error {
+	args := m.Called(chain, mark, oif, snatIP)
+	return args.Error(0)
+}
+
+func (m *MockNFTManager) DeleteRulesByComment(chain, commentPrefix string) error {
+	args := m.Called(chain, commentPrefix)
+	return args.Error(0)
+}
+
+func (m *MockNFTManager) Flush() error {
+	args := m.Called()
+	return args.Error(0)
+}

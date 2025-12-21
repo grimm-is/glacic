@@ -103,7 +103,8 @@ type UplinkGroup struct {
 	HealthCheck *config.WANHealth
 
 	mu       sync.RWMutex
-	executor CommandExecutor
+	executor CommandExecutor // For ip commands (routing)
+	nftMgr   NFTManager      // For nftables operations (native netlink)
 	logger   *logging.Logger
 }
 
@@ -537,14 +538,22 @@ func (g *UplinkGroup) GetSourceInterfaces() []string {
 
 // updateNewConnectionMark updates the nftables rule for marking NEW connections.
 func (g *UplinkGroup) updateNewConnectionMark(srcNet string, newMark RoutingMark) error {
-	ruleName := fmt.Sprintf("uplink_%s_%s", g.Name, strings.ReplaceAll(srcNet, "/", "_"))
+	comment := fmt.Sprintf("uplink_%s_%s", g.Name, strings.ReplaceAll(srcNet, "/", "_"))
 
+	if g.nftMgr != nil {
+		if err := g.nftMgr.AddMarkRule("mark_prerouting", srcNet, "new", uint32(newMark), comment); err != nil {
+			return err
+		}
+		return g.nftMgr.Flush()
+	}
+
+	// Fallback to shell command if nftMgr not available
 	_, err := g.executor.RunCommand("nft", "add", "rule", "inet", "firewall", "mark_prerouting",
 		"ip", "saddr", srcNet,
 		"ct", "state", "new",
 		"meta", "mark", "set", fmt.Sprintf("0x%x", newMark),
 		"ct", "mark", "set", "meta", "mark",
-		"comment", fmt.Sprintf(`"%s"`, ruleName))
+		"comment", fmt.Sprintf(`"%s"`, comment))
 
 	return err
 }
@@ -686,6 +695,14 @@ func (g *UplinkGroup) Setup() error {
 }
 
 func (g *UplinkGroup) setupConnmarkRestore(iface string) error {
+	if g.nftMgr != nil {
+		if err := g.nftMgr.AddConnmarkRestore("mark_prerouting", iface); err != nil {
+			return err
+		}
+		return g.nftMgr.Flush()
+	}
+
+	// Fallback to shell command
 	_, err := g.executor.RunCommand("nft", "insert", "rule", "inet", "firewall", "mark_prerouting",
 		"iifname", iface,
 		"ct", "state", "established,related",
@@ -758,13 +775,32 @@ func (g *UplinkGroup) UpdateWeights() bool {
 
 // updateLoadBalancedMark creates a numgen rule for weighted load balancing.
 func (g *UplinkGroup) updateLoadBalancedMark(srcNet string, weights map[*Uplink]int) error {
-	// Construct map definition: { 0-<w1> : mark1, <w1>-<w1+w2> : mark2, ... }
+	comment := fmt.Sprintf("uplink_%s_%s", g.Name, strings.ReplaceAll(srcNet, "/", "_"))
+
+	if g.nftMgr != nil {
+		// Build weights slice for native API
+		var numgenWeights []NumgenWeight
+		for _, u := range g.Uplinks {
+			w, ok := weights[u]
+			if !ok || w <= 0 {
+				continue
+			}
+			numgenWeights = append(numgenWeights, NumgenWeight{
+				Mark:   uint32(u.Mark),
+				Weight: w,
+			})
+		}
+
+		if err := g.nftMgr.AddNumgenMarkRule("mark_prerouting", srcNet, numgenWeights, comment); err != nil {
+			return err
+		}
+		return g.nftMgr.Flush()
+	}
+
+	// Fallback to shell command
 	var mapElements []string
 	totalWeight := 0
 
-	// Sort uplinks for deterministic map generation (map iteration is random)
-	// We need deterministic order implies keys need sorting?
-	// Or we just iterate g.Uplinks and check if present in weights map.
 	for _, u := range g.Uplinks {
 		w, ok := weights[u]
 		if !ok || w <= 0 {
@@ -775,13 +811,6 @@ func (g *UplinkGroup) updateLoadBalancedMark(srcNet string, weights map[*Uplink]
 		end := totalWeight + w
 		totalWeight += w
 
-		// "0-10 : 0x100"
-		// nftables syntax for numgen map:
-		// "numgen random mod 100 map { 0-49 : 0x100, 50-99 : 0x200 }"
-		// element: "start-end-1 : mark" (ranges are inclusive? usually [start, end])
-		// nftables anonymous map syntax: { 0-49 : mark1, 50-99 : mark2 }
-		// Wait, numgen mod N returns 0 to N-1.
-		// So range should be start to end-1.
 		element := fmt.Sprintf("%d-%d : 0x%x", start, end-1, u.Mark)
 		mapElements = append(mapElements, element)
 	}
@@ -792,30 +821,24 @@ func (g *UplinkGroup) updateLoadBalancedMark(srcNet string, weights map[*Uplink]
 
 	mapStr := strings.Join(mapElements, ", ")
 
-	// Rule: ip saddr ... ct state new numgen random mod TOTAL map { ... } mark set map-result save
-	// Wait, "meta mark set numgen ..." is cleaner:
-	// "meta mark set numgen random mod TOTAL map { ... }"
-	// Does this directly set the mark? Yes.
-
-	// Note: We need to set BOTH meta mark AND ct mark for stickiness?
-	// Existing updateNewConnectionMark:
-	// "meta mark set <mark>"
-	// "ct mark set meta mark"
-	// So we should do:
-	// "meta mark set numgen ... map { ... }"
-	// "ct mark set meta mark" (next rule or same rule?)
-	// Same rule: "meta mark set ... ct mark set meta mark"
-
 	_, err := g.executor.RunCommand("nft", "add", "rule", "inet", "firewall", "mark_prerouting",
 		"ip", "saddr", srcNet,
 		"ct", "state", "new",
 		"meta", "mark", "set", "numgen", "random", "mod", strconv.Itoa(totalWeight), "map", "{", mapStr, "}",
 		"ct", "mark", "set", "meta", "mark",
-		"comment", fmt.Sprintf("\"uplink_%s_%s\"", g.Name, strings.ReplaceAll(srcNet, "/", "_")))
+		"comment", fmt.Sprintf("\"%s\"", comment))
 	return err
 }
 
 func (g *UplinkGroup) setupSNAT(uplink *Uplink) error {
+	if g.nftMgr != nil {
+		if err := g.nftMgr.AddSNAT("nat_postrouting", uint32(uplink.Mark), uplink.Interface, uplink.LocalIP); err != nil {
+			return err
+		}
+		return g.nftMgr.Flush()
+	}
+
+	// Fallback to shell command
 	_, err := g.executor.RunCommand("nft", "add", "rule", "inet", "firewall", "nat_postrouting",
 		"meta", "mark", fmt.Sprintf("0x%x", uplink.Mark),
 		"oifname", uplink.Interface,
@@ -837,6 +860,7 @@ type UplinkManager struct {
 	mu        sync.RWMutex
 	executor  CommandExecutor
 	netlinker Netlinker
+	nftMgr    NFTManager // Native nftables manager
 
 	// Global health checker
 	healthChecker *UplinkHealthChecker
@@ -872,8 +896,20 @@ func (m *UplinkManager) CreateGroup(name string) *UplinkGroup {
 
 	group := NewUplinkGroup(name, nil)
 	group.executor = m.executor
+	group.nftMgr = m.nftMgr
 	m.groups[name] = group
 	return group
+}
+
+// SetNFTManager sets the native nftables manager for all groups.
+func (m *UplinkManager) SetNFTManager(mgr NFTManager) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.nftMgr = mgr
+	// Update existing groups
+	for _, g := range m.groups {
+		g.nftMgr = mgr
+	}
 }
 
 // GetGroup returns an uplink group by name.
