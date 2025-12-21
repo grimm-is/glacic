@@ -11,6 +11,7 @@ fi
 ip link del dev wgtest 2>/dev/null
 
 # 1. Setup
+cleanup_on_exit
 CONFIG_FILE="/tmp/test_vpn_$(date +%s).hcl"
 cat > "$CONFIG_FILE" <<EOF
 vpn {
@@ -45,6 +46,13 @@ TEST_TIMEOUT=30
 
 start_ctl "$CONFIG_FILE"
 
+# Start API manually because ctl doesn't auto-spawn it in this test env
+API_LOG=$(mktemp_compatible api.log)
+diag "Starting API server on :8443..."
+$APP_BIN test-api -listen 0.0.0.0:8443 > "$API_LOG" 2>&1 &
+API_PID=$!
+track_pid $API_PID
+
 # 2. Verify WireGuard Interface Created
 diag "Verifying WireGuard interface 'wg100'..."
 verify_interface() {
@@ -63,11 +71,10 @@ fi
 
 # 3. Verify API Status reports it
 diag "Verifying API status..."
-# Wait for API
 # Wait for API to start on 8443
 if ! wait_for_port 8443 15; then
     ok 1 "API server failed to start on 8443"
-    cat "$CTL_LOG"
+    cat "$API_LOG"
 else
     # Give it a moment for the handler to actually be ready
     sleep 2

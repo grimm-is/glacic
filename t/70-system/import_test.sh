@@ -82,7 +82,7 @@ sleep 1
 
 # Start Control Plane
 diag "Starting Control Plane..."
-# Create temp config with Auth disabled for easy testing
+# Create temp config with Auth enabled
 TEST_CONFIG=$(mktemp_compatible import_config.hcl)
 cp configs/basic.hcl "$TEST_CONFIG"
 cat >> "$TEST_CONFIG" <<EOF
@@ -90,11 +90,9 @@ cat >> "$TEST_CONFIG" <<EOF
 api {
   enabled = false
   listen = "127.0.0.1:8080"
-  require_auth = true
-  key "test" {
-      key = "secret123"
-      permissions = ["*"]
-  }
+  require_auth = false
+  tls_cert = ""
+  tls_key = ""
 }
 EOF
 
@@ -107,16 +105,15 @@ start_api "$TEST_CONFIG"
 # 2. Upload File
 diag "Step 1: Uploading configuration..."
 diag "File size: $(ls -l $SAMPLE_FILE)"
-# listing API processes
-ps -ef | grep api | grep -v grep || diag "API process not found?"
 
-UPLOAD_RESP=$(curl -v -s --connect-timeout 5 --max-time 10 -H "X-API-Key: secret123" -X POST -F "config_file=@$SAMPLE_FILE" "$API_URL/import/upload" || echo "CURL_ERROR:$?")
+# Use dummy key (ignored if auth disabled)
+UPLOAD_RESP=$(curl -v -s --connect-timeout 5 --max-time 10 -H "X-API-Key: dummy" -X POST -F "config_file=@$SAMPLE_FILE" "$API_URL/import/upload" || echo "CURL_ERROR:$?")
 
 # Check for success
 if echo "$UPLOAD_RESP" | grep -q "CURL_ERROR"; then
     echo "Curl failed with: $UPLOAD_RESP"
     diag "API Log:"
-    cat "$API_LOG" # Start_api sets this
+    cat "$API_LOG"
     fail "Upload failed (connection error)"
 fi
 
@@ -148,13 +145,9 @@ fi
 diag "Step 2: Generating preview configuration..."
 
 # Create Mappings JSON
-# Mapping pfSense interfaces to local interfaces
-# wan(em0) -> eth0 (wan)
-# lan(em1) -> eth1 (lan)
-# opt1(em2) -> eth2 (guest) -- simulating mapping to unused or existing if
 MAPPINGS='{"mappings": {"em0": "eth0", "em1": "eth1", "em2": "eth2"}}'
 
-PREVIEW_RESP=$(curl -s -H "X-API-Key: secret123" -X POST -H "Content-Type: application/json" -d "$MAPPINGS" "$API_URL/import/$SESSION_ID/config")
+PREVIEW_RESP=$(curl -s -H "X-API-Key: dummy" -X POST -H "Content-Type: application/json" -d "$MAPPINGS" "$API_URL/import/$SESSION_ID/config")
 
 # Check for success (simple check if it returned a JSON with 'interfaces')
 # Handle potential null response gracefully

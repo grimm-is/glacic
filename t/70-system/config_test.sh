@@ -60,16 +60,16 @@ EOF
 
 plan 25
 
-diag "Starting firewall config CLI tests"
-
-# Start the firewall daemon using the helper from common.sh
-start_ctl "$FIREWALL_CONFIG"
-diag "Firewall daemon started (PID $CTL_PID)"
-
 # Test 1: Create test configuration
 diag "Creating test configuration"
 create_test_config
 ok $? "Test configuration created"
+
+diag "Starting firewall config CLI tests"
+
+# Start the firewall daemon using the helper from common.sh
+start_ctl "$TEST_CONFIG"
+diag "Firewall daemon started (PID $CTL_PID)"
 
 # Test 2: firewall config get (basic)
 diag "Testing firewall config get"

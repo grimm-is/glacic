@@ -88,6 +88,11 @@ reset_state() {
             mkdir -p /dev/net
             mknod /dev/net/tun c 10 200 2>/dev/null || true
         fi
+        
+        # Kill any lingering glacic processes
+        pkill -9 -x glacic 2>/dev/null || true
+        pkill -9 -f "glacic ctl" 2>/dev/null || true
+        rm -f "$CTL_SOCKET" 2>/dev/null
     fi
 }
 # Execute reset immediately
@@ -334,6 +339,10 @@ start_ctl() {
     CTL_LOG=$(mktemp_compatible ctl.log)
 
     diag "Starting control plane with config: $_config"
+    
+    # Ensure clean slate
+    pkill -x glacic 2>/dev/null || true
+    rm -f "$CTL_SOCKET" 2>/dev/null
 
     # Pre-check configuration (if binary supports it)
     if $APP_BIN --help 2>&1 | grep -q "check"; then
