@@ -211,6 +211,34 @@ func (s *Scheduler) GetTaskStatus(id string) (TaskStatus, bool) {
 	return entry.status, true
 }
 
+// GetState returns the current state of all tasks for persistence.
+func (s *Scheduler) GetState() []TaskStatus {
+	return s.GetStatus()
+}
+
+// RestoreState restores task state from a previous run.
+func (s *Scheduler) RestoreState(statuses []TaskStatus) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, status := range statuses {
+		if entry, exists := s.tasks[status.ID]; exists {
+			// Restore historical data only
+			entry.status.LastRun = status.LastRun
+			entry.status.LastDuration = status.LastDuration
+			entry.status.LastError = status.LastError
+			entry.status.RunCount = status.RunCount
+			entry.status.ErrorCount = status.ErrorCount
+
+			// Keep runtime config (Enabled) from current config, 
+			// unless we explicitly want to restore enable/disable state?
+			// Generally upgrade should respect the new config file's enabled/disabled state,
+			// but we want to preserve HISTORY (RunCount, LastRun).
+			s.logger.Debug("restored task state", "id", status.ID, "run_count", status.RunCount)
+		}
+	}
+}
+
 // Start starts the scheduler.
 func (s *Scheduler) Start() {
 	s.mu.Lock()

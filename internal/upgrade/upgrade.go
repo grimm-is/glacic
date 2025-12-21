@@ -31,6 +31,7 @@ import (
 
 	"grimm.is/glacic/internal/config"
 	"grimm.is/glacic/internal/logging"
+	"grimm.is/glacic/internal/scheduler"
 )
 
 const (
@@ -72,6 +73,9 @@ type State struct {
 
 	// Listener info for socket handoff
 	Listeners []ListenerInfo `json:"listeners"`
+
+	// Scheduler state
+	SchedulerState []scheduler.TaskStatus `json:"scheduler_state"`
 
 	// Checkpoint for delta sync
 	CheckpointID uint64 `json:"checkpoint_id"`
@@ -150,11 +154,13 @@ type Manager struct {
 	collectDHCPLeases func() []DHCPLease
 	collectDNSCache   func() []DNSCacheEntry
 	collectConntrack  func() []ConntrackEntry
+	collectScheduler  func() []scheduler.TaskStatus
 
 	// Callbacks for state restoration
 	restoreDHCPLeases func([]DHCPLease) error
 	restoreDNSCache   func([]DNSCacheEntry) error
 	restoreConntrack  func([]ConntrackEntry) error
+	restoreScheduler  func([]scheduler.TaskStatus) error
 }
 
 // DeltaCollector accumulates state changes during upgrade.
@@ -272,6 +278,13 @@ func (m *Manager) SetStateCollectors(
 	m.collectConntrack = conntrack
 }
 
+// SetSchedulerCollector sets the callback for collecting scheduler state.
+func (m *Manager) SetSchedulerCollector(fn func() []scheduler.TaskStatus) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.collectScheduler = fn
+}
+
 // SetStateRestorers sets the callbacks for restoring state after upgrade.
 func (m *Manager) SetStateRestorers(
 	dhcp func([]DHCPLease) error,
@@ -283,6 +296,13 @@ func (m *Manager) SetStateRestorers(
 	m.restoreDHCPLeases = dhcp
 	m.restoreDNSCache = dns
 	m.restoreConntrack = conntrack
+}
+
+// SetSchedulerRestorer sets the callback for restoring scheduler state.
+func (m *Manager) SetSchedulerRestorer(fn func([]scheduler.TaskStatus) error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.restoreScheduler = fn
 }
 
 // RegisterListener registers a listener for handoff during upgrade.
@@ -330,6 +350,12 @@ func (m *Manager) CollectState(cfg *config.Config, configPath string) *State {
 	if m.collectConntrack != nil {
 		state.ConntrackEntries = m.collectConntrack()
 		m.logger.Info("Collected conntrack entries", "count", len(state.ConntrackEntries))
+	}
+
+	// Collect scheduler state
+	if m.collectScheduler != nil {
+		state.SchedulerState = m.collectScheduler()
+		m.logger.Info("Collected scheduler state", "count", len(state.SchedulerState))
 	}
 
 	// Record listener info
@@ -423,6 +449,15 @@ func (m *Manager) RestoreState(state *State) error {
 			m.logger.Warn("Failed to restore conntrack entries", "error", err)
 		} else {
 			m.logger.Info("Restored conntrack entries", "count", len(state.ConntrackEntries))
+		}
+	}
+
+	// Restore scheduler state
+	if m.restoreScheduler != nil && len(state.SchedulerState) > 0 {
+		if err := m.restoreScheduler(state.SchedulerState); err != nil {
+			m.logger.Warn("Failed to restore scheduler state", "error", err)
+		} else {
+			m.logger.Info("Restored scheduler state", "count", len(state.SchedulerState))
 		}
 	}
 

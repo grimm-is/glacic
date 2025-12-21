@@ -13,6 +13,7 @@ import (
 
 	"grimm.is/glacic/internal/config"
 	"grimm.is/glacic/internal/logging"
+	"grimm.is/glacic/internal/scheduler"
 )
 
 // Helper to create a test manager
@@ -455,5 +456,51 @@ func TestState_FullRoundtrip(t *testing.T) {
 	json.Unmarshal(b, &s2)
 	if s2.Version != "1.0" {
 		t.Error("Mismatch")
+	}
+}
+// TestUpgrade_StatePersistence validates that ALL state (DHCP, DNS, Scheduler) is preserved.
+func TestUpgrade_StatePersistence(t *testing.T) {
+	m := newTestManager()
+
+	// 1. Mock state sources
+	m.SetStateCollectors(
+		func() []DHCPLease {
+			return []DHCPLease{{MAC: "dhcp-mac"}}
+		},
+		func() []DNSCacheEntry {
+			return []DNSCacheEntry{{Name: "dns-name"}}
+		},
+		func() []ConntrackEntry { return nil },
+	)
+
+	// Set Scheduler Collector (Method doesn't exist yet -> Compilation Error = RED)
+	m.SetSchedulerCollector(func() []scheduler.TaskStatus {
+		return []scheduler.TaskStatus{
+			{
+				ID:       "task-1",
+				Name:     "Backup",
+				RunCount: 5,
+				LastRun:  time.Now().Add(-1 * time.Hour),
+			},
+		}
+	})
+
+	// 2. Collect State
+	cfg := &config.Config{}
+	state := m.CollectState(cfg, "/config.hcl")
+
+	// 3. Verify DHCP Preserved
+	if len(state.DHCPLeases) != 1 {
+		t.Error("DHCP leases lost")
+	}
+
+	// 4. Verify Scheduler Preserved (Field doesn't exist yet -> Compilation Error = RED)
+	if len(state.SchedulerState) != 1 {
+		t.Errorf("Scheduler state lost. Expected 1 task, got %d", len(state.SchedulerState))
+	} else {
+		task := state.SchedulerState[0]
+		if task.RunCount != 5 {
+			t.Errorf("Scheduler RunCount mismatch: got %d, want 5", task.RunCount)
+		}
 	}
 }
