@@ -15,6 +15,7 @@ type SystemManager struct {
 	configFile      string
 	firewallActive  bool
 	firewallApplied time.Time
+	safeMode        bool
 	mu              sync.RWMutex
 }
 
@@ -36,6 +37,7 @@ func (sm *SystemManager) GetStatus() Status {
 		Uptime:         time.Since(sm.startTime).Round(time.Second).String(),
 		ConfigFile:     sm.configFile,
 		FirewallActive: sm.firewallActive,
+		SafeMode:       sm.safeMode,
 	}
 
 	if !sm.firewallApplied.IsZero() {
@@ -53,6 +55,20 @@ func (sm *SystemManager) SetFirewallApplied(active bool) {
 	if active {
 		sm.firewallApplied = clock.Now()
 	}
+}
+
+// SetSafeMode updates the safe mode status.
+func (sm *SystemManager) SetSafeMode(enabled bool) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.safeMode = enabled
+}
+
+// IsSafeMode returns whether the system is in safe mode.
+func (sm *SystemManager) IsSafeMode() bool {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.safeMode
 }
 
 // Reboot reboots the system.

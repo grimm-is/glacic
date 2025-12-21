@@ -235,6 +235,15 @@ func (c *Client) DeleteBond(name string) (*UpdateInterfaceReply, error) {
 
 // --- HCL Editing (Advanced Mode) ---
 
+// GetConfigDiff returns the difference between running and saved config
+func (c *Client) GetConfigDiff() (string, error) {
+	var reply GetConfigDiffReply
+	if err := c.call("Server.GetConfigDiff", &Empty{}, &reply); err != nil {
+		return "", err
+	}
+	return reply.Diff, nil
+}
+
 // GetRawHCL returns the entire config file as raw HCL
 func (c *Client) GetRawHCL() (*GetRawHCLReply, error) {
 	var reply GetRawHCLReply

@@ -262,7 +262,7 @@ func TestHandlePolicies_Get(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/policies", nil)
 	rr := httptest.NewRecorder()
 
-	server.handlePolicies(rr, req)
+	server.handleGetPolicies(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
@@ -277,26 +277,15 @@ func TestHandlePolicies_Post(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/api/policies", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
-	server.handlePolicies(rr, req)
+	server.handleUpdatePolicies(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
 	}
 }
 
-func TestHandlePolicies_MethodNotAllowed(t *testing.T) {
-	logger := logging.New(logging.DefaultConfig())
-	server := &Server{Config: &config.Config{}, logger: logger}
-
-	req, _ := http.NewRequest("DELETE", "/api/policies", nil)
-	rr := httptest.NewRecorder()
-
-	server.handlePolicies(rr, req)
-
-	if status := rr.Code; status != http.StatusMethodNotAllowed {
-		t.Errorf("expected MethodNotAllowed, got %v", status)
-	}
-}
+	// Test Removed: Method Not Allowed provided by Mux now
+	// func TestHandlePolicies_MethodNotAllowed was here
 
 func TestHandleNAT_Get(t *testing.T) {
 	logger := logging.New(logging.DefaultConfig())
@@ -312,7 +301,7 @@ func TestHandleNAT_Get(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/nat", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleNAT(rr, req)
+	server.handleGetNAT(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
@@ -333,7 +322,7 @@ func TestHandleDHCP_Get(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/dhcp", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleDHCP(rr, req)
+	server.handleGetDHCP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
@@ -354,7 +343,7 @@ func TestHandleDNS_Get(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/dns", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleDNS(rr, req)
+	server.handleGetDNS(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
@@ -375,7 +364,7 @@ func TestHandleRoutes_Get(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/routes", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleRoutes(rr, req)
+	server.handleGetRoutes(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
@@ -397,7 +386,7 @@ func TestHandleZones_Get(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/zones", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleZones(rr, req)
+	server.handleGetZones(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
@@ -452,7 +441,7 @@ func TestHandleSchedulerConfig_Get(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/scheduler/config", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleSchedulerConfig(rr, req)
+	server.handleGetSchedulerConfig(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
@@ -490,7 +479,7 @@ func TestHandleIPSets_Get(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/ipsets", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleIPSets(rr, req)
+	server.handleGetIPSets(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
@@ -511,7 +500,7 @@ func TestHandleVPN_Get(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/config/vpn", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleVPN(rr, req)
+	server.handleGetVPN(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("expected OK, got %v", status)
@@ -547,7 +536,7 @@ func TestHandlePolicies_InvalidJSON(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/api/policies", strings.NewReader(`{invalid json}`))
 	rr := httptest.NewRecorder()
 
-	server.handlePolicies(rr, req)
+	server.handleUpdatePolicies(rr, req)
 
 	if status := rr.Code; status != http.StatusBadRequest {
 		t.Errorf("expected BadRequest for invalid JSON, got %v", status)

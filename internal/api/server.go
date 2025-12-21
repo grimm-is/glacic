@@ -220,15 +220,20 @@ func (s *Server) initRoutes() {
 		mux.Handle("GET /api/traffic", s.require(storage.PermReadMetrics, http.HandlerFunc(s.handleTraffic)))
 
 		// User Management
-		mux.Handle("/api/users", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleUsers)))
-		mux.Handle("/api/users/", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleUserByName)))
+		mux.Handle("GET /api/users", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleGetUsers)))
+		mux.Handle("POST /api/users", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleCreateUser)))
+		mux.Handle("GET /api/users/", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleGetUser)))
+		mux.Handle("PUT /api/users/", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleUpdateUser)))
+		mux.Handle("DELETE /api/users/", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleDeleteUser)))
 
 		// Interface management
 		mux.Handle("GET /api/interfaces", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleInterfaces))) // Using Config perms for now
 		mux.Handle("GET /api/interfaces/available", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleAvailableInterfaces)))
 		mux.Handle("POST /api/interfaces/update", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUpdateInterface)))
-		mux.Handle("/api/vlans", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleVLANs)))
-		mux.Handle("/api/bonds", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleBonds)))
+		mux.Handle("POST /api/vlans", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleCreateVLAN)))
+		mux.Handle("DELETE /api/vlans", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleDeleteVLAN)))
+		mux.Handle("POST /api/bonds", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleCreateBond)))
+		mux.Handle("DELETE /api/bonds", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleDeleteBond)))
 
 		// Services
 		mux.Handle("GET /api/services", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleServices)))
@@ -237,19 +242,33 @@ func (s *Server) initRoutes() {
 		mux.Handle("GET /api/network-devices", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleGetNetworkDevices)))
 
 		// Config Sections (CRUD handlers usually switch on method, so we keep generic path or would need to register GET/POST separately)
-		mux.Handle("/api/config/policies", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handlePolicies)))
-		mux.Handle("/api/config/nat", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleNAT)))
-		mux.Handle("/api/config/ipsets", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleIPSets)))
-		mux.Handle("/api/config/dhcp", s.require(storage.PermWriteDHCP, http.HandlerFunc(s.handleDHCP)))
-		mux.Handle("/api/config/dns", s.require(storage.PermWriteDNS, http.HandlerFunc(s.handleDNS)))
-		mux.Handle("/api/config/routes", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleRoutes)))
-		mux.Handle("/api/config/zones", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleZones)))
-		mux.Handle("/api/config/protections", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleProtections)))
-		mux.Handle("/api/config/qos", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleQoS)))
-		mux.Handle("/api/config/scheduler", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleSchedulerConfig)))
-		mux.Handle("/api/config/vpn", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleVPN)))
-		mux.Handle("/api/config/mark_rules", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleMarkRules)))
-		mux.Handle("/api/config/uid_routing", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUIDRouting)))
+		mux.Handle("GET /api/config/policies", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleGetPolicies)))
+		mux.Handle("POST /api/config/policies", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleUpdatePolicies)))
+		mux.Handle("GET /api/config/nat", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleGetNAT)))
+		mux.Handle("POST /api/config/nat", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleUpdateNAT)))
+		mux.Handle("GET /api/config/ipsets", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleGetIPSets)))
+		mux.Handle("POST /api/config/ipsets", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleUpdateIPSets)))
+		mux.Handle("GET /api/config/dhcp", s.require(storage.PermWriteDHCP, http.HandlerFunc(s.handleGetDHCP)))
+		mux.Handle("POST /api/config/dhcp", s.require(storage.PermWriteDHCP, http.HandlerFunc(s.handleUpdateDHCP)))
+		mux.Handle("GET /api/config/dns", s.require(storage.PermWriteDNS, http.HandlerFunc(s.handleGetDNS)))
+		mux.Handle("POST /api/config/dns", s.require(storage.PermWriteDNS, http.HandlerFunc(s.handleUpdateDNS)))
+		// Previously updated handlers here...
+		mux.Handle("GET /api/config/routes", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleGetRoutes)))
+		mux.Handle("POST /api/config/routes", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUpdateRoutes)))
+		mux.Handle("GET /api/config/zones", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleGetZones)))
+		mux.Handle("POST /api/config/zones", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleUpdateZones)))
+		mux.Handle("GET /api/config/protections", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleGetProtections)))
+		mux.Handle("POST /api/config/protections", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleUpdateProtections)))
+		mux.Handle("GET /api/config/qos", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleGetQoS)))
+		mux.Handle("POST /api/config/qos", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleUpdateQoS)))
+		mux.Handle("GET /api/config/scheduler", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleGetSchedulerConfig)))
+		mux.Handle("POST /api/config/scheduler", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUpdateSchedulerConfig)))
+		mux.Handle("GET /api/config/vpn", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleGetVPN)))
+		mux.Handle("POST /api/config/vpn", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUpdateVPN)))
+		mux.Handle("GET /api/config/mark_rules", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleGetMarkRules)))
+		mux.Handle("POST /api/config/mark_rules", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUpdateMarkRules)))
+		mux.Handle("GET /api/config/uid_routing", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleGetUIDRouting)))
+		mux.Handle("POST /api/config/uid_routing", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUpdateUIDRouting)))
 
 		// Reordering
 		mux.Handle("POST /api/policies/reorder", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handlePolicyReorder)))
@@ -279,8 +298,10 @@ func (s *Server) initRoutes() {
 		mux.Handle("POST /api/scheduler/run", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleSchedulerRun)))
 
 		// HCL editing (Advanced mode)
-		mux.Handle("/api/config/hcl", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleRawHCL)))
-		mux.Handle("/api/config/hcl/section", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleSectionHCL)))
+		mux.Handle("GET /api/config/hcl", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleGetRawHCL)))
+		mux.Handle("POST /api/config/hcl", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleUpdateRawHCL)))
+		mux.Handle("GET /api/config/hcl/section", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleGetSectionHCL)))
+		mux.Handle("POST /api/config/hcl/section", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleUpdateSectionHCL)))
 		mux.Handle("POST /api/config/hcl/validate", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleValidateHCL)))
 		mux.Handle("POST /api/config/hcl/save", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleSaveConfig)))
 
@@ -290,7 +311,8 @@ func (s *Server) initRoutes() {
 		mux.Handle("POST /api/backups/restore", s.require(storage.PermAdminBackup, http.HandlerFunc(s.handleRestoreBackup)))
 		mux.Handle("GET /api/backups/content", s.require(storage.PermAdminBackup, http.HandlerFunc(s.handleBackupContent)))
 		mux.Handle("POST /api/backups/pin", s.require(storage.PermAdminBackup, http.HandlerFunc(s.handlePinBackup)))
-		mux.Handle("POST /api/backups/settings", s.require(storage.PermAdminBackup, http.HandlerFunc(s.handleBackupSettings)))
+		mux.Handle("GET /api/backups/settings", s.require(storage.PermAdminBackup, http.HandlerFunc(s.handleGetBackupSettings)))
+		mux.Handle("POST /api/backups/settings", s.require(storage.PermAdminBackup, http.HandlerFunc(s.handleUpdateBackupSettings)))
 
 		// Logging endpoints
 		mux.Handle("GET /api/logs", s.require(storage.PermReadLogs, http.HandlerFunc(s.handleLogs)))
@@ -322,32 +344,50 @@ func (s *Server) initRoutes() {
 		mux.HandleFunc("POST /api/config/apply", s.handleApplyConfig)
 		// /api/status is already registered globally
 		mux.HandleFunc("GET /api/leases", s.handleLeases)
-		mux.HandleFunc("/api/users", s.handleUsers)
-		mux.HandleFunc("/api/users/", s.handleUserByName)
+		mux.HandleFunc("GET /api/users", s.handleGetUsers)
+		mux.HandleFunc("POST /api/users", s.handleCreateUser)
+		mux.HandleFunc("GET /api/users/", s.handleGetUser)
+		mux.HandleFunc("PUT /api/users/", s.handleUpdateUser)
+		mux.HandleFunc("DELETE /api/users/", s.handleDeleteUser)
 		mux.HandleFunc("GET /api/interfaces", s.handleInterfaces)
 		mux.HandleFunc("GET /api/interfaces/available", s.handleAvailableInterfaces)
 		mux.HandleFunc("POST /api/interfaces/update", s.handleUpdateInterface)
-		mux.HandleFunc("/api/vlans", s.handleVLANs)
-		mux.HandleFunc("/api/bonds", s.handleBonds)
+		mux.HandleFunc("POST /api/vlans", s.handleCreateVLAN)
+		mux.HandleFunc("DELETE /api/vlans", s.handleDeleteVLAN)
+		mux.HandleFunc("POST /api/bonds", s.handleCreateBond)
+		mux.HandleFunc("DELETE /api/bonds", s.handleDeleteBond)
 		mux.HandleFunc("GET /api/services", s.handleServices)
 		mux.HandleFunc("GET /api/traffic", s.handleTraffic)
 		mux.HandleFunc("GET /api/topology", s.handleGetTopology)
 		mux.HandleFunc("GET /api/network-devices", s.handleGetNetworkDevices)
 		
 		// Config sections
-		mux.HandleFunc("/api/config/policies", s.handlePolicies)
-		mux.HandleFunc("/api/config/nat", s.handleNAT)
-		mux.HandleFunc("/api/config/ipsets", s.handleIPSets)
-		mux.HandleFunc("/api/config/dhcp", s.handleDHCP)
-		mux.HandleFunc("/api/config/dns", s.handleDNS)
-		mux.HandleFunc("/api/config/routes", s.handleRoutes)
-		mux.HandleFunc("/api/config/zones", s.handleZones)
-		mux.HandleFunc("/api/config/protections", s.handleProtections)
-		mux.HandleFunc("/api/config/qos", s.handleQoS)
-		mux.HandleFunc("/api/config/scheduler", s.handleSchedulerConfig)
-		mux.HandleFunc("/api/config/vpn", s.handleVPN)
-		mux.HandleFunc("/api/config/mark_rules", s.handleMarkRules)
-		mux.HandleFunc("/api/config/uid_routing", s.handleUIDRouting)
+		mux.HandleFunc("GET /api/config/policies", s.handleGetPolicies)
+		mux.HandleFunc("POST /api/config/policies", s.handleUpdatePolicies)
+		mux.HandleFunc("GET /api/config/nat", s.handleGetNAT)
+		mux.HandleFunc("POST /api/config/nat", s.handleUpdateNAT)
+		mux.HandleFunc("GET /api/config/ipsets", s.handleGetIPSets)
+		mux.HandleFunc("POST /api/config/ipsets", s.handleUpdateIPSets)
+		mux.HandleFunc("GET /api/config/dhcp", s.handleGetDHCP)
+		mux.HandleFunc("POST /api/config/dhcp", s.handleUpdateDHCP)
+		mux.HandleFunc("GET /api/config/dns", s.handleGetDNS)
+		mux.HandleFunc("POST /api/config/dns", s.handleUpdateDNS)
+		mux.HandleFunc("GET /api/config/routes", s.handleGetRoutes)
+		mux.HandleFunc("POST /api/config/routes", s.handleUpdateRoutes)
+		mux.HandleFunc("GET /api/config/zones", s.handleGetZones)
+		mux.HandleFunc("POST /api/config/zones", s.handleUpdateZones)
+		mux.HandleFunc("GET /api/config/protections", s.handleGetProtections)
+		mux.HandleFunc("POST /api/config/protections", s.handleUpdateProtections)
+		mux.HandleFunc("GET /api/config/qos", s.handleGetQoS)
+		mux.HandleFunc("POST /api/config/qos", s.handleUpdateQoS)
+		mux.HandleFunc("GET /api/config/scheduler", s.handleGetSchedulerConfig)
+		mux.HandleFunc("POST /api/config/scheduler", s.handleUpdateSchedulerConfig)
+		mux.HandleFunc("GET /api/config/vpn", s.handleGetVPN)
+		mux.HandleFunc("POST /api/config/vpn", s.handleUpdateVPN)
+		mux.HandleFunc("GET /api/config/mark_rules", s.handleGetMarkRules)
+		mux.HandleFunc("POST /api/config/mark_rules", s.handleUpdateMarkRules)
+		mux.HandleFunc("GET /api/config/uid_routing", s.handleGetUIDRouting)
+		mux.HandleFunc("POST /api/config/uid_routing", s.handleUpdateUIDRouting)
 
 		mux.HandleFunc("POST /api/policies/reorder", s.handlePolicyReorder)
 		mux.HandleFunc("POST /api/rules/reorder", s.handleRuleReorder)
@@ -360,8 +400,10 @@ func (s *Server) initRoutes() {
 		mux.HandleFunc("GET /api/scheduler/status", s.handleSchedulerStatus)
 		mux.HandleFunc("POST /api/scheduler/run", s.handleSchedulerRun)
 		// HCL editing (Advanced mode)
-		mux.HandleFunc("/api/config/hcl", s.handleRawHCL)
-		mux.HandleFunc("/api/config/hcl/section", s.handleSectionHCL)
+		mux.HandleFunc("GET /api/config/hcl", s.handleGetRawHCL)
+		mux.HandleFunc("POST /api/config/hcl", s.handleUpdateRawHCL)
+		mux.HandleFunc("GET /api/config/hcl/section", s.handleGetSectionHCL)
+		mux.HandleFunc("POST /api/config/hcl/section", s.handleUpdateSectionHCL)
 		mux.HandleFunc("POST /api/config/hcl/validate", s.handleValidateHCL)
 		mux.HandleFunc("POST /api/config/hcl/save", s.handleSaveConfig)
 		// Backup management
@@ -370,7 +412,8 @@ func (s *Server) initRoutes() {
 		mux.HandleFunc("POST /api/backups/restore", s.handleRestoreBackup)
 		mux.HandleFunc("GET /api/backups/content", s.handleBackupContent)
 		mux.HandleFunc("POST /api/backups/pin", s.handlePinBackup)
-		mux.HandleFunc("POST /api/backups/settings", s.handleBackupSettings)
+		mux.HandleFunc("POST /api/backups/settings", s.handleUpdateBackupSettings)
+		mux.HandleFunc("GET /api/backups/settings", s.handleGetBackupSettings)
 		// Safe apply with confirmation
 		mux.HandleFunc("POST /api/config/safe-apply", s.handleSafeApply)
 		mux.HandleFunc("POST /api/config/confirm", s.handleConfirmApply)
@@ -402,6 +445,11 @@ func (s *Server) initRoutes() {
 		mux.HandleFunc("POST /api/devices/identity", s.handleUpdateDeviceIdentity)
 		mux.HandleFunc("POST /api/devices/link", s.handleLinkMAC)
 		mux.HandleFunc("POST /api/devices/unlink", s.handleUnlinkMAC)
+
+		// Quick Wins
+		mux.HandleFunc("GET /api/config/diff", s.require(s.handleGetConfigDiff))
+		mux.HandleFunc("GET /public/ca.crt", s.handlePublicCert) // Public, no auth required
+
 
 	}
 
@@ -1083,120 +1131,127 @@ func (s *Server) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request) {
-
+// handleGetUsers returns all users
+func (s *Server) handleGetUsers(w http.ResponseWriter, r *http.Request) {
 	if s.authStore == nil {
 		WriteJSON(w, http.StatusOK, []interface{}{})
 		return
 	}
-
-	switch r.Method {
-	case http.MethodGet:
-		users := s.authStore.ListUsers()
-		WriteJSON(w, http.StatusOK, users)
-
-	case http.MethodPost:
-		// Create new user (admin only - enforced by middleware)
-		var req struct {
-			Username string    `json:"username"`
-			Password string    `json:"password"`
-			Role     auth.Role `json:"role"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request")
-			return
-		}
-		if err := s.authStore.CreateUser(req.Username, req.Password, req.Role); err != nil {
-			WriteError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
+	users := s.authStore.ListUsers()
+	WriteJSON(w, http.StatusOK, users)
 }
 
-// handleUserByName handles individual user operations (update, delete)
-func (s *Server) handleUserByName(w http.ResponseWriter, r *http.Request) {
-
+// handleCreateUser creates a new user
+func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	if s.authStore == nil {
 		WriteError(w, http.StatusServiceUnavailable, "Auth not configured")
 		return
 	}
-
-	// Extract username from path: /api/users/{username}
-	path := r.URL.Path
-	prefix := "/api/users/"
-	if !strings.HasPrefix(path, prefix) {
-		WriteError(w, http.StatusBadRequest, "Invalid path")
+	var req struct {
+		Username string    `json:"username"`
+		Password string    `json:"password"`
+		Role     auth.Role `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
-	username := strings.TrimPrefix(path, prefix)
+	if err := s.authStore.CreateUser(req.Username, req.Password, req.Role); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleUserByName handles individual user operations (update, delete)
+// handleGetUser returns a single user
+func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
+	if s.authStore == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Auth not configured")
+		return
+	}
+	username := strings.TrimPrefix(r.URL.Path, "/api/users/")
 	if username == "" {
 		WriteError(w, http.StatusBadRequest, "Username required")
 		return
 	}
 
-	switch r.Method {
-	case http.MethodGet:
-		user, err := s.authStore.GetUser(username)
-		if err != nil {
-			WriteError(w, http.StatusNotFound, "User not found")
-			return
-		}
-		// Don't expose password hash
-		WriteJSON(w, http.StatusOK, map[string]interface{}{
-			"username":   user.Username,
-			"role":       user.Role,
-			"created_at": user.CreatedAt,
-			"updated_at": user.UpdatedAt,
-		})
+	user, err := s.authStore.GetUser(username)
+	if err != nil {
+		WriteError(w, http.StatusNotFound, "User not found")
+		return
+	}
+	// Don't expose password hash
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"username":   user.Username,
+		"role":       user.Role,
+		"created_at": user.CreatedAt,
+		"updated_at": user.UpdatedAt,
+	})
+}
 
-	case http.MethodPut:
-		// Update user
-		var req struct {
-			Password string    `json:"password,omitempty"`
-			Role     auth.Role `json:"role,omitempty"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request")
-			return
-		}
+// handleUpdateUser updates a user
+func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
+	if s.authStore == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Auth not configured")
+		return
+	}
+	username := strings.TrimPrefix(r.URL.Path, "/api/users/")
+	if username == "" {
+		WriteError(w, http.StatusBadRequest, "Username required")
+		return
+	}
 
-		// Update password if provided
-		if req.Password != "" {
-			if err := s.authStore.UpdatePassword(username, req.Password); err != nil {
-				WriteError(w, http.StatusBadRequest, err.Error())
-				return
-			}
-		}
+	var req struct {
+		Password string    `json:"password,omitempty"`
+		Role     auth.Role `json:"role,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request")
+		return
+	}
 
-		// Update role if provided
-		if req.Role != "" {
-			if err := s.authStore.UpdateRole(username, req.Role); err != nil {
-				WriteError(w, http.StatusBadRequest, err.Error())
-				return
-			}
-		}
-
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	case http.MethodDelete:
-		// Prevent deleting admin user
-		if username == "admin" {
-			WriteError(w, http.StatusForbidden, "Cannot delete admin user")
-			return
-		}
-		if err := s.authStore.DeleteUser(username); err != nil {
+	// Update password if provided
+	if req.Password != "" {
+		if err := s.authStore.UpdatePassword(username, req.Password); err != nil {
 			WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
 	}
+
+	// Update role if provided
+	if req.Role != "" {
+		if err := s.authStore.UpdateRole(username, req.Role); err != nil {
+			WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleDeleteUser deletes a user
+func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
+	if s.authStore == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Auth not configured")
+		return
+	}
+	username := strings.TrimPrefix(r.URL.Path, "/api/users/")
+	if username == "" {
+		WriteError(w, http.StatusBadRequest, "Username required")
+		return
+	}
+
+	// Prevent deleting admin user
+	if username == "admin" {
+		WriteError(w, http.StatusForbidden, "Cannot delete admin user")
+		return
+	}
+	if err := s.authStore.DeleteUser(username); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // --- Interface Management Handlers ---
@@ -1265,108 +1320,170 @@ func (s *Server) handleUpdateInterface(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, reply)
 }
 
-func (s *Server) handleVLANs(w http.ResponseWriter, r *http.Request) {
+// handleCreateVLAN creates a new VLAN interface
+func (s *Server) handleCreateVLAN(w http.ResponseWriter, r *http.Request) {
 	if s.client == nil {
 		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
 		return
 	}
 
-	switch r.Method {
-	case http.MethodPost:
-		var args ctlplane.CreateVLANArgs
-		if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-
-		reply, err := s.client.CreateVLAN(&args)
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		if !reply.Success {
-			WriteError(w, http.StatusBadRequest, reply.Error)
-			return
-		}
-
-		WriteJSON(w, http.StatusOK, reply)
-
-	case http.MethodDelete:
-		ifaceName := r.URL.Query().Get("name")
-		if ifaceName == "" {
-			WriteError(w, http.StatusBadRequest, "name parameter required")
-			return
-		}
-
-		reply, err := s.client.DeleteVLAN(ifaceName)
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		if !reply.Success {
-			WriteError(w, http.StatusBadRequest, reply.Error)
-			return
-		}
-
-		WriteJSON(w, http.StatusOK, reply)
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
+	var args ctlplane.CreateVLANArgs
+	if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
 	}
+
+	reply, err := s.client.CreateVLAN(&args)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if !reply.Success {
+		WriteError(w, http.StatusBadRequest, reply.Error)
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, reply)
 }
 
-func (s *Server) handleBonds(w http.ResponseWriter, r *http.Request) {
+// handleDeleteVLAN deletes a VLAN interface
+func (s *Server) handleDeleteVLAN(w http.ResponseWriter, r *http.Request) {
 	if s.client == nil {
 		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
 		return
 	}
 
-	switch r.Method {
-	case http.MethodPost:
-		var args ctlplane.CreateBondArgs
-		if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-
-		reply, err := s.client.CreateBond(&args)
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		if !reply.Success {
-			WriteError(w, http.StatusBadRequest, reply.Error)
-			return
-		}
-
-		WriteJSON(w, http.StatusOK, reply)
-
-	case http.MethodDelete:
-		name := r.URL.Query().Get("name")
-		if name == "" {
-			WriteError(w, http.StatusBadRequest, "name parameter required")
-			return
-		}
-
-		reply, err := s.client.DeleteBond(name)
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		if !reply.Success {
-			WriteError(w, http.StatusBadRequest, reply.Error)
-			return
-		}
-
-		WriteJSON(w, http.StatusOK, reply)
-
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	ifaceName := r.URL.Query().Get("name")
+	if ifaceName == "" {
+		WriteError(w, http.StatusBadRequest, "name parameter required")
+		return
 	}
+
+	reply, err := s.client.DeleteVLAN(ifaceName)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if !reply.Success {
+		WriteError(w, http.StatusBadRequest, reply.Error)
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, reply)
+}
+
+// handleCreateBond creates a new bond interface
+func (s *Server) handleCreateBond(w http.ResponseWriter, r *http.Request) {
+	if s.client == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+		return
+	}
+
+	var args ctlplane.CreateBondArgs
+	if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	reply, err := s.client.CreateBond(&args)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if !reply.Success {
+		WriteError(w, http.StatusBadRequest, reply.Error)
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, reply)
+}
+
+// handleDeleteBond deletes a bond interface
+func (s *Server) handleDeleteBond(w http.ResponseWriter, r *http.Request) {
+	if s.client == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+		return
+	}
+
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		WriteError(w, http.StatusBadRequest, "name parameter required")
+		return
+	}
+
+	reply, err := s.client.DeleteBond(name)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if !reply.Success {
+		WriteError(w, http.StatusBadRequest, reply.Error)
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, reply)
+}
+
+// handleGetConfigDiff returns the diff between saved and in-memory config
+func (s *Server) handleGetConfigDiff(w http.ResponseWriter, r *http.Request) {
+	// This requires access to the ConfigFile which holds the AST
+	// Currently s.Config is just the struct.
+	// We need to access the config manager/loader which we don't handle directly here in all modes.
+	// However, usually we can just rely on the on-disk file vs current struct?
+	// Actually, `internal/config/hcl.go` has `ConfigFile.Diff()`.
+	// S doesn't have `ConfigFile`, but `s.Config` is *config.Config.
+	
+	// Implementation note: The Server struct doesn't strictly hold the `ConfigFile` wrapper.
+	// It relies on RPC or direct config struct.
+	// If we are in `ctl` mode (integrated), we might have access, but via RPC it's harder.
+	// For "Quick Win", let's assume we can read the file from disk and compare?
+	// Or better: Add `GetConfigDiff` RPC to control plane.
+	
+	// BUT: `ctl` mode has `s.Config`.
+	// For now, let's implement the RPC call if possible, or direct if we are ctl.
+	if s.client != nil {
+		diff, err := s.client.GetConfigDiff()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(diff))
+		return
+	}
+
+	// Fallback/Standalone: Not supported yet without ConfigFile refactor
+	WriteError(w, http.StatusNotImplemented, "Config diff not available in this mode")
+}
+
+// handlePublicCert serves the root CA certificate publicly
+func (s *Server) handlePublicCert(w http.ResponseWriter, r *http.Request) {
+	// Root cert is in config dir
+	certPath := "/etc/glacic/certs/cert.pem" // Default
+	if s.Config != nil {
+		// Try to deduce cert dir. Usually flags passed to ctl.
+		// For this quick win, we'll try standard path or relative.
+		// Ideally we inject CertManager into Server.
+	}
+
+	// Try standard location
+	data, err := os.ReadFile(certPath)
+	if err != nil {
+		// Try local dev path
+		data, err = os.ReadFile("local/certs/cert.pem")
+		if err != nil {
+			WriteError(w, http.StatusNotFound, "Certificate not found")
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/x-pem-file")
+	w.Header().Set("Content-Disposition", "attachment; filename=glacic-ca.crt")
+	w.Write(data)
 }
 
 // handleTraffic returns traffic accounting statistics
@@ -1457,418 +1574,376 @@ func (s *Server) handleApplyConfig(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
-// handlePolicies handles firewall policy CRUD
-func (s *Server) handlePolicies(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, cfg.Policies)
-		} else {
-			WriteJSON(w, http.StatusOK, s.Config.Policies)
-		}
-
-	case http.MethodPost:
-		var policies []config.Policy
-		if err := json.NewDecoder(r.Body).Decode(&policies); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-		s.Config.Policies = policies
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
-}
-
-// handleNAT handles NAT rule CRUD
-func (s *Server) handleNAT(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, cfg.NAT)
-		} else {
-			WriteJSON(w, http.StatusOK, s.Config.NAT)
-		}
-
-	case http.MethodPost:
-		var nat []config.NATRule
-		if err := json.NewDecoder(r.Body).Decode(&nat); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-		s.Config.NAT = nat
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
-}
-
-func (s *Server) handleMarkRules(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, cfg.MarkRules)
-		} else {
-			WriteJSON(w, http.StatusOK, s.Config.MarkRules)
-		}
-	case http.MethodPost:
-		var rules []config.MarkRule
-		if err := json.NewDecoder(r.Body).Decode(&rules); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-		s.Config.MarkRules = rules // Direct update for standalone, client update needed for real
-		if s.client != nil {
-			// Get refresh
-			cfg, _ := s.client.GetConfig()
-			cfg.MarkRules = rules
-			s.client.ApplyConfig(cfg)
-			s.client.SaveConfig()
-		}
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
-}
-
-func (s *Server) handleUIDRouting(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, cfg.UIDRouting)
-		} else {
-			WriteJSON(w, http.StatusOK, s.Config.UIDRouting)
-		}
-	case http.MethodPost:
-		var rules []config.UIDRouting
-		if err := json.NewDecoder(r.Body).Decode(&rules); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-		s.Config.UIDRouting = rules
-		if s.client != nil {
-			cfg, _ := s.client.GetConfig()
-			cfg.UIDRouting = rules
-			s.client.ApplyConfig(cfg)
-			s.client.SaveConfig()
-		}
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
-}
-
-// handleIPSets handles IPSet CRUD
-func (s *Server) handleIPSets(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, cfg.IPSets)
-		} else {
-			WriteJSON(w, http.StatusOK, s.Config.IPSets)
-		}
-
-	case http.MethodPost:
-		var ipsets []config.IPSet
-		if err := json.NewDecoder(r.Body).Decode(&ipsets); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-		s.Config.IPSets = ipsets
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
-}
-
-// handleDHCP handles DHCP server configuration
-func (s *Server) handleDHCP(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, cfg.DHCP)
-		} else {
-			WriteJSON(w, http.StatusOK, s.Config.DHCP)
-		}
-
-	case http.MethodPost:
-		var dhcp config.DHCPServer
-		if err := json.NewDecoder(r.Body).Decode(&dhcp); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-		s.Config.DHCP = &dhcp
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
-}
-
-// handleDNS handles DNS server configuration
-func (s *Server) handleDNS(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		var cfg *config.Config
-		var err error
-		if s.client != nil {
-			cfg, err = s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-		} else {
-			cfg = s.Config
-		}
-
-		// Return both for compatibility
-		resp := struct {
-			Old *config.DNSServer `json:"dns_server,omitempty"`
-			New *config.DNS       `json:"dns,omitempty"`
-		}{
-			Old: cfg.DNSServer,
-			New: cfg.DNS,
-		}
-		WriteJSON(w, http.StatusOK, resp)
-
-	case http.MethodPost:
-		// Try to decode as wrapped format first
-		var req struct {
-			Old *config.DNSServer `json:"dns_server,omitempty"`
-			New *config.DNS       `json:"dns,omitempty"`
-		}
-
-		// Read body once
-		body, err := io.ReadAll(r.Body)
+// handleGetPolicies returns firewall policies
+func (s *Server) handleGetPolicies(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
 		if err != nil {
-			WriteError(w, http.StatusInternalServerError, "Failed to read request body")
+			WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-
-		if err := json.Unmarshal(body, &req); err == nil && (req.Old != nil || req.New != nil) {
-			if req.Old != nil {
-				s.Config.DNSServer = req.Old
-			}
-			if req.New != nil {
-				s.Config.DNS = req.New
-			}
-		} else {
-			// Try legacy raw DNSServer format
-			var old config.DNSServer
-			if err := json.Unmarshal(body, &old); err == nil {
-				s.Config.DNSServer = &old
-			} else {
-				WriteError(w, http.StatusBadRequest, "Invalid DNS configuration format")
-				return
-			}
-		}
-
-		// Run migration
-		s.Config.MigrateDNSConfig()
-
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		WriteJSON(w, http.StatusOK, cfg.Policies)
+	} else {
+		WriteJSON(w, http.StatusOK, s.Config.Policies)
 	}
 }
 
-// handleRoutes handles static route configuration
-func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, cfg.Routes)
-		} else {
-			WriteJSON(w, http.StatusOK, s.Config.Routes)
-		}
+// handleUpdatePolicies updates firewall policies
+func (s *Server) handleUpdatePolicies(w http.ResponseWriter, r *http.Request) {
+	var policies []config.Policy
+	if err := json.NewDecoder(r.Body).Decode(&policies); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	s.Config.Policies = policies
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
 
-	case http.MethodPost:
-		var routes []config.Route
-		if err := json.NewDecoder(r.Body).Decode(&routes); err != nil {
+// handleGetNAT returns NAT configuration
+func (s *Server) handleGetNAT(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		WriteJSON(w, http.StatusOK, cfg.NAT)
+	} else {
+		WriteJSON(w, http.StatusOK, s.Config.NAT)
+	}
+}
+
+// handleUpdateNAT updates NAT configuration
+func (s *Server) handleUpdateNAT(w http.ResponseWriter, r *http.Request) {
+	var nat []config.NATRule
+	if err := json.NewDecoder(r.Body).Decode(&nat); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	s.Config.NAT = nat
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleGetMarkRules returns mark rules
+func (s *Server) handleGetMarkRules(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		WriteJSON(w, http.StatusOK, cfg.MarkRules)
+	} else {
+		WriteJSON(w, http.StatusOK, s.Config.MarkRules)
+	}
+}
+
+// handleUpdateMarkRules updates mark rules
+func (s *Server) handleUpdateMarkRules(w http.ResponseWriter, r *http.Request) {
+	var rules []config.MarkRule
+	if err := json.NewDecoder(r.Body).Decode(&rules); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	s.Config.MarkRules = rules // Direct update for standalone, client update needed for real
+	if s.client != nil {
+		// Get refresh
+		cfg, _ := s.client.GetConfig()
+		cfg.MarkRules = rules
+		s.client.ApplyConfig(cfg)
+		s.client.SaveConfig()
+	}
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleGetUIDRouting returns UID routing rules
+func (s *Server) handleGetUIDRouting(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		WriteJSON(w, http.StatusOK, cfg.UIDRouting)
+	} else {
+		WriteJSON(w, http.StatusOK, s.Config.UIDRouting)
+	}
+}
+
+// handleUpdateUIDRouting updates UID routing rules
+func (s *Server) handleUpdateUIDRouting(w http.ResponseWriter, r *http.Request) {
+	var rules []config.UIDRouting
+	if err := json.NewDecoder(r.Body).Decode(&rules); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	s.Config.UIDRouting = rules
+	if s.client != nil {
+		cfg, _ := s.client.GetConfig()
+		cfg.UIDRouting = rules
+		s.client.ApplyConfig(cfg)
+		s.client.SaveConfig()
+	}
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleGetIPSets returns IPSet configuration
+func (s *Server) handleGetIPSets(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		WriteJSON(w, http.StatusOK, cfg.IPSets)
+	} else {
+		WriteJSON(w, http.StatusOK, s.Config.IPSets)
+	}
+}
+
+// handleUpdateIPSets updates IPSet configuration
+func (s *Server) handleUpdateIPSets(w http.ResponseWriter, r *http.Request) {
+	var ipsets []config.IPSet
+	if err := json.NewDecoder(r.Body).Decode(&ipsets); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	s.Config.IPSets = ipsets
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleGetDHCP returns DHCP server configuration
+func (s *Server) handleGetDHCP(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		WriteJSON(w, http.StatusOK, cfg.DHCP)
+	} else {
+		WriteJSON(w, http.StatusOK, s.Config.DHCP)
+	}
+}
+
+// handleUpdateDHCP updates DHCP server configuration
+func (s *Server) handleUpdateDHCP(w http.ResponseWriter, r *http.Request) {
+	var dhcp config.DHCPServer
+	if err := json.NewDecoder(r.Body).Decode(&dhcp); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	s.Config.DHCP = &dhcp
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleGetDNS returns DNS server configuration
+func (s *Server) handleGetDNS(w http.ResponseWriter, r *http.Request) {
+	var cfg *config.Config
+	var err error
+	if s.client != nil {
+		cfg, err = s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	} else {
+		cfg = s.Config
+	}
+
+	// Return both for compatibility
+	resp := struct {
+		Old *config.DNSServer `json:"dns_server,omitempty"`
+		New *config.DNS       `json:"dns,omitempty"`
+	}{
+		Old: cfg.DNSServer,
+		New: cfg.DNS,
+	}
+	WriteJSON(w, http.StatusOK, resp)
+}
+
+// handleUpdateDNS updates DNS server configuration
+func (s *Server) handleUpdateDNS(w http.ResponseWriter, r *http.Request) {
+	// Try to decode as wrapped format first
+	var req struct {
+		Old *config.DNSServer `json:"dns_server,omitempty"`
+		New *config.DNS       `json:"dns,omitempty"`
+	}
+
+	// Read body once
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to read request body")
+		return
+	}
+
+	if err := json.Unmarshal(body, &req); err == nil && (req.Old != nil || req.New != nil) {
+		if req.Old != nil {
+			s.Config.DNSServer = req.Old
+		}
+		if req.New != nil {
+			s.Config.DNS = req.New
+		}
+	} else {
+		// Try legacy raw DNSServer format
+		var old config.DNSServer
+		if err := json.Unmarshal(body, &old); err == nil {
+			s.Config.DNSServer = &old
+		} else {
+			WriteError(w, http.StatusBadRequest, "Invalid DNS configuration format")
+			return
+		}
+	}
+
+	// Run migration
+	s.Config.MigrateDNSConfig()
+
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleGetRoutes returns static route configuration
+func (s *Server) handleGetRoutes(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		WriteJSON(w, http.StatusOK, cfg.Routes)
+	} else {
+		WriteJSON(w, http.StatusOK, s.Config.Routes)
+	}
+}
+
+// handleUpdateRoutes updates static route configuration
+func (s *Server) handleUpdateRoutes(w http.ResponseWriter, r *http.Request) {
+	var routes []config.Route
+	if err := json.NewDecoder(r.Body).Decode(&routes); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	s.Config.Routes = routes
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleGetZones returns zone configuration
+func (s *Server) handleGetZones(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		WriteJSON(w, http.StatusOK, cfg.Zones)
+	} else {
+		WriteJSON(w, http.StatusOK, s.Config.Zones)
+	}
+}
+
+// handleUpdateZones updates zone configuration
+func (s *Server) handleUpdateZones(w http.ResponseWriter, r *http.Request) {
+	var zones []config.Zone
+	if err := json.NewDecoder(r.Body).Decode(&zones); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	s.Config.Zones = zones
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+// handleGetProtections returns per-interface protection settings
+func (s *Server) handleGetProtections(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(cfg.Protections)
+	} else {
+		json.NewEncoder(w).Encode(s.Config.Protections)
+	}
+}
+
+// handleUpdateProtections updates per-interface protection settings
+func (s *Server) handleUpdateProtections(w http.ResponseWriter, r *http.Request) {
+	// Accept either array directly or wrapped in { protections: [...] }
+	var wrapper struct {
+		Protections []config.InterfaceProtection `json:"protections"`
+	}
+	body, _ := io.ReadAll(r.Body)
+	// Try parsing as wrapper
+	if err := json.Unmarshal(body, &wrapper); err == nil && wrapper.Protections != nil {
+		s.Config.Protections = wrapper.Protections
+	} else {
+		// Try parsing as array
+		var protections []config.InterfaceProtection
+		if err := json.Unmarshal(body, &protections); err != nil {
 			WriteError(w, http.StatusBadRequest, "Invalid request body")
 			return
 		}
-		s.Config.Routes = routes
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+		s.Config.Protections = protections
+	}
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
 
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
+// handleGetVPN returns the current VPN configuration
+func (s *Server) handleGetVPN(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(cfg.VPN)
+	} else {
+		json.NewEncoder(w).Encode(s.Config.VPN)
 	}
 }
 
-// handleZones handles zone configuration
-func (s *Server) handleZones(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, cfg.Zones)
-		} else {
-			WriteJSON(w, http.StatusOK, s.Config.Zones)
-		}
+// handleUpdateVPN updates the VPN configuration
+func (s *Server) handleUpdateVPN(w http.ResponseWriter, r *http.Request) {
+	var newVPN config.VPNConfig
+	if err := json.NewDecoder(r.Body).Decode(&newVPN); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid JSON")
+		return
+	}
+	s.Config.VPN = &newVPN
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
 
-	case http.MethodPost:
-		var zones []config.Zone
-		if err := json.NewDecoder(r.Body).Decode(&zones); err != nil {
+// handleGetQoS returns QoS policies configuration
+func (s *Server) handleGetQoS(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		WriteJSON(w, http.StatusOK, cfg.QoSPolicies)
+	} else {
+		WriteJSON(w, http.StatusOK, s.Config.QoSPolicies)
+	}
+}
+
+// handleUpdateQoS updates QoS policies configuration
+func (s *Server) handleUpdateQoS(w http.ResponseWriter, r *http.Request) {
+	// Accept either array directly or wrapped in { qos_policies: [...] }
+	var wrapper struct {
+		QoSPolicies []config.QoSPolicy `json:"qos_policies"`
+	}
+	body, _ := io.ReadAll(r.Body)
+	if err := json.Unmarshal(body, &wrapper); err == nil && wrapper.QoSPolicies != nil {
+		s.Config.QoSPolicies = wrapper.QoSPolicies
+	} else {
+		var qos []config.QoSPolicy
+		if err := json.Unmarshal(body, &qos); err != nil {
 			WriteError(w, http.StatusBadRequest, "Invalid request body")
 			return
 		}
-		s.Config.Zones = zones
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		s.Config.QoSPolicies = qos
 	}
-}
-
-// handleProtections handles per-interface protection settings
-func (s *Server) handleProtections(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			json.NewEncoder(w).Encode(cfg.Protections)
-		} else {
-			json.NewEncoder(w).Encode(s.Config.Protections)
-		}
-
-	case http.MethodPost:
-		// Accept either array directly or wrapped in { protections: [...] }
-		var wrapper struct {
-			Protections []config.InterfaceProtection `json:"protections"`
-		}
-		body, _ := io.ReadAll(r.Body)
-		// Try parsing as wrapper
-		if err := json.Unmarshal(body, &wrapper); err == nil && wrapper.Protections != nil {
-			s.Config.Protections = wrapper.Protections
-		} else {
-			// Try parsing as array
-			var protections []config.InterfaceProtection
-			if err := json.Unmarshal(body, &protections); err != nil {
-				WriteError(w, http.StatusBadRequest, "Invalid request body")
-				return
-			}
-			s.Config.Protections = protections
-		}
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
-}
-
-// handleVPN handles VPN configuration
-func (s *Server) handleVPN(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			json.NewEncoder(w).Encode(cfg.VPN)
-		} else {
-			json.NewEncoder(w).Encode(s.Config.VPN)
-		}
-
-	case http.MethodPost:
-		var newVPN config.VPNConfig
-		if err := json.NewDecoder(r.Body).Decode(&newVPN); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid JSON")
-			return
-		}
-		s.Config.VPN = &newVPN
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
-}
-
-// handleQoS handles QoS policies configuration
-func (s *Server) handleQoS(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, cfg.QoSPolicies)
-		} else {
-			WriteJSON(w, http.StatusOK, s.Config.QoSPolicies)
-		}
-
-	case http.MethodPost:
-		// Accept either array directly or wrapped in { qos_policies: [...] }
-		var wrapper struct {
-			QoSPolicies []config.QoSPolicy `json:"qos_policies"`
-		}
-		body, _ := io.ReadAll(r.Body)
-		if err := json.Unmarshal(body, &wrapper); err == nil && wrapper.QoSPolicies != nil {
-			s.Config.QoSPolicies = wrapper.QoSPolicies
-		} else {
-			var qos []config.QoSPolicy
-			if err := json.Unmarshal(body, &qos); err != nil {
-				WriteError(w, http.StatusBadRequest, "Invalid request body")
-				return
-			}
-			s.Config.QoSPolicies = qos
-		}
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
-	}
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // handleReboot handles system reboot request
@@ -1943,47 +2018,43 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
-// handleSchedulerConfig handles scheduler configuration CRUD
-func (s *Server) handleSchedulerConfig(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		if s.client != nil {
-			cfg, err := s.client.GetConfig()
-			if err != nil {
-				WriteError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-			WriteJSON(w, http.StatusOK, map[string]interface{}{
-				"scheduler":       cfg.Scheduler,
-				"scheduled_rules": cfg.ScheduledRules,
-			})
-		} else {
-			WriteJSON(w, http.StatusOK, map[string]interface{}{
-				"scheduler":       s.Config.Scheduler,
-				"scheduled_rules": s.Config.ScheduledRules,
-			})
-		}
-
-	case http.MethodPost:
-		var req struct {
-			Scheduler      *config.SchedulerConfig `json:"scheduler"`
-			ScheduledRules []config.ScheduledRule  `json:"scheduled_rules"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
+// handleGetSchedulerConfig returns scheduler configuration
+func (s *Server) handleGetSchedulerConfig(w http.ResponseWriter, r *http.Request) {
+	if s.client != nil {
+		cfg, err := s.client.GetConfig()
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		if req.Scheduler != nil {
-			s.Config.Scheduler = req.Scheduler
-		}
-		if req.ScheduledRules != nil {
-			s.Config.ScheduledRules = req.ScheduledRules
-		}
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"scheduler":       cfg.Scheduler,
+			"scheduled_rules": cfg.ScheduledRules,
+		})
+	} else {
+		WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"scheduler":       s.Config.Scheduler,
+			"scheduled_rules": s.Config.ScheduledRules,
+		})
 	}
+}
+
+// handleUpdateSchedulerConfig updates scheduler configuration
+func (s *Server) handleUpdateSchedulerConfig(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Scheduler      *config.SchedulerConfig `json:"scheduler"`
+		ScheduledRules []config.ScheduledRule  `json:"scheduled_rules"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	if req.Scheduler != nil {
+		s.Config.Scheduler = req.Scheduler
+	}
+	if req.ScheduledRules != nil {
+		s.Config.ScheduledRules = req.ScheduledRules
+	}
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // handleSchedulerStatus returns the status of all scheduled tasks
@@ -2383,52 +2454,54 @@ func (s *Server) handleSystemSettings(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleRawHCL handles GET/PUT for the entire config as raw HCL
-func (s *Server) handleRawHCL(w http.ResponseWriter, r *http.Request) {
+// handleGetRawHCL handles GET for the entire config as raw HCL
+func (s *Server) handleGetRawHCL(w http.ResponseWriter, r *http.Request) {
 	if s.client == nil {
 		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
 		return
 	}
 
-	switch r.Method {
-	case http.MethodGet:
-		reply, err := s.client.GetRawHCL()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, reply)
-
-	case http.MethodPut, http.MethodPost:
-		var req struct {
-			HCL string `json:"hcl"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-
-		reply, err := s.client.SetRawHCL(req.HCL)
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		if reply.Error != "" {
-			WriteJSON(w, http.StatusOK, map[string]interface{}{
-				"success": false,
-				"error":   reply.Error,
-			})
-			return
-		}
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	reply, err := s.client.GetRawHCL()
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
+	WriteJSON(w, http.StatusOK, reply)
+}
+
+// handleUpdateRawHCL handles PUT/POST for the entire config as raw HCL
+func (s *Server) handleUpdateRawHCL(w http.ResponseWriter, r *http.Request) {
+	if s.client == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+		return
+	}
+
+	var req struct {
+		HCL string `json:"hcl"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	reply, err := s.client.SetRawHCL(req.HCL)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if reply.Error != "" {
+		WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"success": false,
+			"error":   reply.Error,
+		})
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // handleSectionHCL handles GET/PUT for a specific config section as raw HCL
-func (s *Server) handleSectionHCL(w http.ResponseWriter, r *http.Request) {
+// handleGetSectionHCL handles GET for a specific config section as raw HCL
+func (s *Server) handleGetSectionHCL(w http.ResponseWriter, r *http.Request) {
 	if s.client == nil {
 		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
 		return
@@ -2442,47 +2515,56 @@ func (s *Server) handleSectionHCL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch r.Method {
-	case http.MethodGet:
-		reply, err := s.client.GetSectionHCL(sectionType, labels...)
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		if reply.Error != "" {
-			WriteJSON(w, http.StatusOK, map[string]interface{}{
-				"error": reply.Error,
-			})
-			return
-		}
-		WriteJSON(w, http.StatusOK, map[string]string{"hcl": reply.HCL})
-
-	case http.MethodPut, http.MethodPost:
-		var req struct {
-			HCL string `json:"hcl"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-
-		reply, err := s.client.SetSectionHCL(sectionType, req.HCL, labels...)
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		if reply.Error != "" {
-			WriteJSON(w, http.StatusOK, map[string]interface{}{
-				"success": false,
-				"error":   reply.Error,
-			})
-			return
-		}
-		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
-
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	reply, err := s.client.GetSectionHCL(sectionType, labels...)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
+	if reply.Error != "" {
+		WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"error": reply.Error,
+		})
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]string{"hcl": reply.HCL})
+}
+
+// handleUpdateSectionHCL handles PUT/POST for a specific config section as raw HCL
+func (s *Server) handleUpdateSectionHCL(w http.ResponseWriter, r *http.Request) {
+	if s.client == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+		return
+	}
+
+	sectionType := r.URL.Query().Get("type")
+	labels := r.URL.Query()["label"]
+
+	if sectionType == "" {
+		WriteError(w, http.StatusBadRequest, "Section type required (use ?type=dhcp)")
+		return
+	}
+
+	var req struct {
+		HCL string `json:"hcl"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	reply, err := s.client.SetSectionHCL(sectionType, req.HCL, labels...)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if reply.Error != "" {
+		WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"success": false,
+			"error":   reply.Error,
+		})
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // handleValidateHCL validates HCL without applying it
@@ -2886,61 +2968,61 @@ func (s *Server) handlePinBackup(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleBackupSettings gets or sets backup settings (max backups)
-func (s *Server) handleBackupSettings(w http.ResponseWriter, r *http.Request) {
+// handleGetBackupSettings gets backup settings
+func (s *Server) handleGetBackupSettings(w http.ResponseWriter, r *http.Request) {
 	if s.client == nil {
 		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
 		return
 	}
 
-	switch r.Method {
-	case http.MethodGet:
-		// Get current settings via list backups (includes max_backups)
-		reply, err := s.client.ListBackups()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, map[string]interface{}{
-			"max_backups": reply.MaxBackups,
-		})
-
-	case http.MethodPut, http.MethodPost:
-		var req struct {
-			MaxBackups int `json:"max_backups"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-
-		if req.MaxBackups < 1 {
-			WriteError(w, http.StatusBadRequest, "max_backups must be at least 1")
-			return
-		}
-
-		reply, err := s.client.SetMaxBackups(req.MaxBackups)
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		if reply.Error != "" {
-			WriteJSON(w, http.StatusOK, map[string]interface{}{
-				"success": false,
-				"error":   reply.Error,
-			})
-			return
-		}
-
-		WriteJSON(w, http.StatusOK, map[string]interface{}{
-			"success":     true,
-			"max_backups": req.MaxBackups,
-		})
-
-	default:
-		WriteError(w, http.StatusMethodNotAllowed, "Method not allowed")
+	reply, err := s.client.ListBackups()
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"max_backups": reply.MaxBackups,
+	})
+}
+
+// handleUpdateBackupSettings updates backup settings
+func (s *Server) handleUpdateBackupSettings(w http.ResponseWriter, r *http.Request) {
+	if s.client == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+		return
+	}
+
+	var req struct {
+		MaxBackups int `json:"max_backups"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.MaxBackups < 1 {
+		WriteError(w, http.StatusBadRequest, "max_backups must be at least 1")
+		return
+	}
+
+	reply, err := s.client.SetMaxBackups(req.MaxBackups)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if reply.Error != "" {
+		WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"success": false,
+			"error":   reply.Error,
+		})
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"success":     true,
+		"max_backups": req.MaxBackups,
+	})
 }
 
 // handleUIMenu returns the navigation menu schema.
@@ -3257,6 +3339,10 @@ func (s *Server) handleMonitoringConntrack(w http.ResponseWriter, r *http.Reques
 
 // require checks for sufficient permission from EITHER an API Key OR a User Session.
 func (s *Server) require(perm storage.Permission, handler http.Handler) http.Handler {
+	// Apply CSRF protection to the inner handler
+	// The CSRF middleware itself handles skipping for API keys or non-state-changing methods
+	protectedHandler := CSRFMiddleware(s.csrfManager, s.authStore)(handler)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 1. API Key Check
 		authHeader := r.Header.Get("Authorization")
@@ -3280,7 +3366,7 @@ func (s *Server) require(perm storage.Permission, handler http.Handler) http.Han
 				if key.HasPermission(perm) {
 					// Success! Inject key into context
 					ctx := WithAPIKey(r.Context(), key)
-					handler.ServeHTTP(w, r.WithContext(ctx))
+					protectedHandler.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
 				// Key exists but lacks permission
@@ -3301,7 +3387,7 @@ func (s *Server) require(perm storage.Permission, handler http.Handler) http.Han
 					if user.Role.CanAccess(requiredRole) {
 						// Success! Inject user into context
 						ctx := context.WithValue(r.Context(), auth.UserContextKey, user)
-						handler.ServeHTTP(w, r.WithContext(ctx))
+						protectedHandler.ServeHTTP(w, r.WithContext(ctx))
 						return
 					}
 					writeAuthError(w, http.StatusForbidden, "user role insufficient")

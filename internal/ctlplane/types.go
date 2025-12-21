@@ -31,6 +31,7 @@ type Status struct {
 	ConfigFile      string `json:"config_file"`
 	FirewallActive  bool   `json:"firewall_active"`            // Whether firewall rules are applied
 	FirewallApplied string `json:"firewall_applied,omitempty"` // Timestamp of last rule application
+	SafeMode        bool   `json:"safe_mode"`                  // True if system is in safe mode
 }
 
 // InterfaceState represents the operational state of a network interface
@@ -723,6 +724,7 @@ type SystemStats struct {
 	DiskUsed    uint64  `json:"disk_used"`    // Bytes
 	LoadAverage float64 `json:"load_average"` // 1-minute load avg
 	Uptime      uint64  `json:"uptime"`       // Seconds
+	SafeMode    bool    `json:"safe_mode"`    // True if system is in safe mode due to crash loops
 }
 
 // GetSystemStatsReply is the response for GetSystemStats
@@ -1027,4 +1029,12 @@ type NetworkDevice struct {
 type GetNetworkDevicesReply struct {
 	Devices []NetworkDevice `json:"devices"`
 	Error   string          `json:"error,omitempty"`
+}
+// GetConfigDiffRequest is the request for GetConfigDiff
+type GetConfigDiffRequest struct{}
+
+// GetConfigDiffReply is the response for GetConfigDiff
+type GetConfigDiffReply struct {
+	Diff  string `json:"diff"`
+	Error string `json:"error,omitempty"`
 }

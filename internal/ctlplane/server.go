@@ -286,6 +286,19 @@ func (s *Server) GetNotifications(args *GetNotificationsArgs, reply *GetNotifica
 	return nil
 }
 
+// GetConfigDiff returns the config diff
+func (s *Server) GetConfigDiff(args *Empty, reply *GetConfigDiffReply) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	if s.hclConfig == nil {
+		return fmt.Errorf("hcl config manager not initialized")
+	}
+	
+	reply.Diff = s.hclConfig.Diff()
+	return nil
+}
+
 // GetStatus returns the current system status
 func (s *Server) GetStatus(args *Empty, reply *GetStatusReply) error {
 	reply.Status = s.systemManager.GetStatus()
