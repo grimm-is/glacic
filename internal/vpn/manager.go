@@ -40,6 +40,7 @@ func NewManager(cfg *config.VPNConfig, logger *logging.Logger) (*Manager, error)
 			Address:          wgCfg.Address,
 			DNS:              wgCfg.DNS,
 			MTU:              wgCfg.MTU,
+			FWMark:           wgCfg.FWMark,
 		}
 
 		for _, p := range wgCfg.Peers {

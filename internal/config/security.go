@@ -1,5 +1,7 @@
 package config
 
+import "encoding/json"
+
 // VPNConfig configures VPN integrations.
 // Supports multiple connections per provider, each with its own zone or combined.
 type VPNConfig struct {
@@ -161,6 +163,28 @@ type WireGuardConfig struct {
 
 	// Peer configurations
 	Peers []WireGuardPeerConfig `hcl:"peer,block" json:"peers,omitempty"`
+
+	// Firewall Mark (fwmark) for routing
+	FWMark int `hcl:"fwmark,optional" json:"fwmark,omitempty"`
+}
+
+// MarshalJSON masks the private key in API responses.
+func (c WireGuardConfig) MarshalJSON() ([]byte, error) {
+	type Alias WireGuardConfig
+	// Create a temporary struct with the same fields
+	aux := &struct {
+		Alias
+		PrivateKey string `json:"private_key,omitempty"`
+	}{
+		Alias: (Alias)(c),
+	}
+
+	// Mask the private key if it exists
+	if c.PrivateKey != "" {
+		aux.PrivateKey = "(hidden)"
+	}
+
+	return json.Marshal(aux)
 }
 
 // WireGuardPeerConfig configures a WireGuard peer.
@@ -182,6 +206,25 @@ type WireGuardPeerConfig struct {
 
 	// Keepalive interval in seconds (useful for NAT traversal)
 	PersistentKeepalive int `hcl:"persistent_keepalive,optional" json:"persistent_keepalive,omitempty"`
+}
+
+// MarshalJSON masks the preshared key in API responses.
+func (p WireGuardPeerConfig) MarshalJSON() ([]byte, error) {
+	type Alias WireGuardPeerConfig
+	// Create a temporary struct with the same fields
+	aux := &struct {
+		Alias
+		PresharedKey string `json:"preshared_key,omitempty"`
+	}{
+		Alias: (Alias)(p),
+	}
+
+	// Mask the preshared key if it exists
+	if p.PresharedKey != "" {
+		aux.PresharedKey = "(hidden)"
+	}
+
+	return json.Marshal(aux)
 }
 
 // ThreatIntel configures threat intelligence feeds.

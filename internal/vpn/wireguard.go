@@ -30,6 +30,7 @@ type WireGuardConfig struct {
 	Address          []string        `hcl:"address" json:"address,omitempty"`
 	DNS              []string        `hcl:"dns" json:"dns,omitempty"`
 	MTU              int             `hcl:"mtu" json:"mtu,omitempty"`
+	FWMark           int             `hcl:"fwmark" json:"fwmark,omitempty"`
 	Peers            []WireGuardPeer `hcl:"peer,block" json:"peers,omitempty"`
 }
 
@@ -365,6 +366,12 @@ func (m *WireGuardManager) Up() error {
 	if m.config.ListenPort != 0 {
 		port := m.config.ListenPort
 		conf.ListenPort = &port
+	}
+
+	// Set Firewall Mark
+	if m.config.FWMark != 0 {
+		mark := m.config.FWMark
+		conf.FirewallMark = &mark
 	}
 
 	// Set Peers
