@@ -3,6 +3,7 @@
 
 TEST_TIMEOUT=90
 . "$(dirname "$0")/../common.sh"
+export GLACIC_LOG_FILE=stdout
 
 plan 6
 
@@ -171,6 +172,7 @@ EOF
 
 # Start Primary
 diag "Starting Primary..."
+export GLACIC_CTL_SOCKET="$PRIM_DIR/ctl.sock"
 ip netns exec ns_prim $APP_BIN ctl --state-dir $PRIM_DIR/state /tmp/primary.hcl > $PRIM_DIR/log 2>&1 &
 PID_PRIM=$!
 echo $PID_PRIM > $PRIM_DIR/pid
@@ -217,6 +219,7 @@ grep "Allocated lease" $PRIM_DIR/log >/dev/null 2>&1
 
 # Start Replica
 diag "Starting Replica..."
+export GLACIC_CTL_SOCKET="$REPL_DIR/ctl.sock"
 ip netns exec ns_repl $APP_BIN ctl --state-dir $REPL_DIR/state /tmp/replica.hcl > $REPL_DIR/log 2>&1 &
 PID_REPL=$!
 echo $PID_REPL > $REPL_DIR/pid

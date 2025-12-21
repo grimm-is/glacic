@@ -106,6 +106,7 @@ snat_count=$(nft list chain ip test_nat postrouting | grep -c "snat to")
 ok $? "SNAT rules visible ($snat_count rules)"
 
 # ============================================
+# TEST_TIMEOUT=60
 # Testing DNAT (destination NAT / port forwarding)
 # ============================================
 diag "Testing DNAT (port forwarding)..."

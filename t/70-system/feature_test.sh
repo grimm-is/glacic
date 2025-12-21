@@ -102,7 +102,7 @@ ok $? "eth1 has configured IP (10.1.0.1)"
 
 # 3. Check DHCP Server Status
 # Check for listening port 67 (DHCP)
-if netstat -uln | grep ":67" >/dev/null 2>&1; then
+if netstat -uln 2>/dev/null | grep ":67" >/dev/null 2>&1 || ss -uln 2>/dev/null | grep ":67" >/dev/null 2>&1; then
     ok 0 "DHCP server listening on port 67"
 else
     ok 1 "DHCP server NOT listening on port 67"
@@ -110,27 +110,38 @@ fi
 
 # 4. Check DNS Server Status
 # Check for listening port 53 (DNS)
-if netstat -uln | grep ":53" >/dev/null 2>&1; then
+if netstat -uln 2>/dev/null | grep ":53" >/dev/null 2>&1 || ss -uln 2>/dev/null | grep ":53" >/dev/null 2>&1; then
     ok 0 "DNS server listening on port 53"
 else
     ok 1 "DNS server NOT listening on port 53"
 fi
 
+# Wrapper for HTTP requests
+http_get() {
+    url="$1"
+    if command -v curl >/dev/null 2>&1; then
+        curl -s --max-time 5 "$url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -O - "$url"
+    else
+        return 1
+    fi
+}
+
 # 5. Check API Status
-curl -s --max-time 5 http://localhost:8080/api/status | grep "online" >/dev/null 2>&1
+http_get http://localhost:8080/api/status | grep "online" >/dev/null 2>&1
 ok $? "API /api/status returns online"
 
 # 6. Check API Config
-# 6. Check API Config
-curl -s --max-time 5 http://localhost:8080/api/config | grep "ip_forwarding" >/dev/null 2>&1
+http_get http://localhost:8080/api/config | grep "ip_forwarding" >/dev/null 2>&1
 ok $? "API /api/config returns config JSON"
 
 # 7. Check SPA Serving
-curl -s --max-time 5 http://localhost:8080/ | grep -i "glacic\|firewall\|dashboard" >/dev/null 2>&1
+http_get http://localhost:8080/ | grep -i "glacic\|firewall\|dashboard" >/dev/null 2>&1
 ok $? "API serves SPA index.html"
 
 # 8. Check Prometheus Metrics
-curl -s --max-time 5 http://localhost:8080/metrics | grep "# HELP" >/dev/null 2>&1
+http_get http://localhost:8080/metrics | grep "# HELP" >/dev/null 2>&1
 ok $? "API /metrics returns Prometheus metrics"
 
 # Cleanup

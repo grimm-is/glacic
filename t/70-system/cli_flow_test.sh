@@ -14,6 +14,8 @@ echo "1..7"
 # Clean previous run
 rm -f $PID_FILE
 
+export GLACIC_LOG_FILE=stdout
+
 # Generate minimal valid config
 CONFIG_FILE="/tmp/test_config.hcl"
 cat > "$CONFIG_FILE" <<EOF
@@ -29,6 +31,7 @@ interface "lo" {
 api {
   enabled = true
   listen = ":8080"
+  disable_sandbox = true
 }
 EOF
 
@@ -81,7 +84,7 @@ fi
 WAITED=0
 while [ $WAITED -lt 100 ]; do
     if [ -f "$LOG_FILE" ] && grep -q "Spawning API server" "$LOG_FILE"; then
-        echo "ok 4 - API server spawning logged (waited ${WAITED}00ms)"
+        echo "# API server spawning logged (waited ${WAITED}00ms)"
         break
     fi
     sleep 0.1
@@ -94,6 +97,20 @@ if [ $WAITED -ge 100 ]; then
     tail -n 10 "$LOG_FILE" 2>/dev/null | sed 's/^/# /' || echo "# No log file"
 fi
 
+# Wait for API server to actually bind the port (child process startup)
+WAITED=0
+while [ $WAITED -lt 50 ]; do
+    if grep -q "Starting API server on" "$LOG_FILE"; then
+        # Check if port is actually bound (log is printed before Bind)
+        if netstat -lnt | grep -q ":8080"; then
+            echo "ok 4 - API server bound port 8080"
+            break
+        fi
+    fi
+    sleep 0.1
+    WAITED=$((WAITED + 1))
+done
+
 # 4.5 Verify 'glacic test-api' detects running instance
 echo "# Testing 'glacic test-api' status message..."
 API_OUTPUT=$(timeout 5 $GLACIC test-api 2>&1 || true)
@@ -104,6 +121,8 @@ else
     echo "not ok 5 - glacic test-api failed to detect running instance"
     echo "# Output:"
     echo "$API_OUTPUT" | sed 's/^/# /'
+    echo "# Daemon Log Content:"
+    cat "$LOG_FILE" | sed 's/^/# /' || echo "# Failed to read log file"
     # Don't fail hard, this is a UX improvement
 fi
 

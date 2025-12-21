@@ -207,5 +207,7 @@ else
     diag ""
     diag "Current nftables state:"
     nft list table inet glacic 2>/dev/null | head -50
+    diag "Application Log:"
+    cat /tmp/fw_rules_test.log | sed 's/^/# /'
     exit 1
 fi

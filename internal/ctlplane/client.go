@@ -113,7 +113,8 @@ func isNetworkError(err error) bool {
 	return strings.Contains(msg, "connection is shut down") ||
 		strings.Contains(msg, "broken pipe") ||
 		strings.Contains(msg, "bad file descriptor") ||
-		strings.Contains(msg, "unexpected EOF")
+		strings.Contains(msg, "unexpected EOF") ||
+		strings.Contains(msg, "use of closed network connection")
 }
 
 // GetStatus returns the current system status

@@ -9,6 +9,7 @@
 
 TEST_TIMEOUT=120
 . "$(dirname "$0")/../common.sh"
+export GLACIC_LOG_FILE=stdout
 
 plan 6
 

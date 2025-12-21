@@ -5,6 +5,7 @@
 
 # Source common functions
 . "$(dirname "$0")/../common.sh"
+export GLACIC_LOG_FILE=stdout
 
 QOS_CONFIG="/tmp/qos.hcl"
 
@@ -156,8 +157,11 @@ if [ $? -ne 0 ]; then
          if grep -q "QoS policies applied" /tmp/firewall_qos.log; then
             ok 0 "QoS policies applied successfully"
          else
-            ok 1 "QoS Manager did not attempt application or failed unexpectedly"
-            cat /tmp/firewall_qos.log | sed 's/^/# /'
+             ok 1 "QoS Manager did not attempt application or failed unexpectedly"
+             echo "# Debug: Log file status:"
+             ls -l /tmp/firewall_qos.log
+             echo "# Debug: Log file content:"
+             cat /tmp/firewall_qos.log | sed 's/^/# /'
          fi
     fi
     exit 0

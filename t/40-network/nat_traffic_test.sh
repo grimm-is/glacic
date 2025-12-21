@@ -223,5 +223,7 @@ else
     diag "Debug info:"
     diag "NAT table:"
     nft list table ip nat 2>/dev/null | head -20
+    diag "Application Log:"
+    cat /tmp/nat_traffic.log | sed 's/^/# /'
     exit 1
 fi

@@ -1,11 +1,11 @@
 #!/bin/sh
-# NFLog Capture Integration Test
+# TEST_TIMEOUT=60
+# Test NFLOG capture functionalityion Test
 # Verifies that:
 # 1. NFLog monitor starts successfully
 # 2. Firewall rules log to the correct nflog group
 # 3. Learning service receives and processes packets
 
-TEST_TIMEOUT=60
 . "$(dirname "$0")/../common.sh"
 
 plan 5
@@ -32,39 +32,31 @@ zone "local" {
     description = "Loopback"
 }
 
-learning {
+rule_learning {
     enabled = true
     log_group = 100
-    mode = "audit"  # Log but don't auto-allow
+    # mode = "audit"
 }
 
 api {
     enabled = true
     listen = "127.0.0.1:8080"
 }
+
+features {
+    network_learning = true
+}
 EOF
+
 
 ok 0 "Config created with learning enabled"
 
 # 2. Start control plane
-diag "Starting control plane..."
-glacic ctl /tmp/nflog.hcl > /tmp/glacic.log 2>&1 &
-CTL_PID=$!
-sleep 3
-
-if ! kill -0 $CTL_PID 2>/dev/null; then
-    diag "Control plane failed to start"
-    cat /tmp/glacic.log
-    exit 1
-fi
+start_ctl /tmp/nflog.hcl
 ok 0 "Control plane started"
 
-# 3. Wait for API
-wait_for_api 127.0.0.1:8080 30 || {
-    diag "API failed to start"
-    cat /tmp/glacic.log
-    exit 1
-}
+# 3. Start API
+start_api
 ok 0 "API is reachable"
 
 # 4. Check that nflog rules exist in firewall
