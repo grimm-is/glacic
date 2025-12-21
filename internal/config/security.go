@@ -374,6 +374,7 @@ type RuleLearningConfig struct {
 	AutoApprove   bool     `hcl:"auto_approve,optional" json:"auto_approve"`       // Auto-approve learned rules (legacy)
 	IgnoreNets    []string `hcl:"ignore_networks,optional" json:"ignore_networks"` // Networks to ignore from learning
 	RetentionDays int      `hcl:"retention_days,optional" json:"retention_days"`   // How long to keep pending rules
+	CacheSize     int      `hcl:"cache_size,optional" json:"cache_size"`           // Flow cache size (default: 10000)
 
 	// TOFU (Trust On First Use) mode
 	LearningMode bool `hcl:"learning_mode,optional" json:"learning_mode"`

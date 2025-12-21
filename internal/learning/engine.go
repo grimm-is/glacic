@@ -32,6 +32,7 @@ type Engine struct {
 	mu           sync.RWMutex
 	config       *config.RuleLearningConfig
 	db           *flowdb.DB
+	flowCache    *FlowCache // In-memory LRU cache for fast packet processing
 	dnsCache     *DNSSnoopCache
 	logger       *logging.Logger
 	learningMode bool
@@ -90,9 +91,16 @@ func NewEngine(cfg EngineConfig) (*Engine, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Default cache size: 10k entries
+	cacheSize := 10000
+	if cfg.Config != nil && cfg.Config.CacheSize > 0 {
+		cacheSize = cfg.Config.CacheSize
+	}
+
 	engine := &Engine{
 		config:          cfg.Config,
 		db:              db,
+		flowCache:       NewFlowCache(cacheSize),
 		dnsCache:        NewDNSSnoopCache(cfg.Logger, 10000),
 		logger:          cfg.Logger.WithComponent("learning_engine"),
 		learningMode:    cfg.LearningMode,
@@ -115,6 +123,10 @@ func (e *Engine) Start() error {
 	// Start reverse DNS worker
 	e.wg.Add(1)
 	go e.reverseDNSWorker()
+
+	// Start DB flush worker for cache write-back
+	e.wg.Add(1)
+	go e.dbFlushWorker()
 
 	return nil
 }
@@ -261,29 +273,49 @@ func (e *Engine) ProcessPacket(pkt *PacketInfo) (bool, error) {
 	learningMode := e.learningMode
 	e.mu.RUnlock()
 
-	// Check if flow already exists
+	// FAST PATH: Check in-memory cache first (no I/O)
+	if entry, ok := e.flowCache.Get(pkt.SrcMAC, pkt.Protocol, pkt.DstPort); ok {
+		// Update stats in cached entry
+		entry.Flow.LastSeen = clock.Now()
+		entry.Flow.Occurrences++
+		entry.Flow.SrcIP = pkt.SrcIP
+		entry.Flow.DstIPSample = pkt.DstIP
+		entry.Dirty = true // Mark for async DB write
+		return entry.Verdict, nil
+	}
+
+	// SLOW PATH: Cache miss - query database
 	existingFlow, err := e.db.FindFlow(pkt.SrcMAC, pkt.Protocol, pkt.DstPort)
 	if err != nil {
 		return false, fmt.Errorf("failed to find flow: %w", err)
 	}
 
 	if existingFlow != nil {
-		// Update existing flow via upsert
+		// Update existing flow
 		existingFlow.SrcIP = pkt.SrcIP
 		existingFlow.DstIPSample = pkt.DstIP
 		if err := e.db.UpsertFlow(existingFlow); err != nil {
 			e.logger.Error("failed to update flow", "error", err)
 		}
 
-		// Return verdict based on state
+		// Compute verdict based on state
+		var verdict bool
 		switch existingFlow.State {
 		case flowdb.StateAllowed:
-			return true, nil
+			verdict = true
 		case flowdb.StateDenied:
-			return false, nil
+			verdict = false
 		default: // pending
-			return learningMode, nil
+			verdict = learningMode
 		}
+
+		// Populate cache for future packets
+		e.flowCache.Put(pkt.SrcMAC, pkt.Protocol, pkt.DstPort, &FlowCacheEntry{
+			Flow:    existingFlow,
+			Verdict: verdict,
+		})
+
+		return verdict, nil
 	}
 
 	// Create new flow
@@ -329,6 +361,12 @@ func (e *Engine) ProcessPacket(pkt *PacketInfo) (bool, error) {
 		"dst_ip", pkt.DstIP,
 		"state", newFlow.State,
 	)
+
+	// Add to cache
+	e.flowCache.Put(pkt.SrcMAC, pkt.Protocol, pkt.DstPort, &FlowCacheEntry{
+		Flow:    newFlow,
+		Verdict: learningMode,
+	})
 
 	// Enrich with DNS context
 	go e.enrichFlowWithDNS(newFlow.ID, pkt.DstIP)
@@ -547,6 +585,9 @@ func (e *Engine) AllowFlow(flowID int64) error {
 		return fmt.Errorf("failed to allow flow: %w", err)
 	}
 
+	// Invalidate cache so next packet gets fresh state
+	e.flowCache.InvalidateByID(flowID)
+
 	flow, err := e.db.GetFlow(flowID)
 	if err != nil {
 		return fmt.Errorf("failed to get flow: %w", err)
@@ -577,6 +618,9 @@ func (e *Engine) DenyFlow(flowID int64) error {
 	if err := e.db.UpdateState(flowID, flowdb.StateDenied); err != nil {
 		return fmt.Errorf("failed to deny flow: %w", err)
 	}
+
+	// Invalidate cache so next packet gets fresh state
+	e.flowCache.InvalidateByID(flowID)
 
 	flow, err := e.db.GetFlow(flowID)
 	if err != nil {
@@ -694,6 +738,12 @@ func (e *Engine) GetStats() (map[string]int64, error) {
 		result["dns_cache_"+k] = v
 	}
 
+	// Add flow cache stats
+	cacheHits, cacheMisses, cacheSize := e.flowCache.Stats()
+	result["flow_cache_hits"] = int64(cacheHits)
+	result["flow_cache_misses"] = int64(cacheMisses)
+	result["flow_cache_size"] = int64(cacheSize)
+
 	// Add learning mode status
 	if e.IsLearningMode() {
 		result["learning_mode"] = 1
@@ -734,6 +784,42 @@ func (e *Engine) cleanupWorker() {
 			}
 		}
 	}
+}
+
+// dbFlushWorker periodically flushes dirty cache entries to the database.
+// This implements write-back caching for flow updates.
+func (e *Engine) dbFlushWorker() {
+	defer e.wg.Done()
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-e.ctx.Done():
+			// Final flush on shutdown
+			e.flushDirtyEntries()
+			return
+		case <-ticker.C:
+			e.flushDirtyEntries()
+		}
+	}
+}
+
+// flushDirtyEntries writes all dirty cache entries to the database.
+func (e *Engine) flushDirtyEntries() {
+	dirtyFlows := e.flowCache.FlushDirty()
+	if len(dirtyFlows) == 0 {
+		return
+	}
+
+	for _, flow := range dirtyFlows {
+		if err := e.db.UpsertFlow(flow); err != nil {
+			e.logger.Error("failed to flush flow to database", "flow_id", flow.ID, "error", err)
+		}
+	}
+
+	e.logger.Debug("flushed dirty flows to database", "count", len(dirtyFlows))
 }
 
 // AllowAllPending allows all pending flows at once
