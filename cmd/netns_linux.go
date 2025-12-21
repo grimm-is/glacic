@@ -162,8 +162,7 @@ func configureHostFirewall(interfaces []string) error {
 
 	lockoutTable := brand.LowerName + "-lockout"
 	lockoutTableLocal := brand.LowerName + "-lockout-local"
-	nsIP := strings.Split(ipNS, "/")[0]
-	// hostIP := strings.Split(ipHost, "/")[0] // Unused in script but good for logs
+	nsIP := stripCIDR(ipNS)
 
 	// Prepare sets
 	// Quote interfaces just in case
