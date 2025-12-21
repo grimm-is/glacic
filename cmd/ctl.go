@@ -91,7 +91,15 @@ func RunCtl(configFile string, testMode bool, stateDir string, dryRun bool, list
 	}()
 
 	// Capture stdout/stderr into the application log buffer and log file
-	logging.CaptureStdio("/var/log/glacic/glacic.log")
+	logFile := "/var/log/glacic/glacic.log"
+	if env := os.Getenv("GLACIC_LOG_FILE"); env != "" {
+		if env == "stdout" || env == "stderr" {
+			logFile = ""
+		} else {
+			logFile = env
+		}
+	}
+	logging.CaptureStdio(logFile)
 	// Configure standard logger to use structured logger (unified format)
 	logging.RedirectStdLog()
 

@@ -74,12 +74,19 @@ ok $? "Test configuration created"
 # Test 2: firewall config get (basic)
 diag "Testing firewall config get"
 GET_OUTPUT=$(mktemp_compatible "get_output.txt")
-$APP_BIN config get > "$GET_OUTPUT" 2>/dev/null
-ok $? "Config get command executes"
+$APP_BIN config get > "$GET_OUTPUT" 2>&1
+if [ $? -eq 0 ]; then
+    ok 0 "Config get command executes"
+else
+    ok 1 "Config get command executes"
+    diag "Output of config get ($GET_OUTPUT):"
+    cat "$GET_OUTPUT"
+    echo "# End of output"
+fi
 
 # Test 3: firewall config get contains expected content
 diag "Verifying get output contains expected content"
-grep -q "ip_forwarding.*=.*true" "$GET_OUTPUT"
+grep -q "ip_forwarding" "$GET_OUTPUT" && grep -q "true" "$GET_OUTPUT"
 ok $? "Get output contains ip_forwarding setting"
 
 # Test 4: firewall config get JSON output

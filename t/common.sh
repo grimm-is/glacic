@@ -58,6 +58,41 @@ if [ ! -x "$APP_BIN" ]; then
     APP_BIN="$PROJECT_ROOT/build/$BINARY_NAME"
 fi
 
+# ============================================================================
+# Global State Reset (Ensure clean slate for each test)
+# ============================================================================
+reset_state() {
+    # Only run in VM environment (check for nft/ip availability)
+    if [ "$(id -u)" -eq 0 ]; then
+        # Flush nftables to remove any leftover rules from previous tests
+        if command -v nft >/dev/null 2>&1; then
+             nft flush ruleset 2>/dev/null || true
+        fi
+        
+        # Cleanup test namespaces and interfaces
+        ip netns del test_client 2>/dev/null || true
+        ip netns del test_server 2>/dev/null || true
+        ip link del veth-lan 2>/dev/null || true
+        ip link del veth-wan 2>/dev/null || true
+        
+        # Reset IP forwarding
+        echo 0 > /proc/sys/net/ipv4/ip_forward 2>/dev/null || true
+        
+        # Cleanup State Directory (prevents false positive crash loops)
+        # The crash loop detector looks at recent restarts. We must wipe this memory.
+        rm -rf "$STATE_DIR"/* 2>/dev/null
+        rm -f "/var/run/glacic"*.pid 2>/dev/null
+
+        # Ensure tun device exists (for VPN tests)
+        if [ ! -c /dev/net/tun ]; then
+            mkdir -p /dev/net
+            mknod /dev/net/tun c 10 200 2>/dev/null || true
+        fi
+    fi
+}
+# Execute reset immediately
+reset_state
+
 # Export for tests
 export BRAND_NAME
 export BRAND_LOWER
@@ -72,6 +107,12 @@ export CTL_SOCKET
 export GLACIC_STATE_DIR="$STATE_DIR"
 export GLACIC_LOG_DIR="$LOG_DIR"
 export GLACIC_RUN_DIR="$RUN_DIR"
+export GLACIC_CTL_SOCKET="$CTL_SOCKET"
+
+# Parse kernel parameters
+if grep -q "glacic.run_skipped=1" /proc/cmdline 2>/dev/null; then
+    export GLACIC_RUN_SKIPPED=1
+fi
 
 # Debug output (only shown if DEBUG=1)
 if [ "${DEBUG:-0}" = "1" ]; then
@@ -173,6 +214,7 @@ mktemp_compatible() {
 fail() {
     echo "not ok - FATAL: $1"
     cleanup_processes
+    sleep 1 # Ensure output flushes before exit
     exit 1
 }
 
@@ -297,7 +339,7 @@ start_ctl() {
     if $APP_BIN --help 2>&1 | grep -q "check"; then
         if ! $APP_BIN check "$_config" >> "$CTL_LOG" 2>&1; then
             echo "# Config check failed:"
-            cat "$CTL_LOG"
+            sed 's/^/# /' "$CTL_LOG"
             fail "Config check failed for $_config"
         fi
     fi
@@ -321,7 +363,7 @@ start_ctl() {
         fail "Control plane crashed"
     fi
 
-    diag "Control plane started (PID $CTL_PID, socket $socket)"
+    diag "Control plane started (PID $CTL_PID, socket $CTL_SOCKET)"
 }
 
 # Stop the control plane

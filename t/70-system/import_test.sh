@@ -5,7 +5,6 @@ set -e
 
 # Base URL for API
 API_URL="http://127.0.0.1:8080/api"
-SAMPLE_FILE="t/system/support/pfsense_sample.xml"
 
 # Colors
 GREEN='\033[0;32m'
@@ -13,21 +12,17 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Verifies rule import functionality
-TEST_TIMEOUT=120
+TEST_TIMEOUT=60
 . "$(dirname "$0")/../common.sh"
+SAMPLE_FILE="$(mktemp_compatible pfsense_sample.xml)"
 
 # Ensure prerequisites
 if ! command -v jq >/dev/null 2>&1; then
-    # try to install if missing (in VM)
-    if command -v apk >/dev/null 2>&1; then
-        apk add --quiet jq || fail "jq is required but not installed."
-    else
-        fail "jq is required but not installed."
-    fi
+    fail "jq is required but not installed."
 fi
 
 # Always create/overwrite sample file to ensure it matches test expectations
-mkdir -p "$(dirname "$SAMPLE_FILE")"
+# mkdir -p "$(dirname "$SAMPLE_FILE")"  # Not needed for mktemp
 cat > "$SAMPLE_FILE" <<EOF
 <pfsense>
     <version>2.5.2</version>
@@ -82,7 +77,7 @@ cleanup_on_exit
 
 # 1. Start Firewall
 # Kill any existing instance
-pkill glacic || true
+# pkill glacic || true
 sleep 1
 
 # Start Control Plane
@@ -111,7 +106,11 @@ start_api "$TEST_CONFIG"
 
 # 2. Upload File
 diag "Step 1: Uploading configuration..."
-UPLOAD_RESP=$(curl -v -s -H "X-API-Key: secret123" -X POST -F "config_file=@$SAMPLE_FILE" "$API_URL/import/upload" || echo "CURL_ERROR:$?")
+diag "File size: $(ls -l $SAMPLE_FILE)"
+# listing API processes
+ps -ef | grep api | grep -v grep || diag "API process not found?"
+
+UPLOAD_RESP=$(curl -v -s --connect-timeout 5 --max-time 10 -H "X-API-Key: secret123" -X POST -F "config_file=@$SAMPLE_FILE" "$API_URL/import/upload" || echo "CURL_ERROR:$?")
 
 # Check for success
 if echo "$UPLOAD_RESP" | grep -q "CURL_ERROR"; then
