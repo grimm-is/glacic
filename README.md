@@ -31,18 +31,18 @@ These work for happy-path scenarios but have limited testing:
 - **DHCP DNS Integration** - Hostname→IP registration
 - **Web UI** - Most pages at least partially functional
 - **Tailscale Status** - Works if tailscaled running
-- **Seamless Upgrades** - Socket handoff works
+- **Seamless Upgrades** - Socket handoff works (note: FRR/VPN state not serialized)
+- **Multi-WAN** - Health checks, failover, load balancing (unit tested)
+- **WireGuard** - Full native implementation via netlink/wgctrl
 
 ## Incomplete Features (L1-L2)
 
 Present in config but not fully implemented:
 
-- **Multi-WAN** - Config structures only
 - **GeoIP/App-ID Filtering** - Designed, no runtime
-- **WireGuard Native** - Config parsing only
 - **TLS for API** - Config structures only
 - **DNS-over-HTTPS** - Config only
-- **HA Failover** - Primary→replica sync works, failover not tested
+- **HA Replication** - Database sync works (Hot Standby, requires external VRRP for auto-failover)
 - **Rule Learning** - UI works, backend uses stubs
 - **Terminal UI** - Scaffolded, not functional
 

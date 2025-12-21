@@ -35,8 +35,8 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Routing | IPv6 Addressing | 🟩 L4 | Confirmed via `t/01-sanity/ipv6_test.sh` |
 | Routing | IPv6 Routing | 🟩 L4 | Confirmed via `t/01-sanity/ipv6_test.sh` |
 | Routing | Policy Routing (fwmark) | 🟩 L4 | Confirmed via `t/30-firewall/policy_routing_test.sh` |
-| Routing | Multi-WAN Failover | 🔲 L1 | Config structures only |
-| Routing | Multi-WAN Load Balance | ⬜ L0 | Not started |
+| Routing | Multi-WAN Failover | 🟨 L3 | Health checks, tier-based failover, connmark restore |
+| Routing | Multi-WAN Load Balance | 🟨 L3 | Weighted, latency, adaptive modes via numgen |
 | Routing | User/UID-Based Routing | 🔲 L1 | Config structures only |
 | **FIREWALL** | | | |
 | Zones | Zone Definition | ✅ L5 | Complete, well tested |
@@ -135,10 +135,10 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Config | Schema Migration | 🟧 L2 | Framework exists, few migrations |
 | Config | Config Hot Reload | 🟨 L3 | Works for most services |
 | Config | Atomic Apply + Rollback | 🟩 L4 | Apply works, rollback timer, connectivity check |
-| Upgrade | Seamless Upgrade | 🟨 L3 | Handoff works, delta sync untested |
+| Upgrade | Seamless Upgrade | 🟨 L3 | Socket handoff works; FRR/BGP/VPN state NOT serialized |
 | State | State Store (SQLite) | 🟩 L4 | Works, buckets for all services |
-| State | State Replication (HA) | 🟧 L2 | Primary→replica sync works |
-| State | State Failover | 🔲 L1 | Designed, not implemented |
+| State | State Replication | 🟧 L2 | Database sync works (Hot Standby, no VIP/VRRP) |
+| State | VIP Failover (VRRP) | ⬜ L0 | Requires external keepalived/VRRP for auto-failover |
 | Backup | Config Backup/Restore | 🟩 L4 | Works, versioned |
 | Monitoring | Prometheus Metrics | 🟧 L2 | Some metrics, incomplete |
 | Logging | Structured Logging | 🟩 L4 | slog-based, works |
