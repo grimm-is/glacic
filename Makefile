@@ -201,9 +201,9 @@ test-int-verbose: vm-ensure build-go build-tests brand-env
 
 # New Go-based parallel test orchestrator
 test-int: vm-ensure build-go build-tests brand-env build-toolbox
-	@mkdir -p t/system
-	@cp build/glacic t/system/glacic-v1
-	@cp build/glacic t/system/glacic-v2
+	@mkdir -p build/test-artifacts
+	@cp build/glacic build/test-artifacts/glacic-v1
+	@cp build/glacic build/test-artifacts/glacic-v2
 	@echo "$(BLUE)Calculating optimal parallelism...$(NC)"
 	@JOBS=$$(./scripts/calc_jobs.sh); \
 	 echo "$(BLUE)Running integration tests via parallel orca (JOBS=$$JOBS)...$(NC)"; \

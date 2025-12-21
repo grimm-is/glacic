@@ -24,11 +24,11 @@ cleanup() {
 trap cleanup EXIT
 
 # 1. Prepare Binaries
-# Binaries are pre-built on host and mounted at /mnt/glacic/t/system/
-MOUNT_DIR="/mnt/glacic/t/system"
+# Binaries are pre-built on host and mounted at /mnt/glacic/build/test-artifacts/
+MOUNT_DIR="/mnt/glacic/build/test-artifacts"
 if [ ! -f "$MOUNT_DIR/glacic-v1" ] || [ ! -f "$MOUNT_DIR/glacic-v2" ]; then
     diag "Pre-built binaries not found in $MOUNT_DIR"
-    ls -l $MOUNT_DIR
+    ls -lR /mnt/glacic/build/
     exit 1
 fi
 
