@@ -60,6 +60,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | IPSets | Manual Entries | 🟨 L3 | Works for basic sets |
 | IPSets | FireHOL Integration | 🟧 L2 | Download works, auto-update incomplete |
 | IPSets | IPSet in Policy Rules | 🟨 L3 | Works, needs more testing |
+| Accounting | Traffic Accounting | 🟨 L3 | Per-IP/Subnet bytes/packets (internal/firewall/accounting.go) |
 | **DHCP** | | | |
 | Server | DHCP Server Core | 🟨 L3 | DISCOVER/OFFER/REQUEST/ACK works |
 | Server | Lease Allocation | 🟨 L3 | Pool allocation works |
@@ -89,7 +90,8 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | WoL | Wake-on-LAN | 🟩 L4 | Magic packet works |
 | IPv6 | Router Advertisements | 🟧 L2 | Basic RA, limited testing |
 | Discovery | LLDP Listener | 🟧 L2 | Stub implementation |
-| Threat Intel | IP/Domain Blocklists | 🟧 L2 | Manual load, auto-update incomplete |
+| Threat Intel | IP/Domain Blocklists | � L3 | Fetches URLs, updates ipsets |
+| Services | mDNS Reflector | 🟨 L3 | Multi-interface reflection, loop prevention |
 | Future | UPnP/NAT-PMP | ⬜ L0 | Not started |
 | Future | NTP Server | ⬜ L0 | Not started |
 | Future | Syslog Server | ⬜ L0 | Not started |
@@ -97,6 +99,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Discovery | Device Discovery (DHCP) | 🟨 L3 | MAC/IP/hostname from leases |
 | Discovery | Device Discovery (ARP) | 🔲 L1 | Designed, not implemented |
 | Discovery | MAC Vendor Lookup | 🟨 L3 | Works for known vendors |
+| Discovery | Device Identity | 🟨 L3 | Persists User/Owner metadata |
 | Flows | Flow Tracking | 🟧 L2 | Basic structures exist |
 | Flows | SNI Snooping | 🟨 L3 | TLS SNI extracted, storage limited |
 | Flows | Application Identification | 🔲 L1 | SNI→app mapping designed |
@@ -123,7 +126,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Tailscale | MagicDNS Integration | 🔲 L1 | Designed |
 | Headscale | Headscale Support | 🔲 L1 | Same as Tailscale |
 | WireGuard | WireGuard Native | 🟩 L4 | Tested via `vpn_test.sh`, status reporting works |
-| WireGuard | Key Management | ⬜ L0 | Not started |
+| WireGuard | Key Management | 🟨 L3 | Keys generated, masked in API (Security L4) |
 | General | VPN Lockout Protection | 🟧 L2 | Flag exists, incomplete |
 | **OPERATIONS** | | | |
 | Config | HCL Config Parsing | ✅ L5 | Complete, extensive tests |
@@ -131,7 +134,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Config | Schema Versioning | 🟨 L3 | Framework works |
 | Config | Schema Migration | 🟧 L2 | Framework exists, few migrations |
 | Config | Config Hot Reload | 🟨 L3 | Works for most services |
-| Config | Atomic Apply + Rollback | 🟧 L2 | Apply works, rollback incomplete |
+| Config | Atomic Apply + Rollback | � L4 | Apply works, rollback timer, connectivity check |
 | Upgrade | Seamless Upgrade | 🟨 L3 | Handoff works, delta sync untested |
 | State | State Store (SQLite) | 🟩 L4 | Works, buckets for all services |
 | State | State Replication (HA) | 🟧 L2 | Primary→replica sync works |
@@ -141,6 +144,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Logging | Structured Logging | 🟩 L4 | slog-based, works |
 | Logging | Log Forwarding (syslog) | 🔲 L1 | Config only |
 | Supervisor | Watchdog/Monitor | 🟨 L3 | Works, restarts services |
+| Stability | Crash / Boot Loop Protection | 🟩 L4 | Panic counting, safe mode persistence |
 | **API** | | | |
 | Endpoints | Status Endpoints | 🟩 L4 | Works |
 | Endpoints | Interface CRUD | 🟩 L4 | Works |

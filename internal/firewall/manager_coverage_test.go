@@ -11,13 +11,12 @@ import (
 	"time"
 
 	"grimm.is/glacic/internal/config"
+	"grimm.is/glacic/internal/testutil"
 )
 
 func TestManager_SafeApply_Success(t *testing.T) {
 	// Skip in precompiled test mode - this test requires real network stack
-	if os.Getenv("GLACIC_VM_TEST") == "" {
-		t.Skip("Skipping SafeApply test - requires VM environment with real network")
-	}
+	testutil.RequireVM(t)
 	// 1. Setup Manager
 	mockConn := NewMockNFTablesConn()
 	mgr := NewManagerWithConn(mockConn, nil, "")
@@ -195,9 +194,7 @@ func TestManager_MonitorIntegrity(t *testing.T) {
 		t.Skip("Skipping monitor test in short mode")
 	}
 	// Skip in precompiled test mode - this test requires real nftables
-	if os.Getenv("GLACIC_VM_TEST") == "" {
-		t.Skip("Skipping MonitorIntegrity test - requires VM environment with nftables")
-	}
+	testutil.RequireVM(t)
 
 	// 1. Setup Manager
 	mockConn := NewMockNFTablesConn()

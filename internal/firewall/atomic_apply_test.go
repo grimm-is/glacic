@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"grimm.is/glacic/internal/config"
+	"grimm.is/glacic/internal/testutil"
 )
 
 func TestScriptBuilder(t *testing.T) {
@@ -195,13 +196,8 @@ func TestScriptBuilder_Fuzz(t *testing.T) {
 
 	applier := NewAtomicApplier()
 
-	// Check if nft is available for deep validation
-	nftAvailable := false
-	if path, err := exec.LookPath("nft"); err == nil && path != "" {
-		nftAvailable = true
-	} else {
-		t.Log("Note: 'nft' binary not found, skipping specific 'nft -c' validation steps.")
-	}
+	testutil.RequireVM(t)
+	nftAvailable := true
 
 	for _, input := range nastyInputs {
 		t.Run(fmt.Sprintf("Input_%q", input), func(t *testing.T) {
