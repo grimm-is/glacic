@@ -62,8 +62,8 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | IPSets | IPSet in Policy Rules | 🟨 L3 | Works, needs more testing |
 | Accounting | Traffic Accounting | 🟨 L3 | Per-IP/Subnet bytes/packets (internal/firewall/accounting.go) |
 | **DHCP** | | | |
-| Server | DHCP Server Core | 🟨 L3 | DISCOVER/OFFER/REQUEST/ACK works |
-| Server | Lease Allocation | 🟨 L3 | Pool allocation works |
+| Server | DHCP Server Core | 🟩 L4 | DISCOVER/OFFER/REQUEST/ACK works |
+| Server | Lease Allocation | 🟩 L4 | Pool allocation works |
 | Server | Lease Persistence | 🟩 L4 | SQLite, survives restarts |
 | Server | Static Reservations | 🟩 L4 | MAC→IP mapping works |
 | Server | Lease Expiration | 🟩 L4  | Logic works, unit tests pass |
@@ -147,9 +147,9 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Stability | Crash / Boot Loop Protection | 🟩 L4 | Panic counting, safe mode persistence |
 | **API** | | | |
 | Endpoints | Status Endpoints | 🟩 L4 | Works |
-| Endpoints | Interface CRUD | 🟩 L4 | Works |
-| Endpoints | Firewall/Policy CRUD | 🟨 L3 | Basic works |
-| Endpoints | DHCP Endpoints | 🟨 L3 | Leases work, scopes partial |
+| Endpoints | Interface CRUD | 🟩 L4 | Works (Tested via `api_crud_test.sh`) |
+| Endpoints | Firewall/Policy CRUD | 🟩 L4 | Basic works (Tested via `api_crud_test.sh`) |
+| Endpoints | DHCP Endpoints | 🟩 L4 | Leases work, scopes partial (Tested via `api_crud_test.sh`) |
 | Endpoints | DNS Endpoints | 🟨 L3 | Records work |
 | Endpoints | IPSet Endpoints | 🟨 L3 | List/refresh work |
 | Endpoints | VPN Endpoints | 🟨 L3 | `vpn_test.sh` confirms status via `/api/interfaces` |
