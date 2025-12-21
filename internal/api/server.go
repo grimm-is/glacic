@@ -21,6 +21,8 @@ import (
 
 	"grimm.is/glacic/internal/clock"
 
+	"github.com/pmezard/go-difflib/difflib"
+
 	"grimm.is/glacic/internal/api/storage"
 	"grimm.is/glacic/internal/auth"
 	"grimm.is/glacic/internal/brand"
@@ -369,6 +371,10 @@ func (s *Server) initRoutes() {
 		mux.Handle("POST /api/devices/identity", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUpdateDeviceIdentity)))
 		mux.Handle("POST /api/devices/link", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleLinkMAC)))
 		mux.Handle("POST /api/devices/unlink", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUnlinkMAC)))
+
+		// Staging & Diff
+		mux.Handle("GET /api/config/diff", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleGetConfigDiff)))
+		mux.Handle("POST /api/config/discard", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleDiscardConfig)))
 	} else if s.authStore == nil {
 		// No auth configured (Dev/Test mode) - allow access
 		mux.HandleFunc("GET /api/config", s.handleConfig)
@@ -479,7 +485,8 @@ func (s *Server) initRoutes() {
 		mux.HandleFunc("POST /api/devices/unlink", s.handleUnlinkMAC)
 
 		// Quick Wins
-		mux.Handle("GET /api/config/diff", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleGetConfigDiff)))
+		mux.HandleFunc("GET /api/config/diff", s.handleGetConfigDiff)
+		mux.HandleFunc("POST /api/config/discard", s.handleDiscardConfig)
 		mux.HandleFunc("GET /public/ca.crt", s.handlePublicCert) // Public, no auth required
 
 
@@ -817,6 +824,12 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	// Support source=staged check
+	if r.URL.Query().Get("source") == "staged" {
+		WriteJSON(w, http.StatusOK, s.Config)
+		return
+	}
+
 	// Use RPC client if available, otherwise use direct config
 	if s.client != nil {
 		cfg, err := s.client.GetConfig()
@@ -1492,35 +1505,43 @@ func (s *Server) handleDeleteBond(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetConfigDiff returns the diff between saved and in-memory config
+// handleGetConfigDiff returns the diff between saved and in-memory config
 func (s *Server) handleGetConfigDiff(w http.ResponseWriter, r *http.Request) {
-	// This requires access to the ConfigFile which holds the AST
-	// Currently s.Config is just the struct.
-	// We need to access the config manager/loader which we don't handle directly here in all modes.
-	// However, usually we can just rely on the on-disk file vs current struct?
-	// Actually, `internal/config/hcl.go` has `ConfigFile.Diff()`.
-	// S doesn't have `ConfigFile`, but `s.Config` is *config.Config.
-	
-	// Implementation note: The Server struct doesn't strictly hold the `ConfigFile` wrapper.
-	// It relies on RPC or direct config struct.
-	// If we are in `ctl` mode (integrated), we might have access, but via RPC it's harder.
-	// For "Quick Win", let's assume we can read the file from disk and compare?
-	// Or better: Add `GetConfigDiff` RPC to control plane.
-	
-	// BUT: `ctl` mode has `s.Config`.
-	// For now, let's implement the RPC call if possible, or direct if we are ctl.
-	if s.client != nil {
-		diff, err := s.client.GetConfigDiff()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(diff))
+	if s.client == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
 		return
 	}
 
-	// Fallback/Standalone: Not supported yet without ConfigFile refactor
-	WriteError(w, http.StatusNotImplemented, "Config diff not available in this mode")
+	// 1. Get Running Config
+	runningCfg, err := s.client.GetConfig()
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to fetch running config: "+err.Error())
+		return
+	}
+
+	// 2. Get Staged Config
+	stagedCfg := s.Config
+
+	// 3. Marshal to JSON for comparison
+	runningJSON, _ := json.MarshalIndent(runningCfg, "", "  ")
+	stagedJSON, _ := json.MarshalIndent(stagedCfg, "", "  ")
+
+	// 4. Generate Diff
+	diff := difflib.UnifiedDiff{
+		A:        difflib.SplitLines(string(runningJSON)),
+		B:        difflib.SplitLines(string(stagedJSON)),
+		FromFile: "Running",
+		ToFile:   "Staged",
+		Context:  3,
+	}
+	text, _ := difflib.GetUnifiedDiffString(diff)
+
+	if text == "" {
+		text = "No changes."
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(text))
 }
 
 // handlePublicCert serves the root CA certificate publicly
@@ -1598,6 +1619,24 @@ func (s *Server) handleServices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, services)
+}
+
+// handleDiscardConfig discards staged changes by reloading from the control plane
+func (s *Server) handleDiscardConfig(w http.ResponseWriter, r *http.Request) {
+	if s.client == nil {
+		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+		return
+	}
+
+	cfg, err := s.client.GetConfig()
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to fetch running config: "+err.Error())
+		return
+	}
+
+	// Overwrite staged config
+	s.Config = cfg
+	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // --- Config Update Handlers ---
