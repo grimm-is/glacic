@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/mdlayher/vsock"
@@ -70,6 +71,7 @@ type worker struct {
 	isOverflow  bool      // True if this is a transient overflow worker
 	busy        bool      // True if currently running a test
 	lastActivity time.Time // Time when last job finished
+	stopping    int32     // Atomic flag (1 if intentionally stopping)
 }
 
 // NewPod creates a new VM pod with warm and overflow capacity
@@ -106,10 +108,12 @@ func (p *Pod) SetIdleTimeout(d time.Duration) {
 
 // Start launches VMs and begins processing jobs
 func (p *Pod) Start() error {
-	if p.warmSize > 0 {
-		fmt.Printf("Starting VM pod with %d warm workers (max %d)...\n", p.warmSize, p.maxSize)
-	} else {
-		fmt.Printf("Starting VM pod with %d workers...\n", p.maxSize)
+	if p.config.Verbose {
+		if p.warmSize > 0 {
+			fmt.Printf("Starting VM pod with %d warm workers (max %d)...\n", p.warmSize, p.maxSize)
+		} else {
+			fmt.Printf("Starting VM pod with %d workers...\n", p.maxSize)
+		}
 	}
 
 	// Determine how many workers to start now
@@ -124,27 +128,24 @@ func (p *Pod) Start() error {
 		go func() {
 			defer p.workerWg.Done()
 			isOverflow := p.warmSize == 0 // All transient if no warm pool
-			w, err := p.spawnWorker(isOverflow)
+			_, err := p.spawnWorker(isOverflow)
 			if err != nil {
 				fmt.Printf("Failed to start worker: %v\n", err)
-				return
 			}
-			p.startWorkerLoop(w)
 		}()
 	}
 
-	// If we have a warm pool, start dispatcher for overflow scaling
-	if p.warmSize > 0 && p.maxSize > p.warmSize {
-		p.workerWg.Add(1)
-		go func() {
-			defer p.workerWg.Done()
-			p.dispatchJobs()
-		}()
+	// Always start dispatcher to manage job assignment
+	p.workerWg.Add(1)
+	go func() {
+		defer p.workerWg.Done()
+		p.dispatchJobs()
+	}()
 
+	// If we allow overflow, start reaper
+	if p.maxSize > p.warmSize {
 		// Start background reaper for overflow workers
-		p.workerWg.Add(1)
 		go func() {
-			defer p.workerWg.Done()
 			p.reapIdleWorkers()
 		}()
 	}
@@ -219,8 +220,14 @@ func (p *Pod) spawnWorker(isOverflow bool) (*worker, error) {
 	p.vmWg.Add(1)
 	go func() {
 		defer p.vmWg.Done()
-		if err := vm.Start(p.ctx); err != nil && p.ctx.Err() == nil {
-			fmt.Printf("[Worker %d] VM exited with error: %v\n", id, err)
+		err := vm.Start(p.ctx)
+		if err != nil && p.ctx.Err() == nil {
+			isStopping := atomic.LoadInt32(&w.stopping) == 1
+			isKilled := strings.Contains(err.Error(), "signal: killed")
+
+			if !isStopping || !isKilled {
+				fmt.Printf("[Worker %d] VM exited with error: %v\n", id, err)
+			}
 		}
 	}()
 
@@ -262,23 +269,18 @@ func (p *Pod) spawnWorker(isOverflow bool) (*worker, error) {
 	if isOverflow {
 		workerType = "overflow"
 	}
-	if runtime.GOOS == "linux" {
-		fmt.Printf("[Worker %d] %s ready (CID %d)\n", id, workerType, vm.CID)
-	} else {
-		fmt.Printf("[Worker %d] %s ready (%s)\n", id, workerType, w.clientPath)
+	if p.config.Verbose {
+		if runtime.GOOS == "linux" {
+			fmt.Printf("[Worker %d] %s ready (CID %d)\n", id, workerType, vm.CID)
+		} else {
+			fmt.Printf("[Worker %d] %s ready (%s)\n", id, workerType, w.clientPath)
+		}
 	}
 
 	return w, nil
 }
 
-// startWorkerLoop starts the worker's job processing loop
-func (p *Pod) startWorkerLoop(w *worker) {
-	p.workerWg.Add(1)
-	go func() {
-		defer p.workerWg.Done()
-		w.run(p.ctx, p.jobs, p.results)
-	}()
-}
+
 
 // dispatchJobs handles job dispatch with elastic scaling
 func (p *Pod) dispatchJobs() {
@@ -391,7 +393,9 @@ func (p *Pod) reapIdleWorkers() {
 			p.workersMu.Unlock()
 
 			for _, w := range toRemove {
-				fmt.Printf("[Worker %d] Overflow idle for %v, shutting down\n", w.id, idleGracePeriod)
+				if p.config.Verbose {
+					fmt.Printf("[Worker %d] Overflow idle for %v, shutting down\n", w.id, idleGracePeriod)
+				}
 				p.removeWorker(w)
 				w.stop()
 			}
@@ -415,8 +419,14 @@ func (p *Pod) newWorker(id int) (*worker, error) {
 	p.vmWg.Add(1)
 	go func() {
 		defer p.vmWg.Done()
-		if err := vm.Start(p.ctx); err != nil && p.ctx.Err() == nil {
-			fmt.Printf("[Worker %d] VM exited with error: %v\n", id, err)
+		err := vm.Start(p.ctx)
+		if err != nil && p.ctx.Err() == nil {
+			isStopping := atomic.LoadInt32(&w.stopping) == 1
+			isKilled := strings.Contains(err.Error(), "signal: killed")
+
+			if !isStopping || !isKilled {
+				fmt.Printf("[Worker %d] VM exited with error: %v\n", id, err)
+			}
 		}
 	}()
 
@@ -455,12 +465,18 @@ func (p *Pod) newWorker(id int) (*worker, error) {
 		bufio.NewReader(conn).ReadString('\n')
 		w.conn = conn
 
-		fmt.Printf("[Worker %d] VM ready (%s via mux)\n", id, clientPath)
+		if p.config.Verbose {
+			fmt.Printf("[Worker %d] VM ready (%s via mux)\n", id, clientPath)
+		}
 	} else if runtime.GOOS == "linux" {
-		fmt.Printf("[Worker %d] VM ready (CID %d)\n", id, vm.CID)
+		if p.config.Verbose {
+			fmt.Printf("[Worker %d] VM ready (CID %d)\n", id, vm.CID)
+		}
 	} else {
 		w.clientPath = vm.SocketPath
-		fmt.Printf("[Worker %d] VM ready (%s)\n", id, vm.SocketPath)
+		if p.config.Verbose {
+			fmt.Printf("[Worker %d] VM ready (%s)\n", id, vm.SocketPath)
+		}
 	}
 	return w, nil
 }
@@ -503,18 +519,7 @@ func (w *worker) waitForAgent(timeout time.Duration) error {
 	return fmt.Errorf("timeout waiting for agent on %s", w.vm.SocketPath)
 }
 
-func (w *worker) run(ctx context.Context, jobs <-chan TestJob, results chan<- TestResult) {
-	for job := range jobs {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
 
-		result := w.executeTest(job)
-		results <- result
-	}
-}
 
 func (w *worker) executeTest(job TestJob) TestResult {
 	start := time.Now()
@@ -603,6 +608,7 @@ func (w *worker) executeTest(job TestJob) TestResult {
 }
 
 func (w *worker) stop() {
+	atomic.StoreInt32(&w.stopping, 1)
 	if w.conn != nil {
 		w.conn.Write([]byte("EXIT\n"))
 		w.conn.Close()

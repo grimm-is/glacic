@@ -51,4 +51,9 @@ if [ "$CPUS" -gt 2 ]; then
    fi
 fi
 
-echo "$JOBS"
+# Default to half warm, half overflow
+# This keeps startup fast while allowing burst capacity
+WARM=$((JOBS / 2))
+if [ "$WARM" -lt 1 ]; then WARM=1; fi
+
+echo "${WARM}:${JOBS}"

@@ -26,6 +26,7 @@ type Config struct {
 	Debug         bool
 	ConsoleOutput bool
 	RunSkipped    bool // Force normally-skipped tests to run
+	Verbose       bool // Show detailed status messages
 }
 
 func Run(args []string) error {
@@ -96,9 +97,11 @@ func runTests(args []string) error {
 	buildDir := filepath.Join(cwd, "build")
 
 	// Parse args
+	// Parse args
 	warmSize := 4   // Default warm pool size
 	maxSize := 0    // 0 means no overflow (maxSize = warmSize)
 	runSkipped := false
+	verbose := false
 	var tests []TestJob
 
 	for i := 0; i < len(args); i++ {
@@ -137,6 +140,12 @@ func runTests(args []string) error {
 			return fmt.Errorf("invalid -j value")
 		}
 
+
+		if arg == "-v" {
+			verbose = true
+			continue
+		}
+
 		// It's a test file
 		if _, statErr := os.Stat(arg); statErr == nil {
 			timeout := parseTestTimeout(arg)
@@ -151,12 +160,14 @@ func runTests(args []string) error {
 		maxSize = 4 // Default to 4 transient workers
 	}
 
+	// Propagate verbosity to config
 	cfg := Config{
 		KernelPath:    filepath.Join(buildDir, "vmlinuz"),
 		InitrdPath:    filepath.Join(buildDir, "initramfs"),
 		RootfsPath:    filepath.Join(buildDir, "rootfs.qcow2"),
 		ProjectRoot:   cwd,
 		RunSkipped:    runSkipped,
+		Verbose:       verbose,
 	}
 
 	// Fallback to discovery if no specific tests
@@ -313,7 +324,9 @@ func runTests(args []string) error {
 	if len(failedTests) > 0 {
 		fmt.Println("\nFailed tests:")
 		for _, t := range failedTests {
-			fmt.Printf("  - %s\n", t)
+			logName := testLogName(t)
+			relLogPath := filepath.Join("build", "test-results", logName+".log")
+			fmt.Printf("  - %s\n    Log: %s\n", t, relLogPath)
 		}
 		return fmt.Errorf("%d test(s) failed", len(failedTests))
 	}
@@ -566,17 +579,132 @@ func writeTestLog(path string, result TestResult) {
 	}
 }
 
-func runShell(args []string) error {
-	socketPath := "/tmp/glacic-vm1.sock"
-	if len(args) > 0 {
-		socketPath = args[0]
+// getVMConnection finds an active VM or starts a temporary one
+// Returns connection, cleanup function, and error
+func getVMConnection() (net.Conn, func(), error) {
+	// 1. Try to find existing VM
+	socketPath, err := findFirstValidSocket()
+	if err == nil {
+		fmt.Printf("Connected to active VM at %s\n", socketPath)
+		conn, err := net.DialTimeout("unix", socketPath, 1*time.Second)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to dial existing VM: %w", err)
+		}
+		return conn, func() { conn.Close() }, nil
 	}
 
-	conn, err := net.DialTimeout("unix", socketPath, 1*time.Second)
-	if err != nil {
-		return fmt.Errorf("failed to connect to %s: %w", socketPath, err)
+	// 2. No VM found, start one
+	fmt.Println("No active VM found, configuring temporary session...")
+
+	// Use default config
+	cwd, _ := os.Getwd()
+	buildDir := filepath.Join(cwd, "build")
+	cfg := Config{
+		KernelPath:    filepath.Join(buildDir, "vmlinuz"),
+		InitrdPath:    filepath.Join(buildDir, "initramfs"),
+		RootfsPath:    filepath.Join(buildDir, "rootfs.qcow2"),
+		ProjectRoot:   cwd,
+		ConsoleOutput: false, // Keep stdout clean for shell/exec
 	}
-	defer conn.Close()
+
+	// Create a temp VM with ID 99 (unlikely to collide with 1-9)
+	vmID := 99
+	vm, err := NewVM(cfg, vmID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to configure VM: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	
+	// Start VM in background
+	errCh := make(chan error, 1)
+	go func() {
+		if err := vm.Start(ctx); err != nil {
+			errCh <- err
+		} else {
+			errCh <- nil
+		}
+	}()
+
+	// Wait for socket to appear
+	fmt.Printf("Booting VM (ID %d)... ", vmID)
+	socketPath = vm.SocketPath
+	
+	// Wait up to 30s for socket
+	deadline := time.Now().Add(30 * time.Second)
+	connected := false
+	var conn net.Conn
+
+	for time.Now().Before(deadline) {
+		select {
+		case err := <-errCh:
+			if err != nil {
+				cancel()
+				return nil, nil, fmt.Errorf("VM failed to start: %w", err)
+			}
+			// VM exited unexpectedly
+			cancel()
+			return nil, nil, fmt.Errorf("VM exited unexpectedly")
+		default:
+			// Check socket
+			if _, err := os.Stat(socketPath); err == nil {
+				// Try dialing
+				c, err := net.DialTimeout("unix", socketPath, 500*time.Millisecond)
+				if err == nil {
+					conn = c
+					connected = true
+					goto Ready
+				}
+			}
+			time.Sleep(500 * time.Millisecond)
+			fmt.Print(".")
+		}
+	}
+
+Ready:
+	if !connected {
+		cancel()
+		return nil, nil, fmt.Errorf("\ntimeout waiting for VM to start")
+	}
+	fmt.Println(" Ready!")
+
+	cleanup := func() {
+		conn.Close()
+		cancel()
+		// Wait typically ensures clean shutdown, but we cancel context above.
+		// We might want to explicitly wait for cmd to exit?
+		// But Stop() in NewVM isn't exposed (wait, vm.Stop is).
+		vm.Stop() 
+		<-errCh // Wait for run to finish
+	}
+
+	return conn, cleanup, nil
+}
+
+func findFirstValidSocket() (string, error) {
+	// Prefer mux sockets
+	sockets, _ := filepath.Glob("/tmp/glacic-vm*-mux.sock")
+	if len(sockets) == 0 {
+		sockets, _ = filepath.Glob("/tmp/glacic-vm*.sock")
+	}
+	
+	for _, sock := range sockets {
+		// Test connectivity
+		c, err := net.DialTimeout("unix", sock, 100*time.Millisecond)
+		if err == nil {
+			c.Close()
+			return sock, nil
+		}
+	}
+	return "", fmt.Errorf("no active vm sockets found")
+}
+
+func runShell(args []string) error {
+	conn, cleanup, err := getVMConnection()
+	if err != nil {
+		return err
+	}
+	defer cleanup()
 
 	// 1. Handshake
 	scanner := bufio.NewScanner(conn)
@@ -589,14 +717,11 @@ func runShell(args []string) error {
 	fmt.Fprintf(conn, "SHELL\n")
 
 	// 3. Proxy IO
-	// We need raw mode eventually, but for now standard IO copy is fine
-	go func() {
-		// Read from connection and write to stdout
-		io.Copy(os.Stdout, conn)
-	}()
-
-	// Read from stdin and write to connection
+	// We handle signals to avoid killing the shell on Ctrl+C from host (if possible)
+	// But standard IO copy propagates simple EOF.
+	go io.Copy(os.Stdout, conn)
 	io.Copy(conn, os.Stdin)
+	
 	return nil
 }
 
@@ -604,15 +729,13 @@ func runExec(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: exec <command>")
 	}
-
-	socketPath := "/tmp/glacic-vm1.sock" // TODO: dynamic or from flag
 	command := strings.Join(args, " ")
 
-	conn, err := net.DialTimeout("unix", socketPath, 1*time.Second)
+	conn, cleanup, err := getVMConnection()
 	if err != nil {
-		return fmt.Errorf("failed to connect to %s: %w", socketPath, err)
+		return err
 	}
-	defer conn.Close()
+	defer cleanup()
 
 	// 1. Handshake
 	scanner := bufio.NewScanner(conn)

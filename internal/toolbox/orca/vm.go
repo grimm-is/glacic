@@ -84,7 +84,7 @@ func (v *VM) Start(ctx context.Context) error {
 		"-machine", machine,
 		"-cpu", cpu,
 		"-smp", "1",
-		"-m", "256M",
+		"-m", "512M",
 		"-nographic",
 		"-no-reboot",
 
