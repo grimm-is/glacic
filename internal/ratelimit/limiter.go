@@ -73,6 +73,49 @@ func (b *bucket) take() bool {
 	return true
 }
 
+// AllowN checks if n requests are allowed
+func (l *Limiter) AllowN(key string, limit int, interval time.Duration, n int) bool {
+	l.mu.Lock()
+	b, exists := l.limiters[key]
+	if !exists {
+		b = &bucket{
+			tokens:   limit,
+			limit:    limit,
+			interval: interval,
+			lastFill: clock.Now(),
+		}
+		l.limiters[key] = b
+	}
+	l.mu.Unlock()
+
+	return b.takeN(n)
+}
+
+// takeN attempts to take n tokens from the bucket
+func (b *bucket) takeN(n int) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Refill tokens based on elapsed time
+	now := clock.Now()
+	elapsed := now.Sub(b.lastFill)
+
+	if elapsed >= b.interval {
+		// Reset tokens after interval
+		b.tokens = b.limit
+		b.lastFill = now
+	}
+
+	// Check if we have n tokens available
+	if b.tokens < n {
+		return false
+	}
+
+	// Take n tokens
+	b.tokens -= n
+	return true
+}
+
 // Reset clears rate limit for a specific key
 func (l *Limiter) Reset(key string) {
 	l.mu.Lock()

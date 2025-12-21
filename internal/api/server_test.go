@@ -764,3 +764,144 @@ func TestHandleCreateAdmin_EndToEnd(t *testing.T) {
 		t.Fatalf("Store should have users")
 	}
 }
+
+func TestConcurrentAdminCreation_Regression(t *testing.T) {
+	// Regression test for race condition in admin creation
+	// Creates a temporary auth store and attempts to create admin from multiple goroutines simultaneously.
+
+	tmpFile, err := os.CreateTemp("", "auth_race.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+	os.Remove(tmpFile.Name()) // Start strict: File shouldn't exist for NewStore to init empty
+	defer os.Remove(tmpFile.Name()) // Cleanup again just in case
+
+	store, err := auth.NewStore(tmpFile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv, err := NewServer(ServerOptions{
+		Config:        &config.Config{},
+		AuthStore:     store,
+		// Needs a valid rate limiter to avoid hitting rate limits before race condition check
+		// However, we mock/bypass or set high limits?
+		// NewServer creates its own rate limiter. We can't easily inject a modified one via Options in current struct.
+		// Use a high-limit IP or rely on "setup" key separation.
+		// Actually, standard NewServer uses default limiter.
+		// We'll trust the 3/minute limit is per IP.
+		// We can spoof IPs in requests.
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := srv.Handler()
+
+	concurrency := 10
+	results := make(chan int, concurrency)
+
+	for i := 0; i < concurrency; i++ {
+		go func(idx int) {
+			payload := map[string]string{
+				"username": "admin",
+				"password": "ProductionPassword123!",
+			}
+			body, _ := json.Marshal(payload)
+			req := httptest.NewRequest("POST", "/api/setup/create-admin", bytes.NewReader(body))
+			// Use unique IPs to bypass rate limiter
+			// 192.0.2.x is TEST-NET-1
+			req.RemoteAddr = "192.0.2." + string(rune(10+idx)) + ":12345"
+
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+			results <- w.Code
+		}(i)
+	}
+
+	successCount := 0
+	forbiddenCount := 0
+	otherCount := 0
+
+	for i := 0; i < concurrency; i++ {
+		code := <-results
+		if code == 200 {
+			successCount++
+		} else if code == 403 {
+			// Expected "Admin already exists" or similar
+			forbiddenCount++
+		} else {
+			otherCount++
+		}
+	}
+
+	if successCount != 1 {
+		t.Errorf("Expected exactly 1 success, got %d", successCount)
+	}
+	if otherCount > 0 {
+		t.Errorf("Got unexpected status codes: %d requests failed with non-403", otherCount)
+	}
+}
+
+func TestBatchRateLimiting_Regression(t *testing.T) {
+	// Regression test for Batch API rate limiting bypassing
+	logger := logging.New(logging.DefaultConfig())
+	server := &Server{
+		Config:      &config.Config{},
+		logger:      logger,
+		rateLimiter: ratelimit.NewLimiter(),
+		mux:         http.NewServeMux(),
+	}
+	// Bind batch handler directly or init routes? Init routes is safer.
+	server.initRoutes()
+
+	// 1. Test Batch Size Limit
+	// Create a batch with 21 requests
+	hugeBatch := make([]BatchRequest, 25)
+	for i := range hugeBatch {
+		hugeBatch[i] = BatchRequest{Method: "GET", Path: "/api/status"}
+	}
+	body, _ := json.Marshal(hugeBatch)
+	req := httptest.NewRequest("POST", "/api/batch", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	server.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400 for large batch, got %d", w.Code)
+	}
+
+	// 2. Test Cost Accounting
+	// Send a batch of 10 requests. Limit is 60/min.
+	// If cost is counted, 7 batches of 10 should trigger limit (70 > 60).
+	// If cost is NOT counted (1 token per batch), it would allow 60 batches.
+
+	// Use a fixed IP
+	ip := "198.51.100.1:1234" // TEST-NET-2
+
+	batch10 := make([]BatchRequest, 10)
+	for i := range batch10 {
+		batch10[i] = BatchRequest{Method: "GET", Path: "/api/status"}
+	}
+	body10, _ := json.Marshal(batch10)
+
+	limitHit := false
+	for i := 0; i < 10; i++ {
+		req = httptest.NewRequest("POST", "/api/batch", bytes.NewReader(body10))
+		req.RemoteAddr = ip
+		w = httptest.NewRecorder()
+		server.mux.ServeHTTP(w, req)
+
+		if w.Code == http.StatusTooManyRequests {
+			limitHit = true
+			if i < 1 {
+				t.Errorf("Hit limit too early (iteration %d)", i)
+			}
+			break
+		}
+	}
+
+	if !limitHit {
+		t.Error("Expected rate limit to be hit by batches, but it wasn't")
+	}
+}
+

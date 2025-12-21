@@ -13,9 +13,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"grimm.is/glacic/internal/clock"
@@ -76,10 +77,12 @@ type Server struct {
 	startTime     time.Time
 	learning      *learning.Service
 	stateStore    state.Store
-	csrfManager   *CSRFManager       // CSRF token manager
-	rateLimiter   *ratelimit.Limiter // Rate limiter for auth endpoints
-	security      *SecurityManager   // Security manager for IP blocking
-	wsManager     *WSManager         // Websocket manager
+	csrfManager     *CSRFManager       // CSRF token manager
+	rateLimiter     *ratelimit.Limiter // Rate limiter for auth endpoints
+	security        *SecurityManager   // Security manager for IP blocking
+	wsManager       *WSManager         // Websocket manager
+	healthy         atomic.Bool        // Cached health status
+	adminCreationMu sync.Mutex         // Mutex to prevent race conditions in admin creation
 
 	mux *http.ServeMux
 }
@@ -154,8 +157,36 @@ func NewServer(opts ServerOptions) (*Server, error) {
 		})
 	}
 
+	// Start background health check
+	go s.runHealthCheck()
+
 	s.initRoutes()
 	return s, nil
+}
+
+// runHealthCheck periodically updates the health status
+func (s *Server) runHealthCheck() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	check := func() {
+		// Lightweight library-based check
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		
+		if err := checkNFTables(ctx); err != nil {
+			s.healthy.Store(false)
+		} else {
+			s.healthy.Store(true)
+		}
+	}
+
+	// Initial check
+	check()
+
+	for range ticker.C {
+		check()
+	}
 }
 
 
@@ -174,6 +205,7 @@ func (s *Server) initRoutes() {
 	mux.HandleFunc("GET /api/status", s.handleStatus) // Health status - public for monitoring
 
 	// Batch API
+	// Rate limiting for Batch API is applied inside the handler to account for batch size
 	mux.HandleFunc("POST /api/batch", s.handleBatch)
 
 	// Websockets
@@ -201,13 +233,13 @@ func (s *Server) initRoutes() {
 		// Auth is configured - protect endpoints using Unified Auth (User or API Key)
 
 		// General Config
-		mux.Handle("GET /api/config", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleConfig)))
-		mux.Handle("POST /api/config/apply", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleApplyConfig)))
-		mux.Handle("POST /api/config/safe-apply", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleSafeApply)))
-		mux.Handle("POST /api/config/confirm", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleConfirmApply)))
-		mux.Handle("GET /api/config/pending", s.require(storage.PermReadConfig, http.HandlerFunc(s.handlePendingApply)))
-		mux.Handle("POST /api/config/ip-forwarding", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleSetIPForwarding)))
-		mux.Handle("POST /api/config/settings", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleSystemSettings)))
+		mux.Handle("GET /api/config", s.require(storage.PermReadConfig, s.requireControlPlane(s.handleConfig)))
+		mux.Handle("POST /api/config/apply", s.require(storage.PermWriteConfig, s.requireControlPlane(s.handleApplyConfig)))
+		mux.Handle("POST /api/config/safe-apply", s.require(storage.PermWriteConfig, s.requireControlPlane(s.handleSafeApply)))
+		mux.Handle("POST /api/config/confirm", s.require(storage.PermWriteConfig, s.requireControlPlane(s.handleConfirmApply)))
+		mux.Handle("GET /api/config/pending", s.require(storage.PermReadConfig, s.requireControlPlane(s.handlePendingApply)))
+		mux.Handle("POST /api/config/ip-forwarding", s.require(storage.PermWriteConfig, s.requireControlPlane(s.handleSetIPForwarding)))
+		mux.Handle("POST /api/config/settings", s.require(storage.PermWriteConfig, s.requireControlPlane(s.handleSystemSettings)))
 
 		// Upgrade
 		mux.Handle("POST /api/system/upgrade", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleSystemUpgrade)))
@@ -461,6 +493,17 @@ func (s *Server) initRoutes() {
 	}
 }
 
+// require middleware ensures the control plane client is available
+func (s *Server) requireControlPlane(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.client == nil {
+			WriteError(w, http.StatusServiceUnavailable, "Control Plane Disconnected")
+			return
+		}
+		next(w, r)
+	}
+}
+
 // spaHandler serves static files, falling back to index.html for client-side routing
 func (s *Server) spaHandler(assets fs.FS, fallback string) http.Handler {
 	fileServer := http.FileServer(http.FS(assets))
@@ -550,12 +593,23 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responses := make([]BatchResponse, len(requests))
-	// Execute requests serially (for now) to avoid race conditions in non-thread-safe handlers if any
-	// Although handlers SHOULD be thread safe.
-	// But `ServeHTTP` is safe.
-	// We can do it serially to be safe.
+	// Apply Rate Limiting based on Batch Size
+	// Cost is 1 token per request in the batch
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	if ip == "" {
+		ip = r.RemoteAddr
+	}
 
+	// Check if the ratelimiter allows 'n' events
+	// Use a separate "batch" namespace to avoid conflicting with auth login limits directly,
+	// but enforce a reasonable total load limit (e.g., 60 ops/minute).
+	if !s.rateLimiter.AllowN("batch:"+ip, 60, time.Minute, len(requests)) {
+		WriteError(w, http.StatusTooManyRequests, "Rate limit exceeded for batch")
+		return
+	}
+
+	responses := make([]BatchResponse, len(requests))
+	// Execute requests serially
 	for i, req := range requests {
 		// specific implementation
 		// We need to construct a new wrapper request
@@ -574,6 +628,11 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 			responses[i] = BatchResponse{Status: 500, Body: "Failed to create request: " + err.Error()}
 			continue
 		}
+
+		// Propagate RemoteAddr for downstream rate limiting (IMPORTANT)
+		subReq.RemoteAddr = r.RemoteAddr
+
+		// Copy headers from batch request
 
 		// Copy headers from batch request?
 		// Maybe Auth header?
@@ -1064,6 +1123,10 @@ func (s *Server) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusTooManyRequests, "Too many setup attempts. Please try again later.")
 		return
 	}
+
+	// Critical Section: Prevent race conditions in admin creation
+	s.adminCreationMu.Lock()
+	defer s.adminCreationMu.Unlock()
 
 	// Only allow if no users exist
 	if s.authStore != nil && s.authStore.HasUsers() {
@@ -3091,22 +3154,19 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Create a health checker with some basic checks
 	checker := health.NewChecker()
 
-	// Add basic system checks
+	// Add nftables check (cached)
 	checker.Register("nftables", func(ctx context.Context) health.Check {
-		// Check if nftables is responding
-		cmd := exec.CommandContext(ctx, "nft", "list", "tables")
-		err := cmd.Run()
-		if err != nil {
+		if s.healthy.Load() {
 			return health.Check{
 				Name:    "nftables",
-				Status:  health.StatusUnhealthy,
-				Message: fmt.Sprintf("nftables command failed: %v", err),
+				Status:  health.StatusHealthy,
+				Message: "NFTables is responding",
 			}
 		}
 		return health.Check{
 			Name:    "nftables",
-			Status:  health.StatusHealthy,
-			Message: "nftables is responding",
+			Status:  health.StatusUnhealthy,
+			Message: "NFTables is unresponsive",
 		}
 	})
 

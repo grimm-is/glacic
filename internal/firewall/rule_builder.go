@@ -11,6 +11,20 @@ import (
 	"github.com/google/nftables/expr"
 )
 
+const (
+	// IP Header Constants
+	IPv6HeaderLen = 16
+	IPv4HeaderLen = 4 // Base length for payload matching
+
+	// IPv6 Header Offsets (RFC 2460)
+	IPv6SrcOffset = 8
+	IPv6DstOffset = 24
+
+	// IPv4 Header Offsets (RFC 791)
+	IPv4SrcOffset = 12
+	IPv4DstOffset = 16
+)
+
 // buildIPMatch builds expressions to match source or destination IP/CIDR (IPv4 or IPv6)
 func (m *Manager) buildIPMatch(cidr string, isSrc bool) []expr.Any {
 	var exprs []expr.Any
@@ -56,20 +70,20 @@ func (m *Manager) buildIPMatch(cidr string, isSrc bool) []expr.Any {
 	var payloadBase expr.PayloadBase
 
 	if isIPv6 {
-		lenBytes = 16
+		lenBytes = IPv6HeaderLen
 		payloadBase = expr.PayloadBaseNetworkHeader
 		if isSrc {
-			offset = 8 // Source IP in IPv6 header (offset 8)
+			offset = IPv6SrcOffset
 		} else {
-			offset = 24 // Dest IP in IPv6 header (offset 24)
+			offset = IPv6DstOffset
 		}
 	} else {
-		lenBytes = 4
+		lenBytes = IPv4HeaderLen
 		payloadBase = expr.PayloadBaseNetworkHeader
 		if isSrc {
-			offset = 12 // Source IP in IPv4 header (offset 12)
+			offset = IPv4SrcOffset
 		} else {
-			offset = 16 // Dest IP in IPv4 header (offset 16)
+			offset = IPv4DstOffset
 		}
 	}
 
@@ -129,20 +143,20 @@ func (m *Manager) buildSetMatch(setName string, isSrc bool, ipsetTypes map[strin
 	var payloadBase expr.PayloadBase
 
 	if isIPv6 {
-		lenBytes = 16
+		lenBytes = IPv6HeaderLen
 		payloadBase = expr.PayloadBaseNetworkHeader
 		if isSrc {
-			offset = 8 // Source IP in IPv6 header
+			offset = IPv6SrcOffset
 		} else {
-			offset = 24 // Dest IP in IPv6 header
+			offset = IPv6DstOffset
 		}
 	} else {
-		lenBytes = 4
+		lenBytes = IPv4HeaderLen
 		payloadBase = expr.PayloadBaseNetworkHeader
 		if isSrc {
-			offset = 12 // Source IP in IPv4 header
+			offset = IPv4SrcOffset
 		} else {
-			offset = 16 // Dest IP in IPv4 header
+			offset = IPv4DstOffset
 		}
 	}
 
