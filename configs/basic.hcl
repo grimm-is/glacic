@@ -6,26 +6,36 @@ ip_forwarding = true
 # Interface configuration
 interface "eth0" {
   description = "WAN Interface"
-  zone        = "WAN"
   dhcp        = true
 }
 
 interface "eth1" {
   description = "Green Zone (Trusted LAN)"
-  zone        = "Green"
   ipv4        = ["10.1.0.1/24"]
 }
 
 interface "eth2" {
   description = "Orange Zone (DMZ)"
-  zone        = "Orange"
   ipv4        = ["10.2.0.1/24"]
 }
 
 interface "eth3" {
   description = "Red Zone (Restricted)"
-  zone        = "Red"
   ipv4        = ["10.3.0.1/24"]
+}
+
+# Zone Definitions
+zone "WAN" {
+  interface = "eth0"
+}
+zone "Green" {
+  interface = "eth1"
+}
+zone "Orange" {
+  interface = "eth2"
+}
+zone "Red" {
+  interface = "eth3"
 }
 
 # Basic firewall policies

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"grimm.is/glacic/internal/brand"
+	"grimm.is/glacic/internal/config"
 )
 
 // RunStart starts the control plane daemon in the background
@@ -29,6 +30,12 @@ func RunStart(configFile string) error {
 			"  mkdir -p /etc/glacic\n"+
 			"  echo 'schema_version = \"1.0\"' > /etc/glacic/glacic.hcl",
 			configFile, brand.BinaryName)
+	}
+
+	// 0b. Pre-flight: validate config before forking
+	// This catches config errors early and displays them to the user
+	if err := validateConfigFile(configFile); err != nil {
+		return fmt.Errorf("configuration error: %w", err)
 	}
 
 	// 1. Check for existing PID file
@@ -157,4 +164,13 @@ func tailLogFile(path string, n int) []string {
 		}
 	}
 	return lines
+}
+
+// validateConfigFile loads and validates the config file without starting services
+func validateConfigFile(configFile string) error {
+	_, err := config.LoadFileWithOptions(configFile, config.DefaultLoadOptions())
+	if err != nil {
+		return err
+	}
+	return nil
 }

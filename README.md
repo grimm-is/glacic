@@ -40,20 +40,14 @@ These work for happy-path scenarios but have limited testing:
 Present in config but not fully implemented:
 
 - **GeoIP/App-ID Filtering** - Designed, no runtime
-- **TLS for API** - Config structures only
 - **DNS-over-HTTPS** - Config only
 - **HA Replication** - Database sync works (Hot Standby, requires external VRRP for auto-failover)
-- **Rule Learning** - UI works, backend uses stubs
 - **Terminal UI** - Scaffolded, not functional
 
 ## Documentation
 
-- [**Quick Reference**](AGENTS.md) - Fast-start guide for developers and AI agents
 - [Features](FEATURES.md) - Detailed feature list and roadmap
-- [Architecture](docs/ARCHITECTURE.md) - System design and config/state separation
-- [Developer Guide](DEVELOPMENT.md) - Build instructions and code structure
-- [API Reference](API.md) - REST API endpoints
-- [Demo Guide](DEMO.md) - How to run the QEMU demo environment
+- [Contributor License Agreement](CLA.md) - CLA for contributors
 
 ## Quick Start
 
@@ -269,6 +263,39 @@ dhcp {
     range_end   = "192.168.1.200"
     router      = "192.168.1.1"
     dns         = ["192.168.1.1"]
+  }
+}
+```
+
+## Complexity Showcase: Home Lab
+
+Glacic's "Infrastructure as Code" approach ensures your HCL config is the single source of truth, reflected instantly in both Web and Terminal interfaces.
+
+### 1. The Configuration (HCL)
+
+A comprehensive home lab setup with **WAN, LAN, IoT VLANs, DMZ**, and **WireGuard VPN**.
+
+```hcl
+# See configs/homelab.hcl for full file
+interface "eth0" { description = "WAN"; zone = "wan"; dhcp = true }
+interface "eth1" { description = "LAN"; zone = "lan"; ipv4 = ["10.0.0.1/24"] }
+
+# IoT isolated on VLAN 20
+zone "iot" {
+  description = "IoT Devices"
+  match { vlan = 20 }
+}
+
+# Block IoT from accessing LAN
+policy "iot" "lan" {
+  rule "block_all" { action = "drop"; log = true }
+}
+
+# WireGuard VPN for remote access
+vpn {
+  wireguard "wg0" {
+    enabled = true
+    peer "phone" { allowed_ips = ["10.10.0.2/32"] }
   }
 }
 ```

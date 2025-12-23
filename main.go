@@ -163,11 +163,12 @@ func main() {
 		// Internal: Unprivileged API server (spawned by control plane)
 		// This is not a public command - use `glacic start` instead
 		apiFlags := flag.NewFlagSet("_api-server", flag.ExitOnError)
-		listenAddr := apiFlags.String("listen", ":8080", "Address to listen on")
+		listenAddr := apiFlags.String("listen", ":8080", "HTTP address to listen on (for redirect)")
 		dropUser := apiFlags.String("user", "", "Drop privileges to this user")
 		apiFlags.Parse(os.Args[2:])
 
 		cmd.RunAPI(uiAssets, *listenAddr, *dropUser)
+
 
 	case "test-api":
 		// Test mode: Run API server with sandbox disabled for integration testing

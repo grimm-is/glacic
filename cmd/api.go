@@ -616,7 +616,7 @@ func initializeAPIKeyManager(cfg *config.Config, authDir string) *api.APIKeyMana
 
 // setupTLS determines TLS configuration and ensures certificates exist.
 func setupTLS(rtCfg *APIRuntimeConfig, cfg *config.Config, isolated bool) (certFile, keyFile string, useTLS bool) {
-	// Check HCL Config first
+	// Check HCL Config first - explicit cert paths
 	if cfg.API != nil && cfg.API.TLSCert != "" && cfg.API.TLSKey != "" {
 		useTLS = true
 		certFile = cfg.API.TLSCert
@@ -630,7 +630,27 @@ func setupTLS(rtCfg *APIRuntimeConfig, cfg *config.Config, isolated bool) (certF
 		return
 	}
 
-	// Fallback to default behavior
+	// TLSListen set - enable TLS with default paths
+	if cfg.API != nil && cfg.API.TLSListen != "" {
+		useTLS = true
+		certDir := filepath.Join(brand.GetStateDir(), "certs")
+		if err := os.MkdirAll(certDir, 0700); err != nil {
+			logging.Error(fmt.Sprintf("failed to create cert dir: %v", err))
+			os.Exit(1)
+		}
+
+		certFile = filepath.Join(certDir, "server.crt")
+		keyFile = filepath.Join(certDir, "server.key")
+
+		if _, err := tls.EnsureCertificate(certFile, keyFile, 365); err != nil {
+			logging.Error(fmt.Sprintf("failed to ensure TLS certificates: %v", err))
+			os.Exit(1)
+		}
+		logging.Info(fmt.Sprintf("TLS enabled via tls_listen, using auto-generated certificates"))
+		return
+	}
+
+	// Fallback to default behavior (sandbox isolation)
 	if (isolated && !rtCfg.NoSandbox) || rtCfg.ForceTLS {
 		useTLS = true
 		certDir := filepath.Join(brand.GetStateDir(), "certs")
@@ -666,8 +686,13 @@ func startHTTPServer(
 	if !useTLS {
 		serverListenAddr = "0.0.0.0:" + httpPort
 	}
-	if cfg.API != nil && cfg.API.Listen != "" {
-		serverListenAddr = cfg.API.Listen
+	// Use TLSListen for HTTPS, fall back to Listen
+	if cfg.API != nil {
+		if useTLS && cfg.API.TLSListen != "" {
+			serverListenAddr = cfg.API.TLSListen
+		} else if cfg.API.Listen != "" {
+			serverListenAddr = cfg.API.Listen
+		}
 	}
 
 	// Create server with secure defaults
@@ -686,7 +711,7 @@ func startHTTPServer(
 	// Start server in goroutine
 	go func() {
 		if useTLS {
-			startTLSServer(srv, serverListenAddr, certFile, keyFile, inheritedListener)
+			startTLSServer(rtCfg, cfg, srv, serverListenAddr, certFile, keyFile, inheritedListener)
 		} else {
 			logging.Info(fmt.Sprintf("Dev Mode: Starting API server on %s (HTTP)", serverListenAddr))
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -708,7 +733,7 @@ func startHTTPServer(
 }
 
 // startTLSServer starts the HTTPS server with optional HTTP redirect.
-func startTLSServer(srv *http.Server, serverListenAddr, certFile, keyFile string, inheritedListener net.Listener) {
+func startTLSServer(rtCfg *APIRuntimeConfig, cfg *config.Config, srv *http.Server, serverListenAddr, certFile, keyFile string, inheritedListener net.Listener) {
 	logging.Info(fmt.Sprintf("Starting API server on %s (HTTPS)", serverListenAddr))
 
 	if inheritedListener != nil {
@@ -728,17 +753,26 @@ func startTLSServer(srv *http.Server, serverListenAddr, certFile, keyFile string
 		}()
 	}
 
-	// Start HTTP -> HTTPS redirect server if not listening on 8080
-	if !strings.HasSuffix(serverListenAddr, ":"+httpPort) {
-		logging.Info("Starting HTTP redirect server on :" + httpPort)
-		go startHTTPRedirectServer(serverListenAddr)
+	// Start HTTP -> HTTPS redirect server if not listening on 8080 and not disabled
+	disableRedirect := cfg.API != nil && cfg.API.DisableHTTPRedirect
+	if !disableRedirect && !strings.HasSuffix(serverListenAddr, ":"+httpPort) {
+		// Determine HTTP listen address
+		httpListenAddr := ":" + httpPort
+		if cfg.API != nil && cfg.API.Listen != "" {
+			httpListenAddr = cfg.API.Listen
+		}
+
+		// Don't start if HTTP and HTTPS ports are the same (avoid conflict)
+		if httpListenAddr != serverListenAddr {
+			go startHTTPRedirectServer(httpListenAddr, serverListenAddr)
+		}
 	}
 }
 
 // startHTTPRedirectServer starts a server that redirects HTTP to HTTPS.
-func startHTTPRedirectServer(httpsAddr string) {
+func startHTTPRedirectServer(listenAddr, httpsAddr string) {
 	redirectSrv := &http.Server{
-		Addr:              ":" + httpPort,
+		Addr:              listenAddr,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       5 * time.Second,
 		WriteTimeout:      5 * time.Second,
@@ -761,6 +795,7 @@ func startHTTPRedirectServer(httpsAddr string) {
 			http.Redirect(w, r, target, http.StatusMovedPermanently)
 		}),
 	}
+	logging.Info(fmt.Sprintf("Starting HTTP redirect server on %s -> %s", listenAddr, httpsAddr))
 	if err := redirectSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logging.Warn(fmt.Sprintf("HTTP redirect server failed: %v", err))
 	}

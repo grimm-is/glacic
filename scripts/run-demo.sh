@@ -76,7 +76,7 @@ check_dependencies() {
 build_images() {
     print_status "Checking VM images..."
 
-    if [[ ! -f "$BUILD_DIR/rootfs.ext4" ]] || [[ ! -f "$BUILD_DIR/vmlinuz" ]] || [[ ! -f "$BUILD_DIR/initramfs" ]]; then
+    if [[ ! -f "$BUILD_DIR/rootfs.qcow2" ]] || [[ ! -f "$BUILD_DIR/vmlinuz" ]] || [[ ! -f "$BUILD_DIR/initramfs" ]]; then
         print_status "Building VM images (this may take a few minutes)..."
         make vm-setup
         print_success "VM images built"

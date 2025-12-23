@@ -456,16 +456,31 @@ func runConfigMigrate(args []string) {
 		os.Exit(1)
 	}
 
-	// Migrate
+	// Migrate (version schema)
 	err = cf.MigrateToLatest()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Migration failed: %v\n", err)
 		os.Exit(1)
 	}
 
+	// Canonicalize (clean up deprecated fields)
+	err = cf.Config.Canonicalize()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Canonicalization failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Regenerate HCL from struct to enforce canonical form
+	// Note: This effectively strips comments, but guarantees valid/canonical HCL syntax
+	rawHCL, err := config.GenerateHCL(cf.Config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to generate HCL: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Handle output
 	if *dryRun {
-		fmt.Print(cf.GetRawHCL())
+		fmt.Print(string(rawHCL))
 		return
 	}
 
@@ -475,7 +490,7 @@ func runConfigMigrate(args []string) {
 	}
 
 	// Save
-	if err := cf.SaveTo(targetFile); err != nil {
+	if err := os.WriteFile(targetFile, rawHCL, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to save migrated config: %v\n", err)
 		os.Exit(1)
 	}

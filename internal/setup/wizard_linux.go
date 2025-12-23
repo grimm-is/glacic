@@ -123,7 +123,7 @@ func (w *Wizard) AutoDetectWAN() (*InterfaceInfo, string, error) {
 
 // RunAutoSetup performs automatic setup
 func (w *Wizard) RunAutoSetup() (*WizardResult, error) {
-	w.logger.Info("=== Firewall Setup Wizard ===")
+	w.logger.Info(fmt.Sprintf("=== %s Setup Wizard ===", "Glacic"))
 
 	// Detect hardware
 	w.logger.Info("Detecting network interfaces...")
@@ -168,11 +168,42 @@ func (w *Wizard) RunAutoSetup() (*WizardResult, error) {
 		w.logger.Info("WAN Configured", "interface", result.WANInterface, "ip", wanIP)
 	}
 
-	// Select LAN interface
-	lanIface := w.hardware.FindBestLANCandidate(result.WANInterface)
-	if lanIface != nil {
-		result.LANInterface = lanIface.Name
-		w.logger.Info("LAN Configured", "interface", result.LANInterface, "ip", result.LANIP)
+	// Collect ALL non-WAN interfaces as LAN
+	// Also probe each for existing DHCP servers
+	var lanInterfaces []string
+	dhcpInterfaces := make(map[string]string)
+	var firstNonDHCPLAN string
+
+	for _, iface := range physical {
+		if iface.Name == result.WANInterface {
+			continue
+		}
+		lanInterfaces = append(lanInterfaces, iface.Name)
+
+		// Probe for DHCP on this interface (short timeout)
+		w.logger.Info("Probing LAN for existing DHCP...", "interface", iface.Name)
+		success, ip, _ := w.ProbeWAN(iface.Name, 5*time.Second)
+		if success {
+			w.logger.Info("Found DHCP on LAN interface", "interface", iface.Name, "ip", ip)
+			dhcpInterfaces[iface.Name] = ip
+		} else {
+			w.logger.Info("No DHCP on LAN interface (will serve)", "interface", iface.Name)
+			if firstNonDHCPLAN == "" {
+				firstNonDHCPLAN = iface.Name
+			}
+		}
+	}
+	result.LANInterfaces = lanInterfaces
+	result.DHCPInterfaces = dhcpInterfaces
+
+	if len(lanInterfaces) > 0 {
+		// Primary LAN interface: prefer one without DHCP (so we can serve)
+		if firstNonDHCPLAN != "" {
+			result.LANInterface = firstNonDHCPLAN
+		} else {
+			result.LANInterface = lanInterfaces[0]
+		}
+		w.logger.Info("LAN Configured", "interfaces", lanInterfaces, "primary", result.LANInterface, "dhcp_clients", len(dhcpInterfaces))
 	} else if len(physical) == 1 {
 		// Single interface mode - WAN only, no LAN
 		w.logger.Info("Single interface mode - no LAN available")

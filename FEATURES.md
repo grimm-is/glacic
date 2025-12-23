@@ -52,7 +52,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | NAT | Masquerade | 🟩 L4 | Works, tested |
 | NAT | SNAT (Static NAT) | 🟩 L4 | Confirmed via `nat_traffic_test.sh` |
 | NAT | DNAT / Port Forwarding | 🟩 L4 | Confirmed via `nat_traffic_test.sh` |
-| NAT | Hairpin NAT | 🟧 L2 | Config exists, untested |
+| NAT | Hairpin NAT | 🟨 L3 | Tests exist (`hairpin_test.sh`) |
 | Protection | SYN Flood Protection | 🟩 L4 | Confirmed via `protection_traffic_test.sh` |
 | Protection | Anti-Spoofing / Bogon | 🟩 L4 | Confirmed via `protection_traffic_test.sh` |
 | Protection | ICMP Handling | 🟩 L4 | Tested, proper allow rules |
@@ -156,7 +156,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Endpoints | Learning Endpoints | 🟨 L3 | CRUD works |
 | Endpoints | System (reboot, upgrade) | 🟩 L4 | Tested via `upgrade_test.sh`, `lifecycle_test.sh` |
 | Realtime | WebSocket Notifications | 🟨 L3 | Works |
-| Docs | OpenAPI Documentation | ⬜ L0 | Not started |
+| Docs | OpenAPI Documentation | 🟧 L2 | Generator exists (`internal/api/spec/`) |
 | **WEB UI** | | | |
 | Pages | Dashboard | 🟩 L4 | Status, uptime, services |
 | Pages | Interfaces | 🟨 L3 | View works, edit basic |

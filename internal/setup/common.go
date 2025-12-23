@@ -39,14 +39,16 @@ type DetectedHardware struct {
 
 // WizardResult contains the result of the setup wizard
 type WizardResult struct {
-	WANInterface string `json:"wan_interface"`
-	WANMethod    string `json:"wan_method"` // "dhcp" or "static"
-	WANIP        string `json:"wan_ip,omitempty"`
-	WANGateway   string `json:"wan_gateway,omitempty"`
-	LANInterface string `json:"lan_interface"`
-	LANIP        string `json:"lan_ip"`
-	LANSubnet    string `json:"lan_subnet"`
-	ConfigPath   string `json:"config_path"`
+	WANInterface   string            `json:"wan_interface"`
+	WANMethod      string            `json:"wan_method"` // "dhcp" or "static"
+	WANIP          string            `json:"wan_ip,omitempty"`
+	WANGateway     string            `json:"wan_gateway,omitempty"`
+	LANInterface   string            `json:"lan_interface"`           // Primary LAN interface (for DHCP scope)
+	LANInterfaces  []string          `json:"lan_interfaces"`          // All LAN interfaces (for zone)
+	DHCPInterfaces map[string]string `json:"dhcp_interfaces"`         // Interface -> IP (interfaces with existing DHCP)
+	LANIP          string            `json:"lan_ip"`
+	LANSubnet      string            `json:"lan_subnet"`
+	ConfigPath     string            `json:"config_path"`
 }
 
 // Wizard handles the setup process
@@ -87,8 +89,11 @@ func (w *Wizard) GenerateConfig(result *WizardResult) error {
 		return fmt.Errorf("failed to create config dir: %w", err)
 	}
 
-	// Generate config from template
-	tmpl := template.Must(template.New("config").Parse(configTemplate))
+	// Generate config from template with custom functions
+	funcMap := template.FuncMap{
+		"add": func(a, b int) int { return a + b },
+	}
+	tmpl := template.Must(template.New("config").Funcs(funcMap).Parse(configTemplate))
 
 	f, err := os.Create(w.configFile)
 	if err != nil {
@@ -260,6 +265,28 @@ schema_version = "1.0"
 # Enable this only after configuring firewall policies
 ip_forwarding = false
 
+# Interface Definitions
+interface "{{.WANInterface}}" {
+{{- if eq .WANMethod "dhcp"}}
+  dhcp = true
+{{- else}}
+  ipv4 = ["{{.WANIP}}"]
+{{- end}}
+}
+{{- if .LANInterfaces}}
+{{- range $i, $iface := .LANInterfaces}}
+
+interface "{{$iface}}" {
+{{- if index $.DHCPInterfaces $iface}}
+  # Existing DHCP server detected - use as client
+  dhcp = true
+{{- else if eq $iface $.LANInterface}}
+  ipv4 = ["{{$.LANIP}}/24"]
+{{- end}}
+}
+{{- end}}
+{{- end}}
+
 # Zone Definitions
 zone "WAN" {
   interface = "{{.WANInterface}}"
@@ -270,12 +297,16 @@ zone "WAN" {
   ipv4 = ["{{.WANIP}}"]
 {{- end}}
 }
-{{- if .LANInterface}}
+{{- if .LANInterfaces}}
+{{- $lanIndex := 1}}
+{{- range $i, $iface := .LANInterfaces}}
 
-zone "LAN" {
-  interface = "{{.LANInterface}}"
-  description = "LAN - Local Network"
-  ipv4 = ["{{.LANIP}}/24"]
+zone "LAN{{$lanIndex}}" {
+  interface = "{{$iface}}"
+  description = "LAN{{$lanIndex}} - {{$iface}}"
+{{- if eq $iface $.LANInterface}}
+  ipv4 = ["{{$.LANIP}}/24"]
+{{- end}}
   
   # Services provided to LAN clients (auto-generates firewall rules)
   services {
@@ -289,13 +320,20 @@ zone "LAN" {
     icmp = true
   }
 }
+{{- $lanIndex = add $lanIndex 1}}
+{{- end}}
+{{- end}}
 
 # API Server Configuration
 # TLS certificates are auto-generated in /var/lib/glacic/certs/
 api {
-  enabled = true
-  listen  = ":8080"
+  enabled    = true
+  listen     = ":8080"
+  tls_listen = ":8443"
+  tls_cert   = "/var/lib/glacic/certs/server.crt"
+  tls_key    = "/var/lib/glacic/certs/server.key"
 }
+{{- if .LANInterface}}
 
 # DHCP Server for LAN
 dhcp {

@@ -22,7 +22,8 @@ func RunConsole() {
 	defer client.Close()
 
 	// Start Bubble Tea app
-	p := tea.NewProgram(tui.NewModel(client), tea.WithAltScreen())
+	backend := tui.NewBackend(client)
+	p := tea.NewProgram(tui.NewModel(backend), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running console: %v\n", err)
 		os.Exit(1)

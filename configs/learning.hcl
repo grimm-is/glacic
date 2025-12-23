@@ -29,7 +29,13 @@ rule_learning {
 
 # Example zones for learning
 zone "lan" {
-  interfaces = ["br-lan", "eth1"]
+  # LAN covers both bridge and physical interface
+  match {
+    interface = "br-lan"
+  }
+  match {
+    interface = "eth1"
+  }
   description = "Local Area Network"
 
   services {
@@ -46,7 +52,7 @@ zone "lan" {
 }
 
 zone "wan" {
-  interfaces = ["eth0"]
+  interface = "eth0"
   description = "Wide Area Network (Internet)"
 }
 

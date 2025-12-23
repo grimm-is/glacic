@@ -54,7 +54,7 @@ func RunSetup(configDir string) {
 	fmt.Println("Next steps:")
 	fmt.Printf("  1. Start the firewall:  %s start\n", brand.LowerName)
 	if result.LANInterface != "" {
-		fmt.Printf("  2. Access the UI:       http://%s:8080\n", result.LANIP)
+		fmt.Printf("  2. Access the UI:       https://%s/\n", result.LANIP)
 		fmt.Println("  3. Login with:          admin / admin")
 		fmt.Println("  4. Change your password immediately!")
 	} else {

@@ -4,29 +4,42 @@ ip_forwarding = true
 # WAN Interface
 interface "eth0" {
   description = "WAN Link"
-  zone        = "WAN"
   dhcp        = true
 }
 
 # Green Zone - Full internet access, can access orange
 interface "veth-green" {
   description = "Green Zone (Trusted)"
-  zone        = "Green"
   ipv4        = ["10.1.0.1/24"]
 }
 
 # Orange Zone - DMZ, can access green and red, plus internet
 interface "veth-orange" {
   description = "Orange Zone (DMZ)"
-  zone        = "Orange"
   ipv4        = ["10.2.0.1/24"]
 }
 
 # Red Zone - Isolated, no internet access
 interface "veth-red" {
   description = "Red Zone (Isolated)"
-  zone        = "Red"
   ipv4        = ["10.3.0.1/24"]
+}
+
+# Zone Definitions
+zone "WAN" {
+  interface = "eth0"
+}
+
+zone "Green" {
+  interface = "veth-green"
+}
+
+zone "Orange" {
+  interface = "veth-orange"
+}
+
+zone "Red" {
+  interface = "veth-red"
 }
 
 # DHCP Server for all zones

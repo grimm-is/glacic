@@ -7,12 +7,12 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"net"
 	"sync"
 	"time"
 
 	"grimm.is/glacic/internal/clock"
+	"grimm.is/glacic/internal/logging"
 
 	"grimm.is/glacic/internal/config"
 
@@ -21,6 +21,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
+
+// Package-level logger with component tag
+var dhcpLog = logging.WithComponent("dhcp")
 
 // LeaseInfo holds information about a DHCP lease
 type LeaseInfo struct {
@@ -97,7 +100,7 @@ func (cm *ClientManager) StartClient(ifaceName string) error {
 	go dhcpClient.run(ctx)
 
 	cm.clients[ifaceName] = dhcpClient
-	log.Printf("[DHCP Client] Started client for interface %s", ifaceName)
+	dhcpLog.Info("Started client", "interface", ifaceName)
 
 	return nil
 }
@@ -114,7 +117,7 @@ func (cm *ClientManager) StopClient(ifaceName string) error {
 
 	client.cancel()
 	delete(cm.clients, ifaceName)
-	log.Printf("[DHCP Client] Stopped client for interface %s", ifaceName)
+	dhcpLog.Info("Stopped client", "interface", ifaceName)
 
 	return nil
 }
@@ -162,7 +165,7 @@ func (cm *ClientManager) Stop() {
 
 	for ifaceName, client := range cm.clients {
 		client.cancel()
-		log.Printf("[DHCP Client] Stopped client for interface %s", ifaceName)
+		dhcpLog.Info("Stopped client", "interface", ifaceName)
 	}
 
 	cm.clients = make(map[string]*Client)
@@ -177,7 +180,7 @@ func (c *Client) run(ctx context.Context) {
 
 	// Initial lease acquisition
 	if err := c.acquireLease(); err != nil {
-		log.Printf("[DHCP Client] Failed to acquire initial lease for %s: %v", c.ifaceName, err)
+		dhcpLog.Warn("Failed to acquire initial lease", "interface", c.ifaceName, "error", err)
 		return
 	}
 
@@ -187,7 +190,7 @@ func (c *Client) run(ctx context.Context) {
 
 // acquireLease acquires a DHCP lease
 func (c *Client) acquireLease() error {
-	log.Printf("[DHCP Client] Acquiring lease for interface %s", c.ifaceName)
+	dhcpLog.Info("Acquiring lease", "interface", c.ifaceName)
 
 	// Send DHCP discover
 	lease, err := c.client.Request(context.Background())
@@ -207,8 +210,7 @@ func (c *Client) acquireLease() error {
 	c.lease = leaseInfo
 	c.mu.Unlock()
 
-	log.Printf("[DHCP Client] Obtained lease for %s: IP %s, lease time %v",
-		c.ifaceName, leaseInfo.IPAddress, leaseInfo.LeaseTime)
+	dhcpLog.Info("Obtained lease", "interface", c.ifaceName, "ip", leaseInfo.IPAddress, "lease_time", leaseInfo.LeaseTime)
 
 	return nil
 }
@@ -244,7 +246,7 @@ func (c *Client) applyLeaseToInterface(leaseInfo *LeaseInfo) error {
 			}
 			// Remove other addresses that might be from previous DHCP leases
 			if err := netlink.AddrDel(link, &addr); err != nil {
-				log.Printf("[DHCP Client] Warning: failed to remove existing address %s: %v", addr.IP, err)
+				dhcpLog.Warn("Failed to remove existing address", "ip", addr.IP, "error", err)
 			}
 		}
 	}
@@ -262,7 +264,7 @@ func (c *Client) applyLeaseToInterface(leaseInfo *LeaseInfo) error {
 		return fmt.Errorf("failed to set interface up: %w", err)
 	}
 
-	log.Printf("[DHCP Client] Applied IP %s to interface %s", leaseInfo.IPAddress, c.ifaceName)
+	dhcpLog.Info("Applied IP", "ip", leaseInfo.IPAddress, "interface", c.ifaceName)
 
 	// Add default route via the router (gateway) if provided
 	if leaseInfo.Router != nil && !leaseInfo.Router.IsUnspecified() {
@@ -272,7 +274,7 @@ func (c *Client) applyLeaseToInterface(leaseInfo *LeaseInfo) error {
 			for _, route := range routes {
 				if route.Dst == nil { // Default route has nil Dst
 					if err := netlink.RouteDel(&route); err != nil {
-						log.Printf("[DHCP Client] Warning: failed to remove existing default route: %v", err)
+						dhcpLog.Warn("Failed to remove existing default route", "error", err)
 					}
 				}
 			}
@@ -287,10 +289,10 @@ func (c *Client) applyLeaseToInterface(leaseInfo *LeaseInfo) error {
 		if err := netlink.RouteAdd(route); err != nil {
 			// If route already exists, that's ok
 			if err != unix.EEXIST {
-				log.Printf("[DHCP Client] Warning: failed to add default route via %s: %v", leaseInfo.Router, err)
+				dhcpLog.Warn("Failed to add default route", "gateway", leaseInfo.Router, "error", err)
 			}
 		} else {
-			log.Printf("[DHCP Client] Added default route via %s on interface %s", leaseInfo.Router, c.ifaceName)
+			dhcpLog.Info("Added default route", "gateway", leaseInfo.Router, "interface", c.ifaceName)
 		}
 	}
 
@@ -365,7 +367,7 @@ func (c *Client) renewalLoop(ctx context.Context) {
 		if lease == nil {
 			// Try to acquire new lease
 			if err := c.acquireLease(); err != nil {
-				log.Printf("[DHCP Client] Failed to acquire lease for %s: %v", c.ifaceName, err)
+				dhcpLog.Warn("Failed to acquire lease", "interface", c.ifaceName, "error", err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -387,21 +389,21 @@ func (c *Client) renewalLoop(ctx context.Context) {
 			nextRenewal = 30 * time.Second
 		}
 
-		log.Printf("[DHCP Client] Next renewal for %s in %v", c.ifaceName, nextRenewal)
+		dhcpLog.Info("Next renewal", "interface", c.ifaceName, "in", nextRenewal)
 
 		// Wait for renewal time or context cancellation
 		select {
 		case <-time.After(nextRenewal):
 			// Time to renew
 			if err := c.renewLease(); err != nil {
-				log.Printf("[DHCP Client] Failed to renew lease for %s: %v", c.ifaceName, err)
+				dhcpLog.Warn("Failed to renew lease", "interface", c.ifaceName, "error", err)
 				// Try to acquire new lease on renewal failure
 				if err := c.acquireLease(); err != nil {
-					log.Printf("[DHCP Client] Failed to acquire new lease for %s: %v", c.ifaceName, err)
+					dhcpLog.Warn("Failed to acquire new lease", "interface", c.ifaceName, "error", err)
 				}
 			}
 		case <-ctx.Done():
-			log.Printf("[DHCP Client] Stopping renewal loop for %s", c.ifaceName)
+			dhcpLog.Info("Stopping renewal loop", "interface", c.ifaceName)
 			return
 		}
 	}
@@ -409,7 +411,7 @@ func (c *Client) renewalLoop(ctx context.Context) {
 
 // renewLease renews the current DHCP lease
 func (c *Client) renewLease() error {
-	log.Printf("[DHCP Client] Renewing lease for interface %s", c.ifaceName)
+	dhcpLog.Info("Renewing lease", "interface", c.ifaceName)
 
 	// Send DHCP request for renewal
 	lease, err := c.client.Request(context.Background())
@@ -429,8 +431,7 @@ func (c *Client) renewLease() error {
 	c.lease = leaseInfo
 	c.mu.Unlock()
 
-	log.Printf("[DHCP Client] Renewed lease for %s: IP %s, lease time %v",
-		c.ifaceName, leaseInfo.IPAddress, leaseInfo.LeaseTime)
+	dhcpLog.Info("Renewed lease", "interface", c.ifaceName, "ip", leaseInfo.IPAddress, "lease_time", leaseInfo.LeaseTime)
 
 	return nil
 }

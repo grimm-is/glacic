@@ -9,30 +9,27 @@ ip_forwarding = true
 # Interfaces configuration
 interface "eth0" {
   description = "WAN Interface (Internet)"
-  zone = "wan"
   dhcp = true
 }
 
 interface "eth1" {
   description = "DMZ Interface (Management)"
-  zone = "dmz"
   ipv4 = ["192.168.100.10/24"]
   gateway = "192.168.100.1"
 }
 
 interface "eth2" {
   description = "LAN Interface (Internal Network)"
-  zone = "lan"
   ipv4 = ["192.168.1.1/24"]
 }
 
 # Zone definitions
 zone "wan" {
-  interfaces = ["eth0"]
+  interface = "eth0"
 }
 
 zone "dmz" {
-  interfaces = ["eth1"]
+  interface = "eth1"
   management {
     web = true
     ssh = true
@@ -41,7 +38,7 @@ zone "dmz" {
 }
 
 zone "lan" {
-  interfaces = ["eth2"]
+  interface = "eth2"
   management {
     web = true
     ssh = true
