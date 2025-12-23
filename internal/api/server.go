@@ -72,7 +72,7 @@ type Server struct {
 	Config        *config.Config
 	Assets        fs.FS
 	client        ctlplane.ControlPlaneClient // RPC client for control plane communication
-	authStore     *auth.Store
+	authStore     auth.AuthStore
 	authMw        *auth.Middleware
 	apiKeyManager *APIKeyManager // Use local type alias/import
 	logger        *logging.Logger
@@ -99,7 +99,7 @@ type ServerOptions struct {
 	Config          *config.Config
 	Assets          fs.FS
 	Client          ctlplane.ControlPlaneClient
-	AuthStore       *auth.Store
+	AuthStore       auth.AuthStore
 	APIKeyManager   *APIKeyManager
 	Logger          *logging.Logger
 	StateStore      state.Store       // Optional: For standalone mode
@@ -136,8 +136,14 @@ func NewServer(opts ServerOptions) (*Server, error) {
 		learning:      opts.LearningService,
 	}
 
+	// Setup auth store: use DevStore if no auth configured
 	if opts.AuthStore != nil {
+		s.authStore = opts.AuthStore
 		s.authMw = auth.NewMiddleware(opts.AuthStore)
+	} else {
+		// Dev/Test mode: auto-authenticate with full permissions
+		s.authStore = auth.NewDevStore()
+		// No middleware needed - DevStore always validates
 	}
 
 	if opts.Client != nil {
@@ -235,9 +241,8 @@ func (s *Server) initRoutes() {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /readyz", s.handleReadiness)
 
-	// Protected endpoints
-	if s.authStore != nil {
-		// Auth is configured - protect endpoints using Unified Auth (User or API Key)
+	// Protected endpoints - using Unified Auth (User Session or API Key)
+	// DevStore is used when no auth configured, providing full access
 
 		// General Config
 		mux.Handle("GET /api/config", s.require(storage.PermReadConfig, s.requireControlPlane(s.handleConfig)))
@@ -387,129 +392,6 @@ func (s *Server) initRoutes() {
 		mux.Handle("GET /api/config/diff", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleGetConfigDiff)))
 		mux.Handle("POST /api/config/discard", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleDiscardConfig)))
 		mux.Handle("GET /api/config/pending-status", s.require(storage.PermReadConfig, http.HandlerFunc(s.handlePendingStatus)))
-	} else if s.authStore == nil {
-		// No auth configured (Dev/Test mode) - allow access
-		mux.HandleFunc("GET /api/config", s.handleConfig)
-		mux.HandleFunc("POST /api/config/settings", s.handleSystemSettings)
-		mux.HandleFunc("POST /api/config/apply", s.handleApplyConfig)
-		// /api/status is already registered globally
-		mux.HandleFunc("GET /api/leases", s.handleLeases)
-		mux.HandleFunc("GET /api/users", s.handleGetUsers)
-		mux.HandleFunc("POST /api/users", s.handleCreateUser)
-		mux.HandleFunc("GET /api/users/", s.handleGetUser)
-		mux.HandleFunc("PUT /api/users/", s.handleUpdateUser)
-		mux.HandleFunc("DELETE /api/users/", s.handleDeleteUser)
-		mux.HandleFunc("GET /api/interfaces", s.handleInterfaces)
-		mux.HandleFunc("GET /api/interfaces/available", s.handleAvailableInterfaces)
-		mux.HandleFunc("POST /api/interfaces/update", s.handleUpdateInterface)
-		mux.HandleFunc("POST /api/vlans", s.handleCreateVLAN)
-		mux.HandleFunc("DELETE /api/vlans", s.handleDeleteVLAN)
-		mux.HandleFunc("POST /api/bonds", s.handleCreateBond)
-		mux.HandleFunc("DELETE /api/bonds", s.handleDeleteBond)
-		mux.HandleFunc("GET /api/services", s.handleServices)
-		mux.HandleFunc("GET /api/traffic", s.handleTraffic)
-		mux.HandleFunc("GET /api/topology", s.handleGetTopology)
-		mux.HandleFunc("GET /api/network-devices", s.handleGetNetworkDevices)
-		
-		// Config sections
-		mux.HandleFunc("GET /api/config/policies", s.handleGetPolicies)
-		mux.HandleFunc("POST /api/config/policies", s.handleUpdatePolicies)
-		mux.HandleFunc("GET /api/config/nat", s.handleGetNAT)
-		mux.HandleFunc("POST /api/config/nat", s.handleUpdateNAT)
-		mux.HandleFunc("GET /api/config/ipsets", s.handleGetIPSets)
-		mux.HandleFunc("POST /api/config/ipsets", s.handleUpdateIPSets)
-		mux.HandleFunc("GET /api/config/dhcp", s.handleGetDHCP)
-		mux.HandleFunc("POST /api/config/dhcp", s.handleUpdateDHCP)
-		mux.HandleFunc("GET /api/config/dns", s.handleGetDNS)
-		mux.HandleFunc("POST /api/config/dns", s.handleUpdateDNS)
-		mux.HandleFunc("GET /api/config/routes", s.handleGetRoutes)
-		mux.HandleFunc("POST /api/config/routes", s.handleUpdateRoutes)
-		mux.HandleFunc("GET /api/config/zones", s.handleGetZones)
-		mux.HandleFunc("POST /api/config/zones", s.handleUpdateZones)
-		mux.HandleFunc("GET /api/config/protections", s.handleGetProtections)
-		mux.HandleFunc("POST /api/config/protections", s.handleUpdateProtections)
-		mux.HandleFunc("GET /api/config/qos", s.handleGetQoS)
-		mux.HandleFunc("POST /api/config/qos", s.handleUpdateQoS)
-		mux.HandleFunc("GET /api/config/scheduler", s.handleGetSchedulerConfig)
-		mux.HandleFunc("POST /api/config/scheduler", s.handleUpdateSchedulerConfig)
-		mux.HandleFunc("GET /api/config/vpn", s.handleGetVPN)
-		mux.HandleFunc("POST /api/config/vpn", s.handleUpdateVPN)
-		mux.HandleFunc("GET /api/config/mark_rules", s.handleGetMarkRules)
-		mux.HandleFunc("POST /api/config/mark_rules", s.handleUpdateMarkRules)
-		mux.HandleFunc("GET /api/config/uid_routing", s.handleGetUIDRouting)
-		mux.HandleFunc("POST /api/config/uid_routing", s.handleUpdateUIDRouting)
-
-		mux.HandleFunc("POST /api/policies/reorder", s.handlePolicyReorder)
-		mux.HandleFunc("POST /api/rules/reorder", s.handleRuleReorder)
-
-		// ClearPath Policy Editor - Enriched Rules API
-		rulesHandlerNoAuth := NewRulesHandler(s, s.statsCollector, s.deviceLookup)
-		mux.HandleFunc("GET /api/rules", rulesHandlerNoAuth.HandleGetRules)
-		mux.HandleFunc("GET /api/rules/flat", rulesHandlerNoAuth.HandleGetFlatRules)
-		mux.HandleFunc("GET /api/rules/groups", rulesHandlerNoAuth.HandleGetRuleGroups)
-
-		mux.HandleFunc("POST /api/system/reboot", s.handleReboot)
-		mux.HandleFunc("GET /api/system/stats", s.handleSystemStats)
-		mux.HandleFunc("GET /api/system/routes", s.handleSystemRoutes)
-		mux.HandleFunc("GET /api/system/backup", s.handleBackup)
-		mux.HandleFunc("POST /api/system/restore", s.handleRestore)
-		mux.HandleFunc("GET /api/scheduler/status", s.handleSchedulerStatus)
-		mux.HandleFunc("POST /api/scheduler/run", s.handleSchedulerRun)
-		// HCL editing (Advanced mode)
-		mux.HandleFunc("GET /api/config/hcl", s.handleGetRawHCL)
-		mux.HandleFunc("POST /api/config/hcl", s.handleUpdateRawHCL)
-		mux.HandleFunc("GET /api/config/hcl/section", s.handleGetSectionHCL)
-		mux.HandleFunc("POST /api/config/hcl/section", s.handleUpdateSectionHCL)
-		mux.HandleFunc("POST /api/config/hcl/validate", s.handleValidateHCL)
-		mux.HandleFunc("POST /api/config/hcl/save", s.handleSaveConfig)
-		// Backup management
-		mux.HandleFunc("GET /api/backups", s.handleBackups)
-		mux.HandleFunc("POST /api/backups/create", s.handleCreateBackup)
-		mux.HandleFunc("POST /api/backups/restore", s.handleRestoreBackup)
-		mux.HandleFunc("GET /api/backups/content", s.handleBackupContent)
-		mux.HandleFunc("POST /api/backups/pin", s.handlePinBackup)
-		mux.HandleFunc("POST /api/backups/settings", s.handleUpdateBackupSettings)
-		mux.HandleFunc("GET /api/backups/settings", s.handleGetBackupSettings)
-		// Safe apply with confirmation
-		mux.HandleFunc("POST /api/config/safe-apply", s.handleSafeApply)
-		mux.HandleFunc("POST /api/config/confirm", s.handleConfirmApply)
-		mux.HandleFunc("GET /api/config/pending", s.handlePendingApply)
-		// Logging endpoints
-		mux.HandleFunc("GET /api/logs", s.handleLogs)
-		mux.HandleFunc("GET /api/logs/sources", s.handleLogSources)
-		mux.HandleFunc("GET /api/logs/stream", s.handleLogStream)
-		mux.HandleFunc("GET /api/logs/stats", s.handleLogStats)
-		// Import Wizard
-		mux.HandleFunc("POST /api/import/upload", s.handleImportUpload)
-		mux.HandleFunc("/api/import/", s.handleImportConfig)
-		// Monitoring endpoints
-		mux.HandleFunc("GET /api/monitoring/overview", s.handleMonitoringOverview)
-		mux.HandleFunc("GET /api/monitoring/interfaces", s.handleMonitoringInterfaces)
-		mux.HandleFunc("GET /api/monitoring/policies", s.handleMonitoringPolicies)
-		mux.HandleFunc("GET /api/monitoring/services", s.handleMonitoringServices)
-		mux.HandleFunc("GET /api/monitoring/system", s.handleMonitoringSystem)
-		mux.HandleFunc("GET /api/monitoring/conntrack", s.handleMonitoringConntrack)
-
-		// Learning firewall endpoints
-		if s.learning != nil {
-			mux.HandleFunc("GET /api/learning/rules", s.handleLearningRules)
-			mux.HandleFunc("/api/learning/rules/", s.handleLearningRule)
-			mux.HandleFunc("GET /api/learning/stats", s.handleLearningStats)
-		}
-
-		// Device Management
-		mux.HandleFunc("POST /api/devices/identity", s.handleUpdateDeviceIdentity)
-		mux.HandleFunc("POST /api/devices/link", s.handleLinkMAC)
-		mux.HandleFunc("POST /api/devices/unlink", s.handleUnlinkMAC)
-
-		// Quick Wins
-		mux.HandleFunc("GET /api/config/diff", s.handleGetConfigDiff)
-		mux.HandleFunc("POST /api/config/discard", s.handleDiscardConfig)
-		mux.HandleFunc("GET /api/config/pending-status", s.handlePendingStatus)
-		mux.HandleFunc("GET /public/ca.crt", s.handlePublicCert) // Public, no auth required
-
-
-	}
 
 	mux.Handle("/metrics", promhttp.Handler())
 

@@ -13,11 +13,11 @@ const UserContextKey ContextKey = "user"
 
 // Middleware provides HTTP middleware for authentication
 type Middleware struct {
-	store *Store
+	store AuthStore
 }
 
 // NewMiddleware creates a new auth middleware
-func NewMiddleware(store *Store) *Middleware {
+func NewMiddleware(store AuthStore) *Middleware {
 	return &Middleware{store: store}
 }
 
