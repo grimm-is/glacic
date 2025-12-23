@@ -80,6 +80,11 @@ func MigrateConfig(cfg *Config, targetVersion SchemaVersion) error {
 		cfg.SchemaVersion = migration.ToVersion.String()
 	}
 
+	// Canonicalize config (clean up deprecated fields even within same version)
+	if err := cfg.Canonicalize(); err != nil {
+		return fmt.Errorf("canonicalization failed: %w", err)
+	}
+
 	return nil
 }
 

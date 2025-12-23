@@ -789,7 +789,7 @@ func TestMigrateDNSConfig(t *testing.T) {
 		},
 	}
 
-	cfg.MigrateDNSConfig()
+	ApplyPostLoadMigrations(cfg)
 
 	if cfg.DNS == nil {
 		t.Fatal("DNS should be populated after migration")
@@ -834,7 +834,7 @@ func TestMigrateDNSConfigNoOverwrite(t *testing.T) {
 		},
 	}
 
-	cfg.MigrateDNSConfig()
+	ApplyPostLoadMigrations(cfg)
 
 	// Should NOT overwrite existing config
 	if len(cfg.DNS.Forwarders) != 1 || cfg.DNS.Forwarders[0] != "1.1.1.1" {

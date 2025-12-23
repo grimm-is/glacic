@@ -31,12 +31,12 @@ zone "wan" {
 	}
 }
 
-func TestZone_InterfacePrefix(t *testing.T) {
+func TestZone_InterfaceWildcard(t *testing.T) {
 	hcl := `
 schema_version = "1.0"
 
 zone "vpn" {
-  interface_prefix = "wg"
+  interface = "wg+"
   management {
     web = true
   }
@@ -52,8 +52,8 @@ zone "vpn" {
 	}
 
 	zone := cfg.Zones[0]
-	if zone.InterfacePrefix != "wg" {
-		t.Errorf("InterfacePrefix = %q, want %q", zone.InterfacePrefix, "wg")
+	if zone.Interface != "wg+" {
+		t.Errorf("Interface = %q, want %q", zone.Interface, "wg+")
 	}
 }
 

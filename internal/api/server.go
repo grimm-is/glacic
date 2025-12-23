@@ -27,6 +27,7 @@ import (
 	"grimm.is/glacic/internal/brand"
 	"grimm.is/glacic/internal/config"
 	"grimm.is/glacic/internal/ctlplane"
+	"grimm.is/glacic/internal/firewall"
 	"grimm.is/glacic/internal/health"
 	"grimm.is/glacic/internal/learning"
 	"grimm.is/glacic/internal/logging"
@@ -1606,9 +1607,7 @@ func (s *Server) handleTraffic(w http.ResponseWriter, r *http.Request) {
 
 // handleServices returns the available service definitions
 func (s *Server) handleServices(w http.ResponseWriter, r *http.Request) {
-	// Method check removed (handled by router)
-
-	// Build response with all service definitions
+	// Build response with all service definitions from firewall package
 	type ServiceInfo struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
@@ -1619,22 +1618,53 @@ func (s *Server) handleServices(w http.ResponseWriter, r *http.Request) {
 		} `json:"ports"`
 	}
 
-	services := make([]ServiceInfo, 0, len(config.BuiltinServices))
-	for name, svc := range config.BuiltinServices {
+	services := make([]ServiceInfo, 0, len(firewall.BuiltinServices))
+	for name, svc := range firewall.BuiltinServices {
 		info := ServiceInfo{
 			Name:        name,
 			Description: svc.Description,
 		}
-		for _, p := range svc.Ports {
+		// Handle protocol flags and ports
+		if svc.Protocol&firewall.ProtoTCP != 0 {
+			if len(svc.Ports) > 0 {
+				for _, p := range svc.Ports {
+					info.Ports = append(info.Ports, struct {
+						Port     int    `json:"port"`
+						EndPort  int    `json:"end_port,omitempty"`
+						Protocol string `json:"protocol"`
+					}{Port: p, Protocol: "tcp"})
+				}
+			} else if svc.Port > 0 {
+				info.Ports = append(info.Ports, struct {
+					Port     int    `json:"port"`
+					EndPort  int    `json:"end_port,omitempty"`
+					Protocol string `json:"protocol"`
+				}{Port: svc.Port, EndPort: svc.EndPort, Protocol: "tcp"})
+			}
+		}
+		if svc.Protocol&firewall.ProtoUDP != 0 {
+			if len(svc.Ports) > 0 {
+				for _, p := range svc.Ports {
+					info.Ports = append(info.Ports, struct {
+						Port     int    `json:"port"`
+						EndPort  int    `json:"end_port,omitempty"`
+						Protocol string `json:"protocol"`
+					}{Port: p, Protocol: "udp"})
+				}
+			} else if svc.Port > 0 {
+				info.Ports = append(info.Ports, struct {
+					Port     int    `json:"port"`
+					EndPort  int    `json:"end_port,omitempty"`
+					Protocol string `json:"protocol"`
+				}{Port: svc.Port, EndPort: svc.EndPort, Protocol: "udp"})
+			}
+		}
+		if svc.Protocol&firewall.ProtoICMP != 0 {
 			info.Ports = append(info.Ports, struct {
 				Port     int    `json:"port"`
 				EndPort  int    `json:"end_port,omitempty"`
 				Protocol string `json:"protocol"`
-			}{
-				Port:     p.Port,
-				EndPort:  p.EndPort,
-				Protocol: p.Protocol,
-			})
+			}{Protocol: "icmp"})
 		}
 		services = append(services, info)
 	}

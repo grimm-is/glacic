@@ -57,6 +57,9 @@ func (e ValidationErrors) HasErrors() bool {
 func (c *Config) Validate() ValidationErrors {
 	var errs ValidationErrors
 
+	// Validate zones
+	errs = append(errs, c.validateZones()...)
+
 	// Validate interfaces
 	errs = append(errs, c.validateInterfaces()...)
 
@@ -74,6 +77,69 @@ func (c *Config) Validate() ValidationErrors {
 
 	// Validate routes
 	errs = append(errs, c.validateRoutes()...)
+
+	return errs
+}
+
+func (c *Config) validateZones() ValidationErrors {
+	var errs ValidationErrors
+
+	for i, zone := range c.Zones {
+		field := fmt.Sprintf("zones[%s]", zone.Name)
+		if zone.Name == "" {
+			field = fmt.Sprintf("zones[%d]", i)
+		}
+
+		// Validate top-level Src
+		if zone.Src != "" && !isValidIPOrCIDR(zone.Src) {
+			errs = append(errs, ValidationError{
+				Field:   field + ".src",
+				Message: fmt.Sprintf("invalid IP or CIDR: %s", zone.Src),
+			})
+		}
+
+		// Validate top-level Dst
+		if zone.Dst != "" && !isValidIPOrCIDR(zone.Dst) {
+			errs = append(errs, ValidationError{
+				Field:   field + ".dst",
+				Message: fmt.Sprintf("invalid IP or CIDR: %s", zone.Dst),
+			})
+		}
+
+		// Validate top-level VLAN (1-4094, 4095 is reserved)
+		if zone.VLAN != 0 && (zone.VLAN < 1 || zone.VLAN > 4094) {
+			errs = append(errs, ValidationError{
+				Field:   field + ".vlan",
+				Message: fmt.Sprintf("VLAN must be between 1 and 4094, got %d", zone.VLAN),
+			})
+		}
+
+		// Validate match blocks
+		for j, match := range zone.Matches {
+			matchField := fmt.Sprintf("%s.match[%d]", field, j)
+
+			if match.Src != "" && !isValidIPOrCIDR(match.Src) {
+				errs = append(errs, ValidationError{
+					Field:   matchField + ".src",
+					Message: fmt.Sprintf("invalid IP or CIDR: %s", match.Src),
+				})
+			}
+
+			if match.Dst != "" && !isValidIPOrCIDR(match.Dst) {
+				errs = append(errs, ValidationError{
+					Field:   matchField + ".dst",
+					Message: fmt.Sprintf("invalid IP or CIDR: %s", match.Dst),
+				})
+			}
+
+			if match.VLAN != 0 && (match.VLAN < 1 || match.VLAN > 4094) {
+				errs = append(errs, ValidationError{
+					Field:   matchField + ".vlan",
+					Message: fmt.Sprintf("VLAN must be between 1 and 4094, got %d", match.VLAN),
+				})
+			}
+		}
+	}
 
 	return errs
 }

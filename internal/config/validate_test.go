@@ -4,6 +4,110 @@ import (
 	"testing"
 )
 
+// TestValidateZones tests zone validation
+func TestValidateZones(t *testing.T) {
+	tests := []struct {
+		name     string
+		zones    []Zone
+		wantErrs int
+	}{
+		{
+			name: "valid zone with interface",
+			zones: []Zone{
+				{Name: "lan", Interface: "eth0"},
+			},
+			wantErrs: 0,
+		},
+		{
+			name: "valid zone with src CIDR",
+			zones: []Zone{
+				{Name: "guest", Interface: "eth1", Src: "192.168.10.0/24"},
+			},
+			wantErrs: 0,
+		},
+		{
+			name: "valid zone with VLAN",
+			zones: []Zone{
+				{Name: "vlan100", Interface: "eth0", VLAN: 100},
+			},
+			wantErrs: 0,
+		},
+		{
+			name: "invalid src CIDR",
+			zones: []Zone{
+				{Name: "test", Src: "not-a-cidr"},
+			},
+			wantErrs: 1,
+		},
+		{
+			name: "invalid dst IP",
+			zones: []Zone{
+				{Name: "test", Dst: "invalid-ip"},
+			},
+			wantErrs: 1,
+		},
+		{
+			name: "VLAN too low",
+			zones: []Zone{
+				{Name: "test", VLAN: 0}, // 0 is ignored (unset)
+			},
+			wantErrs: 0,
+		},
+		{
+			name: "VLAN too high",
+			zones: []Zone{
+				{Name: "test", VLAN: 4095},
+			},
+			wantErrs: 1,
+		},
+		{
+			name: "VLAN negative",
+			zones: []Zone{
+				{Name: "test", VLAN: -1},
+			},
+			wantErrs: 1,
+		},
+		{
+			name: "valid match block",
+			zones: []Zone{
+				{Name: "dmz", Matches: []ZoneMatch{
+					{Interface: "eth2", Src: "10.0.0.0/8", VLAN: 200},
+				}},
+			},
+			wantErrs: 0,
+		},
+		{
+			name: "invalid match block src",
+			zones: []Zone{
+				{Name: "dmz", Matches: []ZoneMatch{
+					{Interface: "eth2", Src: "bad-cidr"},
+				}},
+			},
+			wantErrs: 1,
+		},
+		{
+			name: "invalid match block VLAN",
+			zones: []Zone{
+				{Name: "dmz", Matches: []ZoneMatch{
+					{Interface: "eth2", VLAN: 5000},
+				}},
+			},
+			wantErrs: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{Zones: tt.zones}
+			errs := cfg.validateZones()
+			if len(errs) != tt.wantErrs {
+				t.Errorf("got %d errors, want %d: %v", len(errs), tt.wantErrs, errs)
+			}
+		})
+	}
+}
+
+
 // TestValidateInterfaces tests interface validation
 func TestValidateInterfaces(t *testing.T) {
 	tests := []struct {

@@ -19,11 +19,33 @@ func NewZoneResolver(zones []Zone) *ZoneResolver {
 // EffectiveMatch represents a fully resolved match with all fields populated
 // after applying global zone defaults to per-match overrides.
 type EffectiveMatch struct {
-	Interface       string
-	InterfacePrefix string
-	Src             string
-	Dst             string
-	VLAN            int
+	Interface string // Interface name or pattern (e.g., "eth0" or "wg*")
+	IsPrefix  bool   // True if Interface is a wildcard pattern
+	Src       string
+	Dst       string
+	VLAN      int
+}
+
+// IsInterfaceWildcard checks if an interface name has a wildcard suffix (+ or *)
+func IsInterfaceWildcard(iface string) bool {
+	return strings.HasSuffix(iface, "+") || strings.HasSuffix(iface, "*")
+}
+
+// InterfaceBase returns the interface without wildcard suffix
+func InterfaceBase(iface string) string {
+	if strings.HasSuffix(iface, "+") || strings.HasSuffix(iface, "*") {
+		return iface[:len(iface)-1]
+	}
+	return iface
+}
+
+// InterfaceToNFT converts an interface pattern to nftables format
+// e.g., "wg+" -> "wg*", "eth0" -> "eth0"
+func InterfaceToNFT(iface string) string {
+	if strings.HasSuffix(iface, "+") {
+		return iface[:len(iface)-1] + "*"
+	}
+	return iface
 }
 
 // GetEffectiveMatches returns all effective matches for a zone.
@@ -40,25 +62,26 @@ func (r *ZoneResolver) GetEffectiveMatches(zoneName string) []EffectiveMatch {
 	if len(zone.Matches) > 0 {
 		var matches []EffectiveMatch
 		for _, m := range zone.Matches {
+			iface := orDefault(m.Interface, zone.Interface)
 			matches = append(matches, EffectiveMatch{
-				Interface:       orDefault(m.Interface, zone.Interface),
-				InterfacePrefix: orDefault(m.InterfacePrefix, zone.InterfacePrefix),
-				Src:             orDefault(m.Src, zone.Src),
-				Dst:             orDefault(m.Dst, zone.Dst),
-				VLAN:            orDefaultInt(m.VLAN, zone.VLAN),
+				Interface: InterfaceToNFT(iface),
+				IsPrefix:  IsInterfaceWildcard(iface),
+				Src:       orDefault(m.Src, zone.Src),
+				Dst:       orDefault(m.Dst, zone.Dst),
+				VLAN:      orDefaultInt(m.VLAN, zone.VLAN),
 			})
 		}
 		return matches
 	}
 
 	// Case 2: Simple format with top-level criteria
-	if zone.Interface != "" || zone.InterfacePrefix != "" || zone.Src != "" {
+	if zone.Interface != "" || zone.Src != "" {
 		return []EffectiveMatch{{
-			Interface:       zone.Interface,
-			InterfacePrefix: zone.InterfacePrefix,
-			Src:             zone.Src,
-			Dst:             zone.Dst,
-			VLAN:            zone.VLAN,
+			Interface: InterfaceToNFT(zone.Interface),
+			IsPrefix:  IsInterfaceWildcard(zone.Interface),
+			Src:       zone.Src,
+			Dst:       zone.Dst,
+			VLAN:      zone.VLAN,
 		}}
 	}
 
@@ -67,7 +90,8 @@ func (r *ZoneResolver) GetEffectiveMatches(zoneName string) []EffectiveMatch {
 		var matches []EffectiveMatch
 		for _, iface := range zone.Interfaces {
 			matches = append(matches, EffectiveMatch{
-				Interface: iface,
+				Interface: InterfaceToNFT(iface),
+				IsPrefix:  IsInterfaceWildcard(iface),
 				Src:       zone.Src,
 				Dst:       zone.Dst,
 				VLAN:      zone.VLAN,
@@ -90,10 +114,13 @@ func (r *ZoneResolver) ResolveInterface(ifaceName string) string {
 	for _, zone := range r.zones {
 		matches := r.GetEffectiveMatches(zone.Name)
 		for _, m := range matches {
-			if m.Interface == ifaceName {
-				return zone.Name
-			}
-			if m.InterfacePrefix != "" && strings.HasPrefix(ifaceName, m.InterfacePrefix) {
+			if m.IsPrefix {
+				// Remove * suffix and check prefix
+				prefix := strings.TrimSuffix(m.Interface, "*")
+				if strings.HasPrefix(ifaceName, prefix) {
+					return zone.Name
+				}
+			} else if m.Interface == ifaceName {
 				return zone.Name
 			}
 		}
@@ -102,7 +129,7 @@ func (r *ZoneResolver) ResolveInterface(ifaceName string) string {
 }
 
 // GetZoneInterfaces returns all interfaces that belong to a zone.
-// For prefix zones (like "wg" for wg0, wg1), returns the prefix with "*" suffix.
+// For prefix zones (like "wg*"), returns the pattern as-is.
 func (r *ZoneResolver) GetZoneInterfaces(zoneName string) []string {
 	matches := r.GetEffectiveMatches(zoneName)
 	var result []string
@@ -113,13 +140,6 @@ func (r *ZoneResolver) GetZoneInterfaces(zoneName string) []string {
 			result = append(result, m.Interface)
 			seen[m.Interface] = true
 		}
-		if m.InterfacePrefix != "" {
-			prefix := m.InterfacePrefix + "*"
-			if !seen[prefix] {
-				result = append(result, prefix)
-				seen[prefix] = true
-			}
-		}
 	}
 	return result
 }
@@ -129,21 +149,12 @@ func (r *ZoneResolver) GetZoneInterfaces(zoneName string) []string {
 func (r *ZoneResolver) ToNFTMatch(m EffectiveMatch, direction string) []string {
 	var clauses []string
 
-	// Interface match
+	// Interface match (already in nft format with * suffix if needed)
 	if m.Interface != "" {
 		if direction == "in" || direction == "" {
 			clauses = append(clauses, fmt.Sprintf(`iifname "%s"`, m.Interface))
 		} else {
 			clauses = append(clauses, fmt.Sprintf(`oifname "%s"`, m.Interface))
-		}
-	}
-
-	// Prefix match (uses wildcard)
-	if m.InterfacePrefix != "" {
-		if direction == "in" || direction == "" {
-			clauses = append(clauses, fmt.Sprintf(`iifname "%s*"`, m.InterfacePrefix))
-		} else {
-			clauses = append(clauses, fmt.Sprintf(`oifname "%s*"`, m.InterfacePrefix))
 		}
 	}
 
@@ -184,7 +195,7 @@ func (r *ZoneResolver) GetZoneNFTMatch(zoneName, direction string) string {
 	allInterfaceOnly := true
 	var interfaces []string
 	for _, m := range matches {
-		if m.InterfacePrefix != "" || m.Src != "" || m.Dst != "" || m.VLAN > 0 {
+		if m.Src != "" || m.Dst != "" || m.VLAN > 0 {
 			allInterfaceOnly = false
 			break
 		}
@@ -229,3 +240,4 @@ func orDefaultInt(a, b int) int {
 	}
 	return b
 }
+

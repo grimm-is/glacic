@@ -313,11 +313,11 @@ type Zone struct {
 
 	// Simple match criteria (use for single-interface zones)
 	// These are effectively a single implicit match rule
-	Interface       string `hcl:"interface,optional" json:"interface,omitempty"`         // Exact interface name (e.g., "eth0")
-	InterfacePrefix string `hcl:"interface_prefix,optional" json:"interface_prefix,omitempty"` // Interface prefix (e.g., "wg" matches wg0, wg1...)
-	Src             string `hcl:"src,optional" json:"src,omitempty"`                     // Source IP/network (e.g., "192.168.1.0/24")
-	Dst             string `hcl:"dst,optional" json:"dst,omitempty"`                     // Destination IP/network
-	VLAN            int    `hcl:"vlan,optional" json:"vlan,omitempty"`                   // VLAN tag
+	// Interface can be exact ("eth0") or prefix with + or * suffix ("wg+" or "wg*" matches wg0, wg1...)
+	Interface string `hcl:"interface,optional" json:"interface,omitempty"`
+	Src       string `hcl:"src,optional" json:"src,omitempty"`  // Source IP/network (e.g., "192.168.1.0/24")
+	Dst       string `hcl:"dst,optional" json:"dst,omitempty"`  // Destination IP/network
+	VLAN      int    `hcl:"vlan,optional" json:"vlan,omitempty"` // VLAN tag
 
 	// Complex match criteria (OR logic between matches, AND logic within each match)
 	// Global fields above apply to ALL matches as defaults
@@ -356,11 +356,11 @@ type Zone struct {
 // Multiple criteria within a match are ANDed together.
 // Multiple match blocks are ORed together.
 type ZoneMatch struct {
-	Interface       string `hcl:"interface,optional" json:"interface,omitempty"`
-	InterfacePrefix string `hcl:"interface_prefix,optional" json:"interface_prefix,omitempty"`
-	Src             string `hcl:"src,optional" json:"src,omitempty"`
-	Dst             string `hcl:"dst,optional" json:"dst,omitempty"`
-	VLAN            int    `hcl:"vlan,optional" json:"vlan,omitempty"`
+	// Interface can be exact ("eth0") or prefix with + or * suffix ("wg+" matches wg0, wg1...)
+	Interface string `hcl:"interface,optional" json:"interface,omitempty"`
+	Src       string `hcl:"src,optional" json:"src,omitempty"`
+	Dst       string `hcl:"dst,optional" json:"dst,omitempty"`
+	VLAN      int    `hcl:"vlan,optional" json:"vlan,omitempty"`
 }
 
 // ZoneServices defines which firewall services are available to a zone.

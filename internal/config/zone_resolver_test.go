@@ -26,7 +26,7 @@ func TestZoneResolver_SimpleInterface(t *testing.T) {
 
 func TestZoneResolver_PrefixMatch(t *testing.T) {
 	zones := []Zone{
-		{Name: "vpn", InterfacePrefix: "wg"},
+		{Name: "vpn", Interface: "wg+"}, // + suffix = prefix match
 	}
 
 	resolver := NewZoneResolver(zones)
@@ -141,7 +141,7 @@ func TestZoneResolver_NFTMatch_Simple(t *testing.T) {
 
 func TestZoneResolver_NFTMatch_Prefix(t *testing.T) {
 	zones := []Zone{
-		{Name: "vpn", InterfacePrefix: "wg"},
+		{Name: "vpn", Interface: "wg+"}, // + suffix = prefix match
 	}
 
 	resolver := NewZoneResolver(zones)
@@ -195,7 +195,7 @@ func TestZoneResolver_GetZoneInterfaces(t *testing.T) {
 				{Interface: "eth3"},
 			},
 		},
-		{Name: "vpn", InterfacePrefix: "wg"},
+		{Name: "vpn", Interface: "wg+"}, // + suffix = prefix match
 	}
 
 	resolver := NewZoneResolver(zones)

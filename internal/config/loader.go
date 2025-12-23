@@ -87,11 +87,11 @@ func LoadHCL(data []byte, filename string) (*Config, error) {
 
 // LoadHCLWithOptions loads HCL with explicit options
 func LoadHCLWithOptions(data []byte, filename string, opts LoadOptions) (*LoadResult, error) {
-	// Apply legacy transformations before parsing
-	transformedData, transforms := TransformLegacyHCL(data)
+	// Apply pre-parse migrations (legacy HCL syntax transforms)
+	transformedData, transforms := ApplyPreParseMigrations(data)
 
 	// Detect deprecated features that can't be auto-transformed
-	legacyFeatures := DetectLegacyFeatures(transformedData)
+	legacyFeatures := detectLegacyFeaturesInternal(transformedData)
 
 	parser := hclparse.NewParser()
 	file, diags := parser.ParseHCL(transformedData, filename)
@@ -183,7 +183,11 @@ func parseHCLv1(file *hcl.File, opts LoadOptions) (*Config, error) {
 
 	cfg.NormalizeZoneMappings()
 	cfg.NormalizePolicies()
-	cfg.MigrateDNSConfig()
+
+	// Apply post-load migrations (DNS server, zone canonicalization, etc.)
+	if err := ApplyPostLoadMigrations(&cfg); err != nil {
+		return nil, fmt.Errorf("post-load migration failed: %w", err)
+	}
 
 	return &cfg, nil
 }
@@ -206,7 +210,11 @@ func LoadJSONWithOptions(data []byte, opts LoadOptions) (*LoadResult, error) {
 
 	cfg.NormalizeZoneMappings()
 	cfg.NormalizePolicies()
-	cfg.MigrateDNSConfig()
+
+	// Apply post-load migrations (DNS server, zone canonicalization, etc.)
+	if err := ApplyPostLoadMigrations(&cfg); err != nil {
+		return nil, fmt.Errorf("post-load migration failed: %w", err)
+	}
 
 	version, err := ParseVersion(cfg.SchemaVersion)
 	if err != nil {
