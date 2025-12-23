@@ -97,13 +97,13 @@ func (h *ConsoleHandler) Handle(ctx context.Context, r slog.Record) error {
 	// Check pre-bound attributes
 	for _, a := range h.attrs {
 		if a.Key == "component" {
-			component = strings.ToUpper(a.Value.String())
+			component = strings.ToLower(a.Value.String())
 		}
 	}
 	// Check record attributes (overrides pre-bound)
 	r.Attrs(func(a slog.Attr) bool {
 		if a.Key == "component" {
-			component = strings.ToUpper(a.Value.String())
+			component = strings.ToLower(a.Value.String())
 			return false
 		}
 		return true
@@ -111,7 +111,8 @@ func (h *ConsoleHandler) Handle(ctx context.Context, r slog.Record) error {
 
 	if component != "" {
 		buf = append(buf, component...)
-		buf = append(buf, ": "...)
+		buf = append(buf, ':')
+		buf = append(buf, ' ')
 	}
 
 	// Message

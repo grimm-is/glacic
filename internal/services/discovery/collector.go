@@ -2,10 +2,11 @@ package discovery
 
 import (
 	"context"
-	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"grimm.is/glacic/internal/logging"
 )
 
 // SeenDevice represents a device observed on the network
@@ -41,6 +42,7 @@ type Collector struct {
 	mu         sync.RWMutex
 	devices    map[string]*SeenDevice // MAC -> Device
 	enrichFunc EnrichFunc
+	logger     *logging.Logger
 
 	// Enrichment queue
 	enrichQueue chan string     // MAC addresses to enrich
@@ -59,6 +61,7 @@ func NewCollector(enrichFunc EnrichFunc) *Collector {
 	return &Collector{
 		devices:     make(map[string]*SeenDevice),
 		enrichFunc:  enrichFunc,
+		logger:      logging.WithComponent("discovery"),
 		enrichQueue: make(chan string, 1000),
 		enrichedSet: make(map[string]bool),
 		events:      make(chan PacketEvent, 1000),
@@ -89,13 +92,13 @@ func (c *Collector) Start() {
 		}
 	}()
 
-	log.Println("[Discovery] Collector started")
+	c.logger.Info("collector started")
 }
 
 // Stop stops the collector
 func (c *Collector) Stop() {
 	c.cancel()
-	log.Println("[Discovery] Collector stopped")
+	c.logger.Info("collector stopped")
 }
 
 // processEvent handles a single packet event
@@ -127,7 +130,7 @@ func (c *Collector) processEvent(event PacketEvent) {
 		// Queue for enrichment
 		c.queueEnrichment(mac)
 
-		log.Printf("[Discovery] New device: %s from %s", mac, event.SrcIP)
+		c.logger.Info("new device", "mac", mac, "ip", event.SrcIP, "interface", event.InDev)
 	}
 
 	// Update existing device
