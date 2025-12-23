@@ -84,28 +84,27 @@ func getLinkSpeed(name string) string {
 	return speed + " Mbps"
 }
 
-// isVirtualInterface checks if an interface is virtual
-// Returns false for VM NICs (virtio, e1000, etc.) which appear in /sys/devices/virtual
-// but should be treated as physical interfaces for setup purposes
+// isVirtualInterface checks if an interface is virtual (and thus not suitable for WAN/LAN setup)
+// We use a permissive approach: if an interface has a MAC address and isn't in the
+// excluded list (lo, veth, tun, tap, etc.), it's considered "physical" for setup purposes.
+// This works in VMs, containers, and bare metal where interface paths vary.
 func isVirtualInterface(name string) bool {
-	// Check if it's in /sys/devices/virtual/net/
-	virtualPath := filepath.Join("/sys/devices/virtual/net", name)
-	_, err := os.Stat(virtualPath)
+	// Check if interface has a valid MAC address
+	// Interfaces without MACs (like loopback) are truly virtual
+	macPath := filepath.Join("/sys/class/net", name, "address")
+	data, err := os.ReadFile(macPath)
 	if err != nil {
-		return false // Not virtual
+		return true // Can't read MAC - treat as virtual
 	}
 
-	// It's in virtual path, but check if it has a driver that makes it a real NIC
-	// VM network adapters have drivers even though they're "virtual"
-	driverPath := filepath.Join("/sys/class/net", name, "device/driver/module")
-	_, err = os.Stat(driverPath)
-	if err == nil {
-		// Has a device driver - treat as physical (VM NIC like virtio_net, e1000)
-		return false
+	mac := strings.TrimSpace(string(data))
+	// Loopback and some virtual interfaces have all-zeros MAC
+	if mac == "" || mac == "00:00:00:00:00:00" {
+		return true
 	}
 
-	// No driver - truly virtual (loopback, veth, tap, etc.)
-	return true
+	// Has a real MAC address - usable for networking
+	return false
 }
 
 // getDriverInfo tries to find the driver name

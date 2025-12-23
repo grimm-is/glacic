@@ -64,7 +64,8 @@ func (w *Wizard) ProbeWAN(ifaceName string, timeout time.Duration) (bool, string
 	}
 }
 
-// AutoDetectWAN tries each interface to find one with DHCP
+// AutoDetectWAN probes all interfaces for DHCP and selects the one with a public IP as WAN.
+// If no public IP is found, falls back to the first interface that got any DHCP lease.
 func (w *Wizard) AutoDetectWAN() (*InterfaceInfo, string, error) {
 	if w.hardware == nil {
 		if err := w.DetectHardware(); err != nil {
@@ -74,6 +75,14 @@ func (w *Wizard) AutoDetectWAN() (*InterfaceInfo, string, error) {
 
 	physical := w.hardware.GetPhysicalInterfaces()
 
+	type dhcpResult struct {
+		iface *InterfaceInfo
+		ip    string
+		err   error
+	}
+
+	// Probe all interfaces for DHCP
+	results := make([]dhcpResult, 0)
 	for i := range physical {
 		iface := &physical[i]
 		w.logger.Info("Probing for DHCP...", "interface", iface.Name)
@@ -85,15 +94,31 @@ func (w *Wizard) AutoDetectWAN() (*InterfaceInfo, string, error) {
 		}
 
 		if success {
-			w.logger.Info("Found DHCP!", "ip", ip)
-			iface.SuggestWAN = true
-			return iface, ip, nil
+			w.logger.Info("Found DHCP!", "interface", iface.Name, "ip", ip)
+			results = append(results, dhcpResult{iface: iface, ip: ip})
+		} else {
+			w.logger.Info("No DHCP response", "interface", iface.Name)
 		}
-
-		w.logger.Info("No DHCP response")
 	}
 
-	return nil, "", fmt.Errorf("no WAN interface detected")
+	if len(results) == 0 {
+		return nil, "", fmt.Errorf("no WAN interface detected (no DHCP response)")
+	}
+
+	// Prefer interface with public IP (not RFC1918 private, not bogon)
+	for _, r := range results {
+		if !IsPrivateOrBogon(r.ip) {
+			w.logger.Info("Selected WAN (public IP)", "interface", r.iface.Name, "ip", r.ip)
+			r.iface.SuggestWAN = true
+			return r.iface, r.ip, nil
+		}
+	}
+
+	// All IPs are private - use the first one (likely double-NAT or CGNAT)
+	result := results[0]
+	w.logger.Info("Selected WAN (private IP, possible CGNAT/double-NAT)", "interface", result.iface.Name, "ip", result.ip)
+	result.iface.SuggestWAN = true
+	return result.iface, result.ip, nil
 }
 
 // RunAutoSetup performs automatic setup

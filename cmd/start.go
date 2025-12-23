@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,6 +16,21 @@ import (
 
 // RunStart starts the control plane daemon in the background
 func RunStart(configFile string) error {
+	// 0. Pre-flight check: verify config file exists before forking
+	// This gives immediate feedback rather than failing in background
+	if configFile == "" {
+		configFile = filepath.Join(brand.DefaultConfigDir, brand.ConfigFileName)
+	}
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		return fmt.Errorf("configuration file not found: %s\n\n"+
+			"To create a configuration file, run:\n"+
+			"  %s setup\n\n"+
+			"Or create a minimal config manually:\n"+
+			"  mkdir -p /etc/glacic\n"+
+			"  echo 'schema_version = \"1.0\"' > /etc/glacic/glacic.hcl",
+			configFile, brand.BinaryName)
+	}
+
 	// 1. Check for existing PID file
 	runDir := brand.GetRunDir()
 	pidFile := filepath.Join(runDir, brand.LowerName+".pid")
@@ -63,8 +80,7 @@ func RunStart(configFile string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
-	// We don't close logF here, it stays open for the child process?
-	// Actually cmd.Stdout assignment duplicates the fd. We can close it in parent after Start.
+	defer logF.Close()
 
 	cmd.Stdout = logF
 	cmd.Stderr = logF
@@ -79,14 +95,66 @@ func RunStart(configFile string) error {
 		return fmt.Errorf("failed to start daemon: %w", err)
 	}
 
-	fmt.Printf("Started %s (PID: %d)\n", brand.Name, cmd.Process.Pid)
+	pid := cmd.Process.Pid
+	fmt.Printf("Started %s (PID: %d)\n", brand.Name, pid)
 	fmt.Printf("Logs: %s\n", logFile)
 
-	// Wait a moment to ensure it doesn't crash immediately (optional but nice)
-	time.Sleep(100 * time.Millisecond)
-	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-		return fmt.Errorf("process exited immediately (check logs)")
-	}
+	// 6. Wait briefly to detect immediate failures
+	// Use a channel to detect if the process exits quickly
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
 
-	return nil
+	select {
+	case err := <-done:
+		// Process exited quickly - this is a startup failure
+		fmt.Fprintf(os.Stderr, "\nError: Daemon exited immediately.\n")
+		// Try to show recent log lines for context
+		if content, readErr := os.ReadFile(logFile); readErr == nil {
+			lines := strings.Split(string(content), "\n")
+			// Show last 10 lines
+			start := len(lines) - 10
+			if start < 0 {
+				start = 0
+			}
+			fmt.Fprintf(os.Stderr, "Log output:\n")
+			for _, line := range lines[start:] {
+				if line != "" {
+					fmt.Fprintf(os.Stderr, "  %s\n", line)
+				}
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("daemon failed to start: %w", err)
+		}
+		return fmt.Errorf("daemon exited unexpectedly")
+
+	case <-time.After(500 * time.Millisecond):
+		// Process is still running after 500ms - likely successful
+		// Verify it's still alive
+		if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
+			return fmt.Errorf("daemon died during startup (check logs: %s)", logFile)
+		}
+		return nil
+	}
+}
+
+// tailLogFile returns the last n lines of a log file
+func tailLogFile(path string, n int) []string {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+		if len(lines) > n {
+			lines = lines[1:]
+		}
+	}
+	return lines
 }

@@ -35,6 +35,18 @@ func RunCtl(configFile string, testMode bool, stateDir string, dryRun bool, list
 		return runDryRun(rtCfg.ConfigFile)
 	}
 
+	// Check if config file exists BEFORE redirecting stderr to log file
+	// This ensures the error message goes to the terminal, not a log file
+	if _, err := os.Stat(rtCfg.ConfigFile); os.IsNotExist(err) {
+		return fmt.Errorf("configuration file not found: %s\n\n"+
+			"To create a configuration file, run:\n"+
+			"  %s setup\n\n"+
+			"Or create a minimal config manually:\n"+
+			"  mkdir -p /etc/glacic\n"+
+			"  echo 'schema_version = \"1.0\"' > /etc/glacic/glacic.hcl",
+			rtCfg.ConfigFile, brand.BinaryName)
+	}
+
 	// Context for services
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

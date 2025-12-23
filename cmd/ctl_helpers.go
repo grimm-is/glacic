@@ -134,6 +134,8 @@ func setupPIDFile(monitorsCtx context.Context) (cleanup func(), err error) {
 
 // loadConfiguration handles config loading with crash loop protection.
 func loadConfiguration(rtCfg *CtlRuntimeConfig) (*config.Config, error) {
+	// Note: Config file existence is checked in RunCtl before logging starts
+
 	trackerPath := brand.GetStateDir()
 	if rtCfg.StateDir != "" {
 		trackerPath = rtCfg.StateDir
