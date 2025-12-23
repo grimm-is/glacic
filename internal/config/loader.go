@@ -90,6 +90,9 @@ func LoadHCLWithOptions(data []byte, filename string, opts LoadOptions) (*LoadRe
 	// Apply legacy transformations before parsing
 	transformedData, transforms := TransformLegacyHCL(data)
 
+	// Detect deprecated features that can't be auto-transformed
+	legacyFeatures := DetectLegacyFeatures(transformedData)
+
 	parser := hclparse.NewParser()
 	file, diags := parser.ParseHCL(transformedData, filename)
 	if diags.HasErrors() {
@@ -102,12 +105,15 @@ func LoadHCLWithOptions(data []byte, filename string, opts LoadOptions) (*LoadRe
 	}
 	_ = gohcl.DecodeBody(file.Body, nil, &versionProbe)
 
-	// Track legacy transformations as warnings
+	// Track legacy transformations and deprecated features as warnings
 	var warnings []string
 	if len(transforms) > 0 {
 		for _, t := range transforms {
 			warnings = append(warnings, fmt.Sprintf("Legacy syntax transformed: %s", t))
 		}
+	}
+	for _, f := range legacyFeatures {
+		warnings = append(warnings, fmt.Sprintf("Deprecated: %s", f))
 	}
 
 	version, err := ParseVersion(versionProbe.SchemaVersion)

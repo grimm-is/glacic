@@ -2,6 +2,7 @@ package firewall
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"strings"
 
@@ -11,29 +12,23 @@ import (
 var identifierRegex = regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`)
 
 // RFC1918 private address ranges (should not appear on WAN as source)
-var protectionPrivateNetworks = []struct {
-	ip   string
-	mask string
-}{
-	{"10.0.0.0", "255.0.0.0"},      // 10.0.0.0/8
-	{"172.16.0.0", "255.240.0.0"},  // 172.16.0.0/12
-	{"192.168.0.0", "255.255.0.0"}, // 192.168.0.0/16
+var protectionPrivateNetworks = []*net.IPNet{
+	mustParseCIDR("10.0.0.0/8"),
+	mustParseCIDR("172.16.0.0/12"),
+	mustParseCIDR("192.168.0.0/16"),
 }
 
 // Bogon ranges - reserved/invalid addresses
-var protectionBogonNetworks = []struct {
-	ip   string
-	mask string
-}{
-	{"0.0.0.0", "255.0.0.0"},          // 0.0.0.0/8 (except 0.0.0.0/32)
-	{"127.0.0.0", "255.0.0.0"},        // 127.0.0.0/8 loopback
-	{"169.254.0.0", "255.255.0.0"},    // 169.254.0.0/16 link-local
-	{"192.0.0.0", "255.255.255.0"},    // 192.0.0.0/24 IETF protocol
-	{"192.0.2.0", "255.255.255.0"},    // 192.0.2.0/24 TEST-NET-1
-	{"198.51.100.0", "255.255.255.0"}, // 198.51.100.0/24 TEST-NET-2
-	{"203.0.113.0", "255.255.255.0"},  // 203.0.113.0/24 TEST-NET-3
-	{"224.0.0.0", "240.0.0.0"},        // 224.0.0.0/4 multicast
-	{"240.0.0.0", "240.0.0.0"},        // 240.0.0.0/4 reserved
+var protectionBogonNetworks = []*net.IPNet{
+	mustParseCIDR("0.0.0.0/8"),       // reserved
+	mustParseCIDR("127.0.0.0/8"),     // loopback
+	mustParseCIDR("169.254.0.0/16"),  // link-local
+	mustParseCIDR("192.0.0.0/24"),    // IETF protocol
+	mustParseCIDR("192.0.2.0/24"),    // TEST-NET-1
+	mustParseCIDR("198.51.100.0/24"), // TEST-NET-2
+	mustParseCIDR("203.0.113.0/24"),  // TEST-NET-3
+	mustParseCIDR("224.0.0.0/4"),     // multicast
+	mustParseCIDR("240.0.0.0/4"),     // reserved
 }
 
 func isValidIdentifier(s string) bool {
@@ -681,33 +676,33 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 }
 
 // buildZoneMapForScript builds a zone-to-interfaces map.
+// Uses ZoneResolver to handle new match-based zone format and backwards compat.
 func buildZoneMapForScript(cfg *Config) map[string][]string {
 	zoneMap := make(map[string][]string)
 
-	// 1. Add interfaces explicitly listed in Zone config
+	// Use ZoneResolver for new-style zone definitions
+	resolver := config.NewZoneResolver(cfg.Zones)
+
+	// 1. Process zones using ZoneResolver
 	for _, zone := range cfg.Zones {
-		// Copy existing list
-		if len(zone.Interfaces) > 0 {
-			ifaces := make([]string, len(zone.Interfaces))
-			copy(ifaces, zone.Interfaces)
+		ifaces := resolver.GetZoneInterfaces(zone.Name)
+		if len(ifaces) > 0 {
 			zoneMap[zone.Name] = ifaces
 		} else {
 			zoneMap[zone.Name] = []string{}
 		}
 	}
 
-	// 2. Add interfaces that reference a Zone
+	// 2. Add interfaces that reference a Zone (interface-level zone assignment)
+	// This is the legacy way: interface "eth0" { zone = "WAN" }
 	for _, iface := range cfg.Interfaces {
-		// New Feature: Implicit Interface Zones
-		// Every interface is also a zone of its own name
-		// This must NOT overwrite a named zone if it exists (explicit zone definition wins),
-		// but since we allow overlapping, we can just ensure it exists in the map.
+		// Implicit Interface Zones: Every interface is also a zone of its own name
 		if _, exists := zoneMap[iface.Name]; !exists {
 			zoneMap[iface.Name] = []string{iface.Name}
 		}
 
 		if iface.Zone != "" {
-			// Check if already in list (avoid duplicates if defined in both places)
+			// Check if already in list (avoid duplicates)
 			found := false
 			for _, existing := range zoneMap[iface.Zone] {
 				if existing == iface.Name {
@@ -845,16 +840,16 @@ func addProtectionRules(cfg *Config, sb *ScriptBuilder) {
 
 		// Anti-Spoofing (RFC1918)
 		if p.AntiSpoofing {
-			for _, net := range protectionPrivateNetworks {
-				// ip saddr & mask == ip
-				sb.AddRule("protection", fmt.Sprintf("%sip saddr & %s == %s limit rate 10/minute log group 0 prefix \"SPOOFED-SRC: \" counter drop", ifaceMatch, net.mask, net.ip))
+			for _, cidr := range protectionPrivateNetworks {
+				// Use CIDR notation directly with nft
+				sb.AddRule("protection", fmt.Sprintf("%sip saddr %s limit rate 10/minute log group 0 prefix \"SPOOFED-SRC: \" counter drop", ifaceMatch, cidr.String()))
 			}
 		}
 
 		// Bogon Filtering
 		if p.BogonFiltering {
-			for _, net := range protectionBogonNetworks {
-				sb.AddRule("protection", fmt.Sprintf("%sip saddr & %s == %s counter drop", ifaceMatch, net.mask, net.ip))
+			for _, cidr := range protectionBogonNetworks {
+				sb.AddRule("protection", fmt.Sprintf("%sip saddr %s counter drop", ifaceMatch, cidr.String()))
 			}
 		}
 
@@ -1347,27 +1342,36 @@ func isZoneExternal(zone *config.Zone, interfaces []config.Interface) bool {
 	return false
 }
 
-// isRFC1918Network checks if a CIDR is in RFC1918 private ranges
-func isRFC1918Network(cidr string) bool {
-	// Simple prefix-based check
-	return strings.HasPrefix(cidr, "10.") ||
-		strings.HasPrefix(cidr, "192.168.") ||
-		(strings.HasPrefix(cidr, "172.") && isRFC1918_172(cidr))
+func mustParseCIDR(s string) *net.IPNet {
+	_, n, err := net.ParseCIDR(s)
+	if err != nil {
+		panic(err)
+	}
+	return n
 }
 
-func isRFC1918_172(cidr string) bool {
-	// 172.16.0.0/12 = 172.16.x.x - 172.31.x.x
-	if !strings.HasPrefix(cidr, "172.") {
-		return false
-	}
-	parts := strings.Split(cidr, ".")
-	if len(parts) < 2 {
-		return false
-	}
-	var second int
-	_, err := fmt.Sscanf(parts[1], "%d", &second)
+// isRFC1918Network checks if a CIDR is in RFC1918 private ranges
+func isRFC1918Network(cidr string) bool {
+	_, network, err := net.ParseCIDR(cidr)
 	if err != nil {
+		// Try parsing as plain IP
+		ip := net.ParseIP(cidr)
+		if ip == nil {
+			return false
+		}
+		for _, rfc1918 := range protectionPrivateNetworks {
+			if rfc1918.Contains(ip) {
+				return true
+			}
+		}
 		return false
 	}
-	return second >= 16 && second <= 31
+
+	// Check if the network's first IP falls within RFC1918 ranges
+	for _, rfc1918 := range protectionPrivateNetworks {
+		if rfc1918.Contains(network.IP) {
+			return true
+		}
+	}
+	return false
 }

@@ -262,12 +262,20 @@ ip_forwarding = false
 
 # Zone Definitions
 zone "WAN" {
-  interfaces = ["{{.WANInterface}}"]
+  interface = "{{.WANInterface}}"
+  description = "WAN - Internet Connection"
+{{- if eq .WANMethod "dhcp"}}
+  dhcp = true
+{{- else}}
+  ipv4 = ["{{.WANIP}}"]
+{{- end}}
 }
 {{- if .LANInterface}}
 
 zone "LAN" {
-  interfaces = ["{{.LANInterface}}"]
+  interface = "{{.LANInterface}}"
+  description = "LAN - Local Network"
+  ipv4 = ["{{.LANIP}}/24"]
   
   # Services provided to LAN clients (auto-generates firewall rules)
   services {
@@ -280,27 +288,6 @@ zone "LAN" {
     web  = true
     icmp = true
   }
-}
-{{- end}}
-
-# WAN Interface
-interface "{{.WANInterface}}" {
-  description = "WAN - Internet Connection"
-  zone        = "WAN"
-{{- if eq .WANMethod "dhcp"}}
-  dhcp        = true
-{{- else}}
-  ipv4        = ["{{.WANIP}}"]
-{{- end}}
-}
-
-{{- if .LANInterface}}
-
-# LAN Interface
-interface "{{.LANInterface}}" {
-  description = "LAN - Local Network"
-  zone        = "LAN"
-  ipv4        = ["{{.LANIP}}/24"]
 }
 
 # API Server Configuration
@@ -335,16 +322,12 @@ dns_server {
 # Add policies via web UI to allow traffic flow
 
 # To enable internet access for LAN, add:
-# policy "lan_to_wan" {
-#   from = "LAN"
-#   to   = "WAN"
-#   rule "allow_all" {
-#     action = "accept"
-#   }
+# policy "LAN" "WAN" {
+#   action = "accept"
 # }
 #
-# nat "lan_masquerade" {
-#   type          = "masquerade"
-#   out_interface = "{{.WANInterface}}"
+# nat "outbound" {
+#   type = "masquerade"
+#   out_zone = "WAN"
 # }
 `

@@ -80,6 +80,11 @@ func DetectLegacyFeatures(data []byte) []string {
 		features = append(features, "missing 'schema_version' field")
 	}
 
+	// Check for deprecated zone interfaces (should use interface or match blocks)
+	if regexp.MustCompile(`(?m)^\s*interfaces\s*=\s*\[`).MatchString(content) {
+		features = append(features, "deprecated 'interfaces' field in zone (use 'interface' or 'match' blocks instead)")
+	}
+
 	return features
 }
 

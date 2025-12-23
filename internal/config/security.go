@@ -304,17 +304,32 @@ type InterfaceProtection struct {
 type ProtectionConfig = InterfaceProtection
 
 // Zone defines a network security zone.
-// Zones can be defined by interfaces, IPSets, or both.
-// If no explicit zone is defined for an interface, the interface name becomes an implicit zone.
+// Zones can match traffic by interface, source/destination IP, VLAN, or combinations.
+// Simple zones use top-level fields, complex zones use match blocks.
 type Zone struct {
 	Name        string `hcl:"name,label" json:"name"`
 	Color       string `hcl:"color,optional" json:"color"`
 	Description string `hcl:"description,optional" json:"description"`
 
-	// Zone membership - at least one should be specified
-	Interfaces []string `hcl:"interfaces,optional" json:"interfaces,omitempty"` // Interface names (e.g., ["eth0", "eth1.100"])
-	IPSets     []string `hcl:"ipsets,optional" json:"ipsets,omitempty"`         // IPSet names for IP-based membership
-	Networks   []string `hcl:"networks,optional" json:"networks,omitempty"`     // Direct CIDR ranges (e.g., ["192.168.1.0/24"])
+	// Simple match criteria (use for single-interface zones)
+	// These are effectively a single implicit match rule
+	Interface       string `hcl:"interface,optional" json:"interface,omitempty"`         // Exact interface name (e.g., "eth0")
+	InterfacePrefix string `hcl:"interface_prefix,optional" json:"interface_prefix,omitempty"` // Interface prefix (e.g., "wg" matches wg0, wg1...)
+	Src             string `hcl:"src,optional" json:"src,omitempty"`                     // Source IP/network (e.g., "192.168.1.0/24")
+	Dst             string `hcl:"dst,optional" json:"dst,omitempty"`                     // Destination IP/network
+	VLAN            int    `hcl:"vlan,optional" json:"vlan,omitempty"`                   // VLAN tag
+
+	// Complex match criteria (OR logic between matches, AND logic within each match)
+	// Global fields above apply to ALL matches as defaults
+	Matches []ZoneMatch `hcl:"match,block" json:"matches,omitempty"`
+
+	// DEPRECATED: Use Interface or Matches instead
+	// Will be auto-converted to Matches with warning
+	Interfaces []string `hcl:"interfaces,optional" json:"interfaces,omitempty"`
+
+	// Legacy fields (kept for backwards compat)
+	IPSets   []string `hcl:"ipsets,optional" json:"ipsets,omitempty"`   // IPSet names for IP-based membership
+	Networks []string `hcl:"networks,optional" json:"networks,omitempty"` // Direct CIDR ranges
 
 	// Zone behavior
 	// Action for intra-zone traffic: "accept", "drop", "reject" (default: accept)
@@ -330,6 +345,22 @@ type Zone struct {
 
 	// Management access FROM this zone to the firewall
 	Management *ZoneManagement `hcl:"management,block" json:"management,omitempty"`
+
+	// IP assignment for simple zones (shorthand - assigns to the interface)
+	IPv4 []string `hcl:"ipv4,optional" json:"ipv4,omitempty"`
+	IPv6 []string `hcl:"ipv6,optional" json:"ipv6,omitempty"`
+	DHCP bool     `hcl:"dhcp,optional" json:"dhcp,omitempty"` // Use DHCP client on this interface
+}
+
+// ZoneMatch defines criteria for zone membership.
+// Multiple criteria within a match are ANDed together.
+// Multiple match blocks are ORed together.
+type ZoneMatch struct {
+	Interface       string `hcl:"interface,optional" json:"interface,omitempty"`
+	InterfacePrefix string `hcl:"interface_prefix,optional" json:"interface_prefix,omitempty"`
+	Src             string `hcl:"src,optional" json:"src,omitempty"`
+	Dst             string `hcl:"dst,optional" json:"dst,omitempty"`
+	VLAN            int    `hcl:"vlan,optional" json:"vlan,omitempty"`
 }
 
 // ZoneServices defines which firewall services are available to a zone.

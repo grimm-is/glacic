@@ -132,16 +132,19 @@ func TestWizard_GenerateConfig(t *testing.T) {
 
 	// Quick check for expected content
 	s := string(content)
-	if !contains(s, `interface "eth0"`) {
-		t.Error("Config missing WAN interface")
+	if !contains(s, `zone "WAN"`) {
+		t.Error("Config missing WAN zone")
 	}
-	if !contains(s, `dhcp        = true`) {
+	if !contains(s, `interface = "eth0"`) {
+		t.Error("Config missing WAN interface assignment")
+	}
+	if !contains(s, `dhcp = true`) {
 		t.Error("Config missing DHCP setting")
 	}
-	if !contains(s, `interface "eth1"`) {
-		t.Error("Config missing LAN interface")
+	if !contains(s, `zone "LAN"`) {
+		t.Error("Config missing LAN zone")
 	}
-	if !contains(s, `ipv4        = ["192.168.1.1/24"]`) {
+	if !contains(s, `ipv4 = ["192.168.1.1/24"]`) {
 		t.Error("Config missing LAN IP")
 	}
 }
