@@ -75,8 +75,17 @@ export GLACIC_LOG_FILE=stdout
 start_ctl "$TEST_CONFIG"
 ok 0 "Firewall started"
 
-# Give service time to start and join multicast groups
-sleep 5
+# Poll for reflector startup instead of sleep 5
+count=0
+while ! grep -q "Starting reflector on" "$CTL_LOG" 2>/dev/null; do
+    sleep 0.2
+    count=$((count + 1))
+    if [ $count -ge 25 ]; then  # 25 * 0.2s = 5s max
+        diag "Timeout waiting for reflector startup"
+        break
+    fi
+done
+diag "Reflector check after $((count * 200))ms"
 
 # 4. Verify mDNS sockets are bound
 if grep -q "Starting reflector on" "$CTL_LOG"; then

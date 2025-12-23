@@ -84,7 +84,17 @@ done
 GLACIC_UI_DIST="./dist" GLACIC_NO_SANDBOX=1 $APP_BIN test-api -listen 127.0.0.1:8080 > /tmp/api.log 2>&1 &
 API_PID=$!
 
-sleep 5 # Wait for startup
+# Poll for API readiness instead of sleep 5
+count=0
+while ! curl -sf http://127.0.0.1:8080/api/status >/dev/null 2>&1; do
+    sleep 0.2
+    count=$((count + 1))
+    if [ $count -ge 50 ]; then  # 50 * 0.2s = 10s max
+        diag "Timeout waiting for API"
+        break
+    fi
+done
+diag "API ready after $((count * 200))ms"
 
 if kill -0 $CTL_PID 2>/dev/null && kill -0 $API_PID 2>/dev/null; then
     ok 0 "Services started (CTL: $CTL_PID, API: $API_PID)"

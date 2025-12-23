@@ -57,9 +57,18 @@ if ! nft list ruleset | grep -q "malicious_table"; then
 fi
 echo "Malicious table injected."
 
-# 4. Wait for Revert (Poll interval is 2s)
-echo "Waiting for integrity monitor (approx 3-5s)..."
-sleep 10
+# 4. Poll for Revert (monitor interval is 2s)
+echo "Polling for integrity monitor revert (max 10s)..."
+count=0
+while nft list ruleset | grep -q "malicious_table"; do
+    sleep 0.5
+    count=$((count + 1))
+    if [ $count -ge 20 ]; then  # 20 * 0.5s = 10s max
+        echo "FAILURE: Malicious table still exists after 10s!"
+        break
+    fi
+done
+echo "Checked after $((count * 500))ms"
 
 # 5. Verify Revert
 echo "Verifying reversion..."
@@ -75,9 +84,18 @@ echo "Simulating tampering (flushing rules)..."
 # We need to find a chain to flush. "filter_input" should be there
 nft flush chain inet glacic input
 
-# Wait for Revert
-echo "Waiting for integrity monitor..."
-sleep 5
+# Poll for Revert
+echo "Polling for integrity monitor..."
+count=0
+while ! nft list chain inet glacic input 2>/dev/null | grep -q "ct state"; do
+    sleep 0.5
+    count=$((count + 1))
+    if [ $count -ge 10 ]; then  # 10 * 0.5s = 5s max
+        echo "Timeout waiting for rules to restore"
+        break
+    fi
+done
+echo "Rules check after $((count * 500))ms"
 
 # Verify rules are back
 # We check for a default rule, e.g., established/related accept which is usually first

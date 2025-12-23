@@ -83,12 +83,17 @@ trap "kill $CTL_PID 2>/dev/null; rm -f $CONFIG_FILE $CERT_FILE $KEY_FILE $LOG_FI
 
 diag "Waiting for API startup..."
 
-# Wait blindly for valid startup logs to appear (timeouts debugging)
-diag "Sleeping 20s to allow startup..."
-sleep 20
-
-diag "Checking logs now..."
-debug_logs
+# Poll for API readiness instead of blind sleep
+count=0
+while ! curl -k -sf https://127.0.0.1:8443/api/status >/dev/null 2>&1; do
+    sleep 0.5
+    count=$((count + 1))
+    if [ $count -ge 40 ]; then  # 40 * 0.5s = 20s max
+        diag "Timeout waiting for API after 20s"
+        break
+    fi
+done
+diag "API startup check completed after $((count * 500))ms"
 
 # Check for API start line in the log file we just dumped (or check file content directly)
 if [ -f "$LOG_FILE" ] && grep -q "Starting API server on .* (HTTPS)" "$LOG_FILE"; then
