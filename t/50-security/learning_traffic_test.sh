@@ -88,8 +88,18 @@ diag "Starting firewall..."
 start_ctl "$TEST_CONFIG"
 ok $? "Firewall started"
 
-# Wait for API/Learning to be ready
-sleep 5
+# Wait for API/Learning to be ready (poll for log activity)
+diag "Waiting for learning service..."
+count=0
+while ! grep -q "Learning engine enabled" "$LOG_FILE" 2>/dev/null; do
+    sleep 0.2
+    count=$((count + 1))
+    if [ $count -ge 25 ]; then  # 5s max
+        diag "Timeout waiting for learning service"
+        break
+    fi
+done
+diag "Learning ready after $((count * 200))ms"
 
 # Test 3: Generate Traffic
 diag "Generating traffic (LAN -> WAN)..."

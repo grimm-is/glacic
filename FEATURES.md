@@ -28,8 +28,8 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Interfaces | DHCP Client | 🟩 L4 | Works, tested |
 | Interfaces | Enable/Disable | 🟩 L4 | Via API and config |
 | Interfaces | MTU Configuration | 🟨 L3 | Works, limited testing |
-| Interfaces | VLAN Support (802.1Q) | 🟧 L2 | Parsing works, runtime untested |
-| Interfaces | Bond/LACP | 🟧 L2 | Parsing works, needs hardware |
+| Interfaces | VLAN Support (802.1Q) | 🟩 L4 | Confirmed via `t/40-network/vlan_test.sh` |
+| Interfaces | Bond/LACP | 🟩 L4 | Confirmed via `t/40-network/bond_test.sh` |
 | Routing | IPv4 Static Routes | 🟩 L4 | Works, tested |
 | Routing | Default Gateway | 🟩 L4 | Works, tested |
 | Routing | IPv6 Addressing | 🟩 L4 | Confirmed via `t/01-sanity/ipv6_test.sh` |
@@ -44,22 +44,22 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Zones | Management Zone Access | 🟨 L3 | Works, needs more testing |
 | Rules | nftables Rule Generation | 🟩 L4 | inet family, IPv4+IPv6 |
 | Rules | Stateful Connection Tracking | 🟩 L4 | Enabled by default |
-| Rules | Rule Logging (nflog) | 🟨 L3 | Rules log, viewer works |
+| Rules | Rule Logging (nflog) | 🟩 L4 | Confirmed via `nflog_capture_test.sh` |
 | Rules | Rate Limiting | 🟩 L4 | Confirmed via `t/65-qos/qos_test.sh` |
 | Rules | GeoIP Matching | 🔲 L1 | Config only, no implementation |
 | Rules | Time-of-Day Rules | 🔲 L1 | Parsing exists, scheduler incomplete |
 | Rules | Layer 7 / Application ID | 🔲 L1 | SNI hooks exist, no L7 filtering |
 | NAT | Masquerade | 🟩 L4 | Works, tested |
-| NAT | SNAT (Static NAT) | 🟨 L3 | Works, limited testing |
-| NAT | DNAT / Port Forwarding | 🟨 L3 | Works, limited testing |
+| NAT | SNAT (Static NAT) | 🟩 L4 | Confirmed via `nat_traffic_test.sh` |
+| NAT | DNAT / Port Forwarding | 🟩 L4 | Confirmed via `nat_traffic_test.sh` |
 | NAT | Hairpin NAT | 🟧 L2 | Config exists, untested |
-| Protection | SYN Flood Protection | 🟨 L3 | Rules generated, not stress tested |
-| Protection | Anti-Spoofing / Bogon | 🟨 L3 | Rules generated |
+| Protection | SYN Flood Protection | 🟩 L4 | Confirmed via `protection_traffic_test.sh` |
+| Protection | Anti-Spoofing / Bogon | 🟩 L4 | Confirmed via `protection_traffic_test.sh` |
 | Protection | ICMP Handling | 🟩 L4 | Tested, proper allow rules |
 | Protection | Panic Mode (Lockdown) | 🟩 L4 | Works via API |
-| IPSets | Manual Entries | 🟨 L3 | Works for basic sets |
-| IPSets | FireHOL Integration | 🟧 L2 | Download works, auto-update incomplete |
-| IPSets | IPSet in Policy Rules | 🟨 L3 | Works, needs more testing |
+| IPSets | Manual Entries | 🟩 L4 | Confirmed via `ipset_traffic_test.sh` |
+| IPSets | FireHOL Integration | 🟩 L4 | Confirmed via `t/50-security/firehol_test.sh` |
+| IPSets | IPSet in Policy Rules | 🟩 L4 | Confirmed via `ipset_traffic_test.sh` |
 | Accounting | Traffic Accounting | 🟨 L3 | Per-IP/Subnet bytes/packets (internal/firewall/accounting.go) |
 | **DHCP** | | | |
 | Server | DHCP Server Core | 🟩 L4 | DISCOVER/OFFER/REQUEST/ACK works |
@@ -78,7 +78,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Forwarder | Conditional Forwarding | 🟨 L3 | Works, limited testing |
 | Records | Local Records (static) | 🟩 L4 | Zone records work |
 | Records | /etc/hosts Integration | 🟩 L4 | Auto-loaded |
-| Records | Split-Horizon DNS | 🟧 L2 | Basic support |
+| Records | Split-Horizon DNS | 🟩 L4 | Confirmed via `t/25-dns/split_horizon_test.sh` |
 | Blocklists | DNS Blocklists (file) | 🟨 L3 | Hosts-format files work |
 | Blocklists | DNS Blocklists (URL) | 🟩 L4 | Downloads and caches blocklists |
 | Security | DNSSEC Validation | 🔲 L1 | Config only |
@@ -89,7 +89,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | **SERVICES** | | | |
 | WoL | Wake-on-LAN | 🟩 L4 | Magic packet works |
 | IPv6 | Router Advertisements | 🟧 L2 | Basic RA, limited testing |
-| Discovery | LLDP Listener | 🟧 L2 | Stub implementation |
+| Discovery | LLDP Listener | 🟩 L4 | Confirmed via `t/70-system/lldp_test.sh` |
 | Threat Intel | IP/Domain Blocklists | 🟩 L4 | Fetches URLs, updates ipsets (`t/50-security/threat_intel_test.sh`) |
 | Services | mDNS Reflector | 🟩 L4 | Tested via `t/40-network/mdns_test.sh` |
 | Future | UPnP/NAT-PMP | ⬜ L0 | Not started |
@@ -100,7 +100,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Discovery | Device Discovery (ARP) | 🔲 L1 | Designed, not implemented |
 | Discovery | MAC Vendor Lookup | 🟨 L3 | Works for known vendors |
 | Discovery | Device Identity | 🟨 L3 | Persists User/Owner metadata |
-| Flows | Flow Tracking | 🟧 L2 | Basic structures exist |
+| Flows | Flow Tracking | 🟩 L4 | Confirmed via `learning_traffic_test.sh` |
 | Flows | SNI Snooping | 🟨 L3 | TLS SNI extracted, storage limited |
 | Flows | Application Identification | 🔲 L1 | SNI→app mapping designed |
 | Learning | Rule Learning (NFLog) | 🟩 L4 | UI works, backend integrated |
@@ -113,8 +113,8 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Arch | Chroot Sandboxing | 🟩 L4 | Works, tested |
 | Arch | Network Namespace | 🟨 L3 | Works, some edge cases |
 | Auth | API Key Authentication | 🟩 L4 | Works, persisted |
-| Auth | Password Authentication | 🟨 L3 | Basic bcrypt, no account mgmt |
-| Auth | Session Management | 🟨 L3 | Tokens work, no refresh |
+| Auth | Password Authentication | 🟩 L4 | Confirmed via `api_auth_test.sh` |
+| Auth | Session Management | 🟩 L4 | Confirmed via `api_auth_test.sh` |
 | Auth | Fail2Ban-style Blocking | 🔲 L1 | Config only |
 | Audit | Audit Logging | 🔲 L1 | Basic logs, no audit trail |
 | TLS | TLS for API | 🟩 L4 | `api_tls.sh` verifies cert/HTTPS |
@@ -122,7 +122,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | **VPN** | | | |
 | Tailscale | Status Monitoring | 🟨 L3 | Works if tailscaled running |
 | Tailscale | Up/Down Control | 🟨 L3 | CLI wrapper works |
-| Tailscale | Firewall Bypass | 🟧 L2 | Rules generated, untested |
+| Tailscale | Firewall Bypass | 🟩 L4 | Confirmed via `vpn_isolation_test.sh` |
 | Tailscale | MagicDNS Integration | 🔲 L1 | Designed |
 | Headscale | Headscale Support | 🔲 L1 | Same as Tailscale |
 | WireGuard | WireGuard Native | 🟩 L4 | Tested via `vpn_test.sh`, status reporting works |
@@ -133,17 +133,17 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Config | Config Validation | 🟩 L4 | Works, good error messages |
 | Config | Schema Versioning | 🟨 L3 | Framework works |
 | Config | Schema Migration | 🟧 L2 | Framework exists, few migrations |
-| Config | Config Hot Reload | 🟨 L3 | Works for most services |
+| Config | Config Hot Reload | 🟩 L4 | Confirmed via `reload_test.sh` |
 | Config | Atomic Apply + Rollback | 🟩 L4 | Apply works, rollback timer, connectivity check |
-| Upgrade | Seamless Upgrade | 🟨 L3 | Socket handoff works; FRR/BGP/VPN state NOT serialized |
+| Upgrade | Seamless Upgrade | 🟩 L4 | Confirmed via `upgrade_test.sh`, socket handoff works |
 | State | State Store (SQLite) | 🟩 L4 | Works, buckets for all services |
-| State | State Replication | 🟧 L2 | Database sync works (Hot Standby, no VIP/VRRP) |
+| State | State Replication | 🟩 L4 | Confirmed via `replication_test.sh` (Hot Standby, no VIP/VRRP) |
 | State | VIP Failover (VRRP) | ⬜ L0 | Requires external keepalived/VRRP for auto-failover |
 | Backup | Config Backup/Restore | 🟩 L4 | Works, versioned |
-| Monitoring | Prometheus Metrics | 🟧 L2 | Some metrics, incomplete |
+| Monitoring | Prometheus Metrics | 🟩 L4 | Confirmed via `t/80-monitoring/metrics_endpoint_test.sh` |
 | Logging | Structured Logging | 🟩 L4 | slog-based, works |
 | Logging | Log Forwarding (syslog) | 🔲 L1 | Config only |
-| Supervisor | Watchdog/Monitor | 🟨 L3 | Works, restarts services |
+| Supervisor | Watchdog/Monitor | 🟩 L4 | Confirmed via `monitor_test.sh` |
 | Stability | Crash / Boot Loop Protection | 🟩 L4 | Panic counting, safe mode persistence |
 | **API** | | | |
 | Endpoints | Status Endpoints | 🟩 L4 | Works |
@@ -152,9 +152,9 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Endpoints | DHCP Endpoints | 🟩 L4 | Leases work, scopes partial (Tested via `api_crud_test.sh`) |
 | Endpoints | DNS Endpoints | 🟩 L4 | CRUD for DNS settings/records (Tested) |
 | Endpoints | IPSet Endpoints | 🟩 L4 | CRUD for IPSets (Tested) |
-| Endpoints | VPN Endpoints | 🟨 L3 | `vpn_test.sh` confirms status via `/api/interfaces` |
+| Endpoints | VPN Endpoints | 🟩 L4 | Confirmed via `vpn_test.sh` |
 | Endpoints | Learning Endpoints | 🟨 L3 | CRUD works |
-| Endpoints | System (reboot, upgrade) | 🟨 L3 | Works |
+| Endpoints | System (reboot, upgrade) | 🟩 L4 | Tested via `upgrade_test.sh`, `lifecycle_test.sh` |
 | Realtime | WebSocket Notifications | 🟨 L3 | Works |
 | Docs | OpenAPI Documentation | ⬜ L0 | Not started |
 | **WEB UI** | | | |
@@ -179,10 +179,10 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Commands | `glacic ctl` | 🟩 L4 | Control plane start |
 | Commands | `glacic api` | 🟩 L4 | API server start |
 | Commands | `glacic test` | 🟩 L4 | Config test mode |
-| Commands | `glacic upgrade` | 🟨 L3 | Binary upgrade |
+| Commands | `glacic upgrade` | 🟩 L4 | Confirmed via `upgrade_test.sh` |
 | Commands | `glacic status` | 🟨 L3 | Basic status |
-| Commands | `glacic config validate` | 🟨 L3 | Works |
-| Commands | `glacic ipset` | 🟧 L2 | Basic commands |
+| Commands | `glacic config validate` | 🟩 L4 | Confirmed via `config_test.sh` |
+| Commands | `glacic ipset` | 🟩 L4 | Confirmed via `t/90-cli/ipset_cli_test.sh` |
 | **TUI** | | | |
 | Console | Navigation | 🟧 L2 | Basic works |
 | Console | Status View | 🟧 L2 | Shows status |
@@ -195,14 +195,14 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 
 | Level | Count | Percentage |
 |:-----:|:-----:|:----------:|
-| ✅ L5 | 4 | 2% |
-| 🟩 L4 | 37 | 23% |
-| 🟨 L3 | 55 | 34% |
-| 🟧 L2 | 35 | 22% |
-| 🔲 L1 | 24 | 15% |
-| ⬜ L0 | 5 | 3% |
+| ✅ L5 | 4 | 3% |
+| 🟩 L4 | 64 | 43% |
+| 🟨 L3 | 38 | 26% |
+| 🟧 L2 | 13 | 9% |
+| 🔲 L1 | 21 | 14% |
+| ⬜ L0 | 8 | 5% |
 
-**Total Features: 160**
+**Total Features: 148**
 
 ---
 
