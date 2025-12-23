@@ -146,15 +146,32 @@ fi
 
 # Test 4: Verify Policy persistence via GET
 log "Verifying Policies..."
-if command -v curl >/dev/null 2>&1; then
-    OUT=$(curl -s -H "$AUTH_HEADER" "$API_URL/config/policies")
-    if echo "$OUT" | grep -q "lan_to_wan"; then
-        pass "Policy 'lan_to_wan' found in GET response"
-    else
-        fail "Policy verification failed: $OUT"
-    fi
+# Helper: Wait for config verification
+wait_for_config() {
+    _endpoint="$1"
+    _pattern="$2"
+    _count=0
+    while [ $_count -lt 10 ]; do
+         if command -v curl >/dev/null 2>&1; then
+             OUT=$(curl -s -H "$AUTH_HEADER" "$API_URL$_endpoint")
+             if echo "$OUT" | grep -q "$_pattern"; then
+                 return 0
+             fi
+         fi
+         sleep 0.5
+         _count=$((_count+1))
+    done
+    # Last attempt to capture output for debugging
+    OUT=$(curl -s -H "$AUTH_HEADER" "$API_URL$_endpoint")
+    return 1
+}
+
+# Test 4: Verify Policy persistence via GET
+log "Verifying Policies..."
+if wait_for_config "/config/policies" "lan_to_wan"; then
+    pass "Policy 'lan_to_wan' found in GET response"
 else
-    fail "curl required"
+    fail "Policy verification failed: $OUT"
 fi
 
 # Test 5: Update DNS Config
@@ -204,42 +221,21 @@ else
 fi
 
 # Test 8: Verify DNS persistence via GET
+# Test 8: Verify DNS persistence via GET
 log "Verifying DNS..."
-if command -v curl >/dev/null 2>&1; then
-    OUT=$(curl -s -H "$AUTH_HEADER" "$API_URL/config/dns")
-    if echo "$OUT" | grep -q "8.8.8.8"; then
-        pass "Forwarder '8.8.8.8' found in GET response"
-    else
-        fail "DNS verification failed: $OUT"
-    fi
+if wait_for_config "/config/dns" "8.8.8.8"; then
+    pass "Forwarder '8.8.8.8' found in GET response"
 else
-    fail "curl required"
+    fail "DNS verification failed: $OUT"
 fi
 
 # Test 9: Verify IPSet persistence via GET
-log "Verifying IPSets..."
-if command -v curl >/dev/null 2>&1; then
-    OUT=$(curl -s -H "$AUTH_HEADER" "$API_URL/config/ipsets")
-    if echo "$OUT" | grep -q "blacklist"; then
-        pass "IPSet 'blacklist' found in GET response"
-    else
-        fail "IPSet verification failed: $OUT"
-    fi
-else
-    fail "curl required"
-fi
-
 # Test 9: Verify IPSet persistence via GET
 log "Verifying IPSets..."
-if command -v curl >/dev/null 2>&1; then
-    OUT=$(curl -s -H "$AUTH_HEADER" "$API_URL/config/ipsets")
-    if echo "$OUT" | grep -q "blacklist"; then
-        pass "IPSet 'blacklist' found in GET response"
-    else
-        fail "IPSet verification failed: $OUT"
-    fi
+if wait_for_config "/config/ipsets" "blacklist"; then
+    pass "IPSet 'blacklist' found in GET response"
 else
-    fail "curl required"
+    fail "IPSet verification failed: $OUT"
 fi
 
 

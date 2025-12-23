@@ -610,6 +610,11 @@ func initializeAPIKeyManager(cfg *config.Config, authDir string) *api.APIKeyMana
 			}
 		}
 	}
+	if cfg.API != nil {
+		logging.Info(fmt.Sprintf("Found %d API keys in config", len(cfg.API.Keys)))
+	} else {
+		logging.Info("No API config found (cfg.API is nil)")
+	}
 
 	return apiKeyManager
 }

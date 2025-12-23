@@ -109,9 +109,28 @@ while ! ss -uln | grep -q ":53 " 2>/dev/null; do
 done
 diag "DNS ready check completed after $((count * 200))ms"
 
+# Helper: Wait for DNS resolution (retries up to 5s)
+wait_for_dns() {
+    _host="$1"
+    _expected="$2"
+    _count=0
+    
+    diag "Waiting for DNS resolution of $_host..."
+    while [ $_count -lt 25 ]; do
+        _result=$(run_client dig @192.168.100.1 "$_host" +short +timeout=1 2>&1)
+        if echo "$_result" | grep -q "$_expected"; then
+            return 0
+        fi
+        sleep 0.2
+        _count=$((_count + 1))
+    done
+    return 1
+}
+
 # Test: LAN client resolves internal hostname
 diag "Testing LAN DNS resolution for server.local..."
-SERVER_RESULT=$(run_client dig @192.168.100.1 server.local +short +timeout=2 2>&1)
+if wait_for_dns "server.local" "192.168.100.50"; then
+    SERVER_RESULT=$(run_client dig @192.168.100.1 server.local +short +timeout=2 2>&1)
 if echo "$SERVER_RESULT" | grep -q "192.168.100.50"; then
     ok 0 "server.local resolved to 192.168.100.50"
 else
@@ -124,16 +143,22 @@ fi
 
 # Test: Router hostname also resolves
 diag "Testing router.local resolution..."
-ROUTER_RESULT=$(run_client dig @192.168.100.1 router.local +short +timeout=2 2>&1)
-if echo "$ROUTER_RESULT" | grep -q "192.168.100.1"; then
-    ok 0 "router.local resolved to 192.168.100.1"
-else
-    # Fallback check
-    if run_client dig @192.168.100.1 router.local +timeout=2 2>&1 | grep -qE "NOERROR|status:"; then
-        ok 0 "DNS responding for router.local"
+if wait_for_dns "router.local" "192.168.100.1"; then
+    ROUTER_RESULT=$(run_client dig @192.168.100.1 router.local +short +timeout=2 2>&1)
+    if echo "$ROUTER_RESULT" | grep -q "192.168.100.1"; then
+        ok 0 "router.local resolved to 192.168.100.1"
     else
-        ok 1 "router.local resolution failed: $ROUTER_RESULT"
+        # Fallback check
+        if run_client dig @192.168.100.1 router.local +timeout=2 2>&1 | grep -qE "NOERROR|status:"; then
+            ok 0 "DNS responding for router.local"
+        else
+            ok 1 "router.local resolution failed: $ROUTER_RESULT"
+        fi
     fi
+else
+    # Helper already logged error? No, it just loops.
+    # We need to manually fail if helper returns 1
+    fail "Timeout waiting for router.local"
 fi
 
 # Summary

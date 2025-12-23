@@ -58,7 +58,9 @@ func (s *Server) handleSafeApply(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update local config
+	s.configMu.Lock()
 	s.Config = &req.Config
+	s.configMu.Unlock()
 
 	// Step 3: If ping targets specified, verify connectivity
 	if len(req.PingTargets) > 0 {

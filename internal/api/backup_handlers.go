@@ -29,15 +29,10 @@ func (s *Server) handleReboot(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	// Get current config
 	var cfg *config.Config
-	if s.client != nil {
-		var err error
-		cfg, err = s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
+	if c := s.GetConfigSnapshot(w); c != nil {
+		cfg = c
 	} else {
-		cfg = s.Config
+		return
 	}
 
 	// Set headers for file download
@@ -70,7 +65,9 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Update in-memory config
+		s.configMu.Lock()
 		*s.Config = cfg
+		s.configMu.Unlock()
 	}
 
 	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
@@ -91,6 +88,8 @@ func (s *Server) handleGetSchedulerConfig(w http.ResponseWriter, r *http.Request
 			"scheduled_rules": cfg.ScheduledRules,
 		})
 	} else {
+		s.configMu.RLock()
+		defer s.configMu.RUnlock()
 		WriteJSON(w, http.StatusOK, map[string]interface{}{
 			"scheduler":       s.Config.Scheduler,
 			"scheduled_rules": s.Config.ScheduledRules,
@@ -109,10 +108,14 @@ func (s *Server) handleUpdateSchedulerConfig(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if req.Scheduler != nil {
+		s.configMu.Lock()
 		s.Config.Scheduler = req.Scheduler
+		s.configMu.Unlock()
 	}
 	if req.ScheduledRules != nil {
+		s.configMu.Lock()
 		s.Config.ScheduledRules = req.ScheduledRules
+		s.configMu.Unlock()
 	}
 	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -143,7 +146,14 @@ func (s *Server) handleSchedulerStatus(w http.ResponseWriter, r *http.Request) {
 			scheduledRules = cfg.ScheduledRules
 		}
 	} else {
-		scheduledRules = s.Config.ScheduledRules
+		s.configMu.RLock()
+		scheduledRules = s.Config.ScheduledRules // Copy slice header
+		// If deep copy needed, we should clone, but slice iteration is read-only here?
+		// Iteration below happens after we release lock if we defer?
+		// No, we are creating 'tasks' slice.
+		// Safe to hold RLock during iteration.
+		s.configMu.RUnlock() // Wait, cannot defer if inside if/else block without function scope.
+		// Better to just lock around access.
 	}
 
 	for _, rule := range scheduledRules {

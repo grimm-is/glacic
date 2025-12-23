@@ -80,6 +80,7 @@ type Server struct {
 	startTime     time.Time
 	learning      *learning.Service
 	stateStore    state.Store
+	configMu        sync.RWMutex       // Mutex to protect Config access
 	csrfManager     *CSRFManager       // CSRF token manager
 	rateLimiter     *ratelimit.Limiter // Rate limiter for auth endpoints
 	security        *SecurityManager   // Security manager for IP blocking
@@ -419,7 +420,7 @@ func (s *Server) spaHandler(assets fs.FS, fallback string) http.Handler {
 	// Read index.html content once
 	indexContent, err := fs.ReadFile(assets, fallback)
 	if err != nil {
-		logging.Error(fmt.Sprintf("Failed to read SPA fallback file %s: %v", fallback, err))
+		logging.Error(fmt.Sprintf("Failed to read SPA fallback file %s: %v. Assets nil? %v", fallback, err, s.Assets == nil))
 		indexContent = []byte("SPA Fallback Error")
 	}
 
@@ -1240,7 +1241,11 @@ func (s *Server) handleApplyConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if s.client != nil {
-		if err := s.client.ApplyConfig(s.Config); err != nil {
+		s.configMu.RLock()
+		cfg := s.Config.Clone()
+		s.configMu.RUnlock()
+
+		if err := s.client.ApplyConfig(cfg); err != nil {
 			WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -1406,7 +1411,10 @@ func (s *Server) handlePolicyReorder(w http.ResponseWriter, r *http.Request) {
 	newPolicies = append(newPolicies, policies[:insertIdx]...)
 	newPolicies = append(newPolicies, policy)
 	newPolicies = append(newPolicies, policies[insertIdx:]...)
+	
+	s.configMu.Lock()
 	s.Config.Policies = newPolicies
+	s.configMu.Unlock()
 
 	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -1438,12 +1446,14 @@ func (s *Server) handleRuleReorder(w http.ResponseWriter, r *http.Request) {
 
 	// Find the policy
 	var policyIdx int = -1
+	s.configMu.RLock()
 	for i, p := range s.Config.Policies {
 		if p.Name == req.PolicyName {
 			policyIdx = i
 			break
 		}
 	}
+	s.configMu.RUnlock()
 
 	if policyIdx == -1 {
 		WriteError(w, http.StatusNotFound, "Policy not found")
@@ -1770,6 +1780,15 @@ func (s *Server) require(perm storage.Permission, handler http.Handler) http.Han
 	protectedHandler := CSRFMiddleware(s.csrfManager, s.authStore)(auditedHandler)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Bypass auth if not required by configuration (replicates legacy behavior)
+		s.configMu.RLock()
+		if s.Config != nil && s.Config.API != nil && !s.Config.API.RequireAuth {
+			s.configMu.RUnlock()
+			handler.ServeHTTP(w, r)
+			return
+		}
+		s.configMu.RUnlock()
+
 		// 1. API Key Check
 		authHeader := r.Header.Get("Authorization")
 		var apiKeyStr string
@@ -1800,8 +1819,13 @@ func (s *Server) require(perm storage.Permission, handler http.Handler) http.Han
 				return
 			}
 			// Invalid key provided
+			logging.Error(fmt.Sprintf("Auth failed: invalid api key '%s'", apiKeyStr))
 			writeAuthError(w, http.StatusUnauthorized, "invalid api key")
 			return
+		}
+
+		if s.apiKeyManager == nil {
+			logging.Error("Auth failed: apiKeyManager is nil")
 		}
 
 		// 2. User Session Check

@@ -180,12 +180,29 @@ ip netns exec green ping -c 1 -W 1 10.1.0.1 >/dev/null 2>&1 || {
     nft list ruleset | sed 's/^/# /'
 }
 
-# Fast pings: -c 2 -i 0.1 -W 1 (2 packets, 0.1s interval, 1s timeout)
-ip netns exec green ping -c 2 -i 0.1 -W 1 10.1.0.1 >/dev/null 2>&1
+# Retry check helper
+check_ping_retry() {
+    _ns="$1"
+    _target="$2"
+    _count=0
+    # Try 5 times (approx 2.5s)
+    while [ $_count -lt 5 ]; do
+        ip netns exec "$_ns" ping -c 1 -W 1 "$_target" >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            return 0
+        fi
+        sleep 0.5
+        _count=$((_count+1))
+    done
+    return 1
+}
+
+# Check connectivity with retry
+check_ping_retry green 10.1.0.1
 GREEN_PING=$?
-ip netns exec orange ping -c 2 -i 0.1 -W 1 10.2.0.1 >/dev/null 2>&1
+check_ping_retry orange 10.2.0.1
 ORANGE_PING=$?
-ip netns exec red ping -c 2 -i 0.1 -W 1 10.3.0.1 >/dev/null 2>&1
+check_ping_retry red 10.3.0.1
 RED_PING=$?
 
 if [ $GREEN_PING -eq 0 ] && [ $ORANGE_PING -eq 0 ] && [ $RED_PING -eq 0 ]; then

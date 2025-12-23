@@ -27,10 +27,13 @@ BRAND_BINARY := $(shell jq -r '.binaryName' internal/brand/brand.json)
 # Configuration
 BUILD_DIR := build
 BINARY := $(BUILD_DIR)/$(BRAND_BINARY)
-BINARY_DARWIN := $(BUILD_DIR)/$(BRAND_BINARY)-darwin
+BINARY_LINUX_AMD64 := $(BUILD_DIR)/$(BRAND_BINARY)-linux-amd64
+BINARY_LINUX_ARM64 := $(BUILD_DIR)/$(BRAND_BINARY)-linux-arm64
+BINARY_DARWIN := $(BUILD_DIR)/$(BRAND_BINARY)-darwin-$(HOST_ARCH)
 UI_DIR := ui
 SCRIPTS_DIR := scripts
 VM_IMAGE := $(BUILD_DIR)/rootfs.qcow2
+GO_FILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./node_modules/*" -not -path "./ui/*")
 
 # Default target
 help:
@@ -114,13 +117,24 @@ build-ui:
 		npm run build --silent
 	@echo "$(GREEN)✓ UI built$(NC)"
 
-build-go:
+# Build Linux binary (arch-dependent)
+BINARY_TARGET := $(if $(filter arm64,$(LINUX_ARCH)),$(BINARY_LINUX_ARM64),$(BINARY_LINUX_AMD64))
+
+build-go: $(BINARY)
+
+$(BINARY): $(BINARY_TARGET)
+	@ln -sf $(notdir $(BINARY_TARGET)) $(BINARY)
+	@echo "$(GREEN)✓ Symlink created: $(BINARY) -> $(BINARY_TARGET)$(NC)"
+
+$(BINARY_TARGET): $(GO_FILES)
 	@echo "$(BLUE)Building Go binary (Linux/$(LINUX_ARCH))...$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@CGO_ENABLED=0 GOOS=linux GOARCH=$(LINUX_ARCH) go build -ldflags "$(LDFLAGS)" -o $(BINARY) .
-	@echo "$(GREEN)✓ Binary built: $(BINARY)$(NC)"
+	@CGO_ENABLED=0 GOOS=linux GOARCH=$(LINUX_ARCH) go build -ldflags "$(LDFLAGS)" -o $(BINARY_TARGET) .
+	@echo "$(GREEN)✓ Binary built: $(BINARY_TARGET)$(NC)"
 
-build-darwin:
+build-darwin: $(BINARY_DARWIN)
+
+$(BINARY_DARWIN): $(GO_FILES)
 	@echo "$(BLUE)Building Go binary (macOS/$(HOST_ARCH) - stub mode)...$(NC)"
 	@mkdir -p $(BUILD_DIR)
 	@go build -o $(BINARY_DARWIN) .
@@ -133,22 +147,44 @@ build-qemu-exit:
 	@GOOS=linux GOARCH=arm64 go build -o $(BUILD_DIR)/qemu-exit-arm64 ./cmd/qemu-exit
 	@echo "$(GREEN)✓ qemu-exit built for amd64 and arm64$(NC)"
 
-build-toolbox:
-	@echo "$(BLUE)Building Toolbox...$(NC)"
+
+# Host build (for Orchestrator)
+TOOLBOX_HOST := $(BUILD_DIR)/toolbox-darwin-$(HOST_ARCH)
+ifeq ($(shell uname),Linux)
+    TOOLBOX_HOST := $(BUILD_DIR)/toolbox-linux-$(HOST_ARCH)
+endif
+
+$(TOOLBOX_HOST): $(GO_FILES)
+	@echo "$(BLUE)Building Toolbox (Host: $(HOST_ARCH))...$(NC)"
 	@mkdir -p build
-	@# Host build (for Orchestrator)
-	@go build -ldflags "$(LDFLAGS)" -o build/toolbox ./cmd/toolbox
-	@ln -sf toolbox build/glacic-orca
-	@echo "$(GREEN)✓ Host toolbox built: build/toolbox (-> glacic-orchestrator)$(NC)"
+	@go build -ldflags "$(LDFLAGS)" -o $(TOOLBOX_HOST) ./cmd/toolbox
+	@echo "$(GREEN)✓ Host toolbox built: $(TOOLBOX_HOST)$(NC)"
 
-	@# Guest build (for Agent/Harness) - Static Linux
-	@CGO_ENABLED=0 GOOS=linux GOARCH=$(LINUX_ARCH) go build -ldflags "$(LDFLAGS)" -o build/toolbox-linux ./cmd/toolbox
-	@# Create symlinks in build dir for easy testing/inspection
-	@ln -sf toolbox-linux build/agent
-	@ln -sf toolbox-linux build/prove
-	@echo "$(GREEN)✓ Guest toolbox built: build/toolbox-linux (-> agent, prove)$(NC)"
+$(BUILD_DIR)/toolbox: $(TOOLBOX_HOST)
+	@ln -sf $(notdir $(TOOLBOX_HOST)) $(BUILD_DIR)/toolbox
+	@ln -sf $(notdir $(TOOLBOX_HOST)) build/glacic-orca
+	@echo "$(GREEN)✓ Toolbox symlinks created$(NC)"
 
-brand-env:
+# Guest build (for Agent/Harness) - Static Linux
+TOOLBOX_GUEST := $(BUILD_DIR)/toolbox-linux-$(LINUX_ARCH)
+
+$(TOOLBOX_GUEST): $(GO_FILES)
+	@echo "$(BLUE)Building Toolbox (Guest: Linux/$(LINUX_ARCH))...$(NC)"
+	@mkdir -p build
+	@CGO_ENABLED=0 GOOS=linux GOARCH=$(LINUX_ARCH) go build -ldflags "$(LDFLAGS)" -o $(TOOLBOX_GUEST) ./cmd/toolbox
+	@echo "$(GREEN)✓ Guest toolbox built: $(TOOLBOX_GUEST)$(NC)"
+
+$(BUILD_DIR)/toolbox-linux: $(TOOLBOX_GUEST)
+	@ln -sf $(notdir $(TOOLBOX_GUEST)) $(BUILD_DIR)/toolbox-linux
+	@ln -sf $(notdir $(TOOLBOX_GUEST)) build/agent
+	@ln -sf $(notdir $(TOOLBOX_GUEST)) build/prove
+	@echo "$(GREEN)✓ Guest toolbox symlinks created$(NC)"
+
+build-toolbox: $(BUILD_DIR)/toolbox $(BUILD_DIR)/toolbox-linux
+
+brand-env: internal/brand/brand.env
+
+internal/brand/brand.env: internal/brand/brand.json
 	@echo "$(BLUE)Generating brand.env from brand.json...$(NC)"
 	@jq -r 'to_entries[] | "\(.key)=\(.value | @sh)"' internal/brand/brand.json | \
 		while IFS='=' read -r key val; do \
@@ -171,7 +207,9 @@ test-unit:
 	@go test -v ./internal/... 2>&1 | grep -E '^(ok|FAIL|---|===|PASS)' || true
 	@go test ./internal/... -count=1
 
-build-tests:
+build-tests: $(BUILD_DIR)/tests/.built
+
+$(BUILD_DIR)/tests/.built: $(GO_FILES)
 	@echo "$(BLUE)Pre-compiling Go test binaries (Linux/$(LINUX_ARCH))...$(NC)"
 	@mkdir -p $(BUILD_DIR)/tests
 	@for pkg in $$(go list ./internal/... 2>/dev/null); do \
@@ -179,6 +217,7 @@ build-tests:
 		echo "  Compiling $$name..."; \
 		CGO_ENABLED=0 GOOS=linux GOARCH=$(LINUX_ARCH) go test -c -cover -o $(BUILD_DIR)/tests/$$name.test $$pkg 2>/dev/null || true; \
 	done
+	@touch $(BUILD_DIR)/tests/.built
 	@echo "$(GREEN)✓ Test binaries built in $(BUILD_DIR)/tests/$(NC)"
 
 test-int-legacy: vm-ensure build-go build-tests brand-env

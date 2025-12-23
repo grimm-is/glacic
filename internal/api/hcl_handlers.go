@@ -56,7 +56,9 @@ func (s *Server) handleSetIPForwarding(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update local config cache
+	s.configMu.Lock()
 	s.Config = cfg
+	s.configMu.Unlock()
 
 	WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
@@ -153,7 +155,9 @@ func (s *Server) handleSystemSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update local config cache
+	s.configMu.Lock()
 	s.Config = cfg
+	s.configMu.Unlock()
 
 	WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,

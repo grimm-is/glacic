@@ -115,8 +115,11 @@ func setupPIDFile(monitorsCtx context.Context) (cleanup func(), err error) {
 			case <-ticker.C:
 				data, err := os.ReadFile(pidFile)
 				if err != nil || strings.TrimSpace(string(data)) != fmt.Sprintf("%d", os.Getpid()) {
+				if err := writePID(); err != nil {
+					logging.Error(fmt.Sprintf("Failed to restore PID file: %v", err))
+				} else {
 					logging.Info("Restoring PID file (detected missing or invalid)")
-					_ = writePID()
+				}
 				}
 			}
 		}

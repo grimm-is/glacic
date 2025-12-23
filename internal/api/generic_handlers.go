@@ -87,9 +87,9 @@ func (s *Server) RequireControlPlane(w http.ResponseWriter) bool {
 	return true
 }
 
-// GetConfigOrError gets config from control plane or local, writes error if fails.
+// GetConfigSnapshot gets config from control plane or returns a local snapshot.
 // Returns nil if error occurred (response already sent).
-func (s *Server) GetConfigOrError(w http.ResponseWriter) *config.Config {
+func (s *Server) GetConfigSnapshot(w http.ResponseWriter) *config.Config {
 	if s.client != nil {
 		cfg, err := s.client.GetConfig()
 		if err != nil {
@@ -98,7 +98,9 @@ func (s *Server) GetConfigOrError(w http.ResponseWriter) *config.Config {
 		}
 		return cfg
 	}
-	return s.Config
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+	return s.Config.Clone()
 }
 
 // ==============================================================================

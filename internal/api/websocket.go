@@ -276,6 +276,7 @@ func (s *Server) handleStatusWS(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Check API Key (CLI/Remote access)
 	// Mitigation: OWASP A07:2021-Identification and Authentication Failures
+	s.configMu.RLock()
 	if s.Config.API != nil {
 		apiKey = r.Header.Get("X-API-Key")
 		if apiKey == "" {
@@ -299,6 +300,7 @@ func (s *Server) handleStatusWS(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	s.configMu.RUnlock()
 
 	// 2. Check Session (Web UI access)
 	if !authorized && s.authStore != nil && s.authStore.HasUsers() {
@@ -312,8 +314,11 @@ func (s *Server) handleStatusWS(w http.ResponseWriter, r *http.Request) {
 
 	// 3. Enforce Auth
 	// If auth is required (Users exist OR API Key configured) and not authorized, deny
-	usersExist := s.authStore != nil && s.authStore.HasUsers()
+	usersExist := s.authStore != nil && s.authStore.HasUsers() // authStore is thread-safe
+	
+	s.configMu.RLock()
 	apiConfigured := s.Config.API != nil && (s.Config.API.RequireAuth || len(s.Config.API.Keys) > 0 || s.Config.API.BootstrapKey != "")
+	s.configMu.RUnlock()
 
 	if (usersExist || apiConfigured) && !authorized {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
