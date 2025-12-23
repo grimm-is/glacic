@@ -2,12 +2,11 @@ schema_version = "1.0"
 
 # Interface definition needed for reference
 interface "lo" {
-  zone = "lan"
   ipv4 = ["192.168.1.1/24"]
 }
 
 zone "lan" {
-  interfaces = ["lo"]
+  interface = "lo"
 }
 
 dhcp {

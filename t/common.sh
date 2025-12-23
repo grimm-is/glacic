@@ -18,7 +18,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Project root is usually 1 level up from t/
 # But inside VM, we might be running from /mnt/glacic/t/
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="${PROJECT_ROOT:-$(dirname "$SCRIPT_DIR")}"
 
 BRAND_ENV="$PROJECT_ROOT/internal/brand/brand.env"
 
@@ -109,10 +109,10 @@ export LOG_DIR
 export RUN_DIR
 export CTL_SOCKET
 # Also export as GLACIC_* for the Go binary to pick up
-export GLACIC_STATE_DIR="$STATE_DIR"
-export GLACIC_LOG_DIR="$LOG_DIR"
-export GLACIC_RUN_DIR="$RUN_DIR"
-export GLACIC_CTL_SOCKET="$CTL_SOCKET"
+export GLACIC_STATE_DIR="${GLACIC_STATE_DIR:-$STATE_DIR}"
+export GLACIC_LOG_DIR="${GLACIC_LOG_DIR:-$LOG_DIR}"
+export GLACIC_RUN_DIR="${GLACIC_RUN_DIR:-$RUN_DIR}"
+export GLACIC_CTL_SOCKET="${GLACIC_CTL_SOCKET:-$CTL_SOCKET}"
 
 # Parse kernel parameters
 if grep -q "glacic.run_skipped=1" /proc/cmdline 2>/dev/null; then
@@ -351,6 +351,12 @@ start_ctl() {
             sed 's/^/# /' "$CTL_LOG"
             fail "Config check failed for $_config"
         fi
+    fi
+
+    # Inject state-dir if GLACIC_STATE_DIR is set
+    # Note: main.go parses --state-dir flag for ctl command
+    if [ -n "$GLACIC_STATE_DIR" ]; then
+        set -- -state-dir "$GLACIC_STATE_DIR" "$@"
     fi
 
     $APP_BIN ctl "$_config" "$@" > "$CTL_LOG" 2>&1 &

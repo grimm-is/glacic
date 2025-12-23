@@ -2,16 +2,18 @@ schema_version = "1.0"
 ip_forwarding = true
 
 interface "eth0" {
-  zone = "wan"
   dhcp = true
 }
 
 interface "lo" {
-  zone = "lan"
 }
 
-zone "wan" {}
-zone "lan" {}
+zone "wan" {
+  interface = "eth0"
+}
+zone "lan" {
+  interface = "lo"
+}
 
 # QoS Policy for LAN (lo)
 qos_policy "lan-qos" {

@@ -119,18 +119,19 @@ echo "🌐 Starting API server (as nobody)..."
 
 # Start API server (unprivileged) in background
 # Note: -user nobody drops privileges after binding to port
-$FIREWALL_BIN _api-server -listen 0.0.0.0:8080 -user nobody &
-API_PID=$!
+# DISABLED: ctl spawns api itself if configured!
+# $FIREWALL_BIN _api-server -listen 0.0.0.0:8080 -user nobody &
+# API_PID=$!
 
 # Wait a moment for API startup
 sleep 2
 
 # Check if both are running
-if kill -0 $CTL_PID 2>/dev/null && kill -0 $API_PID 2>/dev/null; then
+if kill -0 $CTL_PID 2>/dev/null; then
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  ✅ Control Plane running (PID: $CTL_PID) [root]"
-    echo "  ✅ API Server running (PID: $API_PID) [nobody]"
+    echo "  ✅ API Server managed by Control Plane"
     echo ""
     echo "  📡 Web UI: http://localhost:8080 (from host)"
     echo "  📡 API:    http://localhost:8080/api/status"

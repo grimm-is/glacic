@@ -13,7 +13,7 @@ APP_NAME="$BRAND_LOWER_NAME"
 BUILD_DIR="$(pwd)/build"
 
 # Artifacts from build_alpine.pl
-ROOTFS="$BUILD_DIR/rootfs.ext4"
+ROOTFS="$BUILD_DIR/rootfs.qcow2"
 KERNEL="$BUILD_DIR/vmlinuz"
 INITRAMFS="$BUILD_DIR/initramfs"
 
@@ -164,7 +164,7 @@ ROOTFS_OVERLAY="/tmp/rootfs-overlay-$$.qcow2"
 if [[ $QUIET_MODE -eq 0 ]]; then
     echo "📋 Creating qcow2 overlay..."
 fi
-qemu-img create -f qcow2 -b "$ROOTFS" -F raw "$ROOTFS_OVERLAY" >/dev/null 2>&1
+qemu-img create -f qcow2 -b "$ROOTFS" -F qcow2 "$ROOTFS_OVERLAY" >/dev/null 2>&1
 
 if [[ $QUIET_MODE -eq 0 ]]; then
     echo "🚀 Launching $APP_NAME VM..."
