@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -30,8 +29,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &creds) {
 		return
 	}
 
@@ -92,7 +90,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 	auth.ClearSessionCookie(w)
 
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
@@ -179,8 +177,7 @@ func (s *Server) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &creds) {
 		return
 	}
 
@@ -255,15 +252,14 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		Password string    `json:"password"`
 		Role     auth.Role `json:"role"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 	if err := s.authStore.CreateUser(req.Username, req.Password, req.Role); err != nil {
 		WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetUser returns a single user
@@ -308,8 +304,7 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		Password string    `json:"password,omitempty"`
 		Role     auth.Role `json:"role,omitempty"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request")
+	if !BindJSONCustomErr(w, r, &req, "Invalid request") {
 		return
 	}
 
@@ -329,7 +324,7 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleDeleteUser deletes a user
@@ -353,5 +348,5 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }

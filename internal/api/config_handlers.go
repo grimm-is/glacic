@@ -11,165 +11,131 @@ import (
 // --- Config CRUD Handlers ---
 
 // handleGetPolicies returns firewall policies
+// handleGetPolicies returns firewall policies
 func (s *Server) handleGetPolicies(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.Policies)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.Policies)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.Policies)
 	}
 }
 
 // handleUpdatePolicies updates firewall policies
+// handleUpdatePolicies updates firewall policies
 func (s *Server) handleUpdatePolicies(w http.ResponseWriter, r *http.Request) {
 	var policies []config.Policy
-	if err := json.NewDecoder(r.Body).Decode(&policies); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &policies) {
 		return
 	}
 	s.Config.Policies = policies
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetNAT returns NAT configuration
+// handleGetNAT returns NAT configuration
 func (s *Server) handleGetNAT(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.NAT)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.NAT)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.NAT)
 	}
 }
 
 // handleUpdateNAT updates NAT configuration
+// handleUpdateNAT updates NAT configuration
 func (s *Server) handleUpdateNAT(w http.ResponseWriter, r *http.Request) {
 	var nat []config.NATRule
-	if err := json.NewDecoder(r.Body).Decode(&nat); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &nat) {
 		return
 	}
 	s.Config.NAT = nat
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetMarkRules returns mark rules
+// handleGetMarkRules returns mark rules
 func (s *Server) handleGetMarkRules(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.MarkRules)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.MarkRules)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.MarkRules)
 	}
 }
 
 // handleUpdateMarkRules updates mark rules
+// handleUpdateMarkRules updates mark rules
 func (s *Server) handleUpdateMarkRules(w http.ResponseWriter, r *http.Request) {
 	var rules []config.MarkRule
-	if err := json.NewDecoder(r.Body).Decode(&rules); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &rules) {
 		return
 	}
 	s.Config.MarkRules = rules
 	if s.client != nil {
-		cfg, _ := s.client.GetConfig()
-		cfg.MarkRules = rules
-		s.client.ApplyConfig(cfg)
-		s.client.SaveConfig()
+		if cfg := s.GetConfigOrError(w); cfg != nil {
+			cfg.MarkRules = rules
+			s.client.ApplyConfig(cfg)
+			s.client.SaveConfig()
+		}
 	}
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetUIDRouting returns UID routing rules
+// handleGetUIDRouting returns UID routing rules
 func (s *Server) handleGetUIDRouting(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.UIDRouting)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.UIDRouting)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.UIDRouting)
 	}
 }
 
 // handleUpdateUIDRouting updates UID routing rules
+// handleUpdateUIDRouting updates UID routing rules
 func (s *Server) handleUpdateUIDRouting(w http.ResponseWriter, r *http.Request) {
 	var rules []config.UIDRouting
-	if err := json.NewDecoder(r.Body).Decode(&rules); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &rules) {
 		return
 	}
 	s.Config.UIDRouting = rules
 	if s.client != nil {
-		cfg, _ := s.client.GetConfig()
-		cfg.UIDRouting = rules
-		s.client.ApplyConfig(cfg)
-		s.client.SaveConfig()
+		if cfg := s.GetConfigOrError(w); cfg != nil {
+			cfg.UIDRouting = rules
+			s.client.ApplyConfig(cfg)
+			s.client.SaveConfig()
+		}
 	}
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetIPSets returns IPSet configuration
+// handleGetIPSets returns IPSet configuration
 func (s *Server) handleGetIPSets(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.IPSets)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.IPSets)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.IPSets)
 	}
 }
 
 // handleUpdateIPSets updates IPSet configuration
+// handleUpdateIPSets updates IPSet configuration
 func (s *Server) handleUpdateIPSets(w http.ResponseWriter, r *http.Request) {
 	var ipsets []config.IPSet
-	if err := json.NewDecoder(r.Body).Decode(&ipsets); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &ipsets) {
 		return
 	}
 	s.Config.IPSets = ipsets
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetDHCP returns DHCP server configuration
+// handleGetDHCP returns DHCP server configuration
 func (s *Server) handleGetDHCP(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.DHCP)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.DHCP)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.DHCP)
 	}
 }
 
 // handleUpdateDHCP updates DHCP server configuration
+// handleUpdateDHCP updates DHCP server configuration
 func (s *Server) handleUpdateDHCP(w http.ResponseWriter, r *http.Request) {
 	var dhcp config.DHCPServer
-	if err := json.NewDecoder(r.Body).Decode(&dhcp); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &dhcp) {
 		return
 	}
 	s.Config.DHCP = &dhcp
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetDNS returns DNS server configuration
@@ -237,66 +203,48 @@ func (s *Server) handleUpdateDNS(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetRoutes returns static route configuration
+// handleGetRoutes returns static route configuration
 func (s *Server) handleGetRoutes(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.Routes)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.Routes)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.Routes)
 	}
 }
 
 // handleUpdateRoutes updates static route configuration
+// handleUpdateRoutes updates static route configuration
 func (s *Server) handleUpdateRoutes(w http.ResponseWriter, r *http.Request) {
 	var routes []config.Route
-	if err := json.NewDecoder(r.Body).Decode(&routes); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &routes) {
 		return
 	}
 	s.Config.Routes = routes
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetZones returns zone configuration
+// handleGetZones returns zone configuration
 func (s *Server) handleGetZones(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.Zones)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.Zones)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.Zones)
 	}
 }
 
 // handleUpdateZones updates zone configuration
+// handleUpdateZones updates zone configuration
 func (s *Server) handleUpdateZones(w http.ResponseWriter, r *http.Request) {
 	var zones []config.Zone
-	if err := json.NewDecoder(r.Body).Decode(&zones); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &zones) {
 		return
 	}
 	s.Config.Zones = zones
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetProtections returns per-interface protection settings
+// handleGetProtections returns per-interface protection settings
 func (s *Server) handleGetProtections(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.Protections)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.Protections)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.Protections)
 	}
 }
 
@@ -323,41 +271,30 @@ func (s *Server) handleUpdateProtections(w http.ResponseWriter, r *http.Request)
 }
 
 // handleGetVPN returns the current VPN configuration
+// handleGetVPN returns the current VPN configuration
 func (s *Server) handleGetVPN(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.VPN)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.VPN)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.VPN)
 	}
 }
 
 // handleUpdateVPN updates the VPN configuration
+// handleUpdateVPN updates the VPN configuration
 func (s *Server) handleUpdateVPN(w http.ResponseWriter, r *http.Request) {
 	var newVPN config.VPNConfig
-	if err := json.NewDecoder(r.Body).Decode(&newVPN); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid JSON")
+	// Note: previous code used "Invalid JSON" instead of "Invalid request body", defaulting to standard
+	if !BindJSON(w, r, &newVPN) {
 		return
 	}
 	s.Config.VPN = &newVPN
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	SuccessResponse(w)
 }
 
 // handleGetQoS returns QoS policies configuration
+// handleGetQoS returns QoS policies configuration
 func (s *Server) handleGetQoS(w http.ResponseWriter, r *http.Request) {
-	if s.client != nil {
-		cfg, err := s.client.GetConfig()
-		if err != nil {
-			WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		WriteJSON(w, http.StatusOK, cfg.QoSPolicies)
-	} else {
-		WriteJSON(w, http.StatusOK, s.Config.QoSPolicies)
+	if cfg := s.GetConfigOrError(w); cfg != nil {
+		HandleGetData(w, cfg.QoSPolicies)
 	}
 }
 

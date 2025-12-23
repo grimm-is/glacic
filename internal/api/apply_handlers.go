@@ -27,13 +27,11 @@ func (s *Server) handleSafeApply(w http.ResponseWriter, r *http.Request) {
 	}
 	req.PingTimeoutSeconds = 5 // Default timeout
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
@@ -153,8 +151,7 @@ func (s *Server) handleBackups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
@@ -183,8 +180,7 @@ func (s *Server) handleCreateBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
@@ -221,16 +217,14 @@ func (s *Server) handleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
 	var req struct {
 		Version int `json:"version"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 
@@ -266,8 +260,7 @@ func (s *Server) handleBackupContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
@@ -309,8 +302,7 @@ func (s *Server) handlePinBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
@@ -318,8 +310,7 @@ func (s *Server) handlePinBackup(w http.ResponseWriter, r *http.Request) {
 		Version int  `json:"version"`
 		Pinned  bool `json:"pinned"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 
@@ -349,8 +340,7 @@ func (s *Server) handlePinBackup(w http.ResponseWriter, r *http.Request) {
 
 // handleGetBackupSettings gets backup settings
 func (s *Server) handleGetBackupSettings(w http.ResponseWriter, r *http.Request) {
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
@@ -366,16 +356,14 @@ func (s *Server) handleGetBackupSettings(w http.ResponseWriter, r *http.Request)
 
 // handleUpdateBackupSettings updates backup settings
 func (s *Server) handleUpdateBackupSettings(w http.ResponseWriter, r *http.Request) {
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
 	var req struct {
 		MaxBackups int `json:"max_backups"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 

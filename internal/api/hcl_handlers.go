@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"grimm.is/glacic/internal/config"
@@ -16,16 +15,14 @@ func (s *Server) handleSetIPForwarding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
 	var req struct {
 		Enabled bool `json:"enabled"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 
@@ -82,14 +79,12 @@ type SystemSettingsRequest struct {
 
 // handleSystemSettings handles global system settings updates
 func (s *Server) handleSystemSettings(w http.ResponseWriter, r *http.Request) {
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
 	var req SystemSettingsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 
@@ -169,8 +164,7 @@ func (s *Server) handleSystemSettings(w http.ResponseWriter, r *http.Request) {
 
 // handleGetRawHCL handles GET for the entire config as raw HCL
 func (s *Server) handleGetRawHCL(w http.ResponseWriter, r *http.Request) {
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
@@ -184,16 +178,14 @@ func (s *Server) handleGetRawHCL(w http.ResponseWriter, r *http.Request) {
 
 // handleUpdateRawHCL handles PUT/POST for the entire config as raw HCL
 func (s *Server) handleUpdateRawHCL(w http.ResponseWriter, r *http.Request) {
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
 	var req struct {
 		HCL string `json:"hcl"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 
@@ -214,8 +206,7 @@ func (s *Server) handleUpdateRawHCL(w http.ResponseWriter, r *http.Request) {
 
 // handleGetSectionHCL handles GET for a specific config section as raw HCL
 func (s *Server) handleGetSectionHCL(w http.ResponseWriter, r *http.Request) {
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
@@ -243,8 +234,7 @@ func (s *Server) handleGetSectionHCL(w http.ResponseWriter, r *http.Request) {
 
 // handleUpdateSectionHCL handles PUT/POST for a specific config section as raw HCL
 func (s *Server) handleUpdateSectionHCL(w http.ResponseWriter, r *http.Request) {
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
@@ -259,8 +249,7 @@ func (s *Server) handleUpdateSectionHCL(w http.ResponseWriter, r *http.Request) 
 	var req struct {
 		HCL string `json:"hcl"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 
@@ -286,16 +275,14 @@ func (s *Server) handleValidateHCL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
 	var req struct {
 		HCL string `json:"hcl"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "Invalid request body")
+	if !BindJSON(w, r, &req) {
 		return
 	}
 
@@ -315,8 +302,7 @@ func (s *Server) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.client == nil {
-		WriteError(w, http.StatusServiceUnavailable, "Control plane not connected")
+	if !s.RequireControlPlane(w) {
 		return
 	}
 
