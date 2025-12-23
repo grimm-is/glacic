@@ -70,10 +70,15 @@ func (m TableModel) View() string {
 	return baseTableStyle.Render(m.table.View())
 }
 
-func (m *TableModel) SetData(data interface{}) {
-	m.data = data
-	rows := m.generateRows(data)
-	m.table.SetRows(rows)
+func (m *TableModel) SetData(data map[string]interface{}) {
+	if m.def.DataSource == "" {
+		return
+	}
+	if val, ok := data[m.def.DataSource]; ok {
+		m.data = val
+		rows := m.generateRows(val)
+		m.table.SetRows(rows)
+	}
 }
 
 func (m *TableModel) generateRows(data interface{}) []table.Row {

@@ -21,7 +21,7 @@
   let showAddRuleModal = $state(false);
 
   // Rule form
-  let ruleType = $state<"dnat" | "masquerade">("dnat");
+  let ruleType = $state<"dnat" | "masquerade" | "snat">("dnat");
   let ruleProtocol = $state("tcp");
   let ruleDestPort = $state("");
   let ruleToAddress = $state("");
@@ -57,10 +57,13 @@
     ruleSNATIP = "";
     ruleMark = "";
     ruleDescription = "";
-    ruleInterface =
-      interfaces.find((i: any) => i.Zone === "WAN")?.Name ||
-      interfaces[0]?.Name ||
-      "";
+    try {
+      const wanIface = interfaces.find((i: any) => i.Zone === "WAN");
+      ruleInterface = wanIface?.Name || interfaces[0]?.Name || "";
+    } catch (e) {
+      console.warn("Error selecting default interface", e);
+      ruleInterface = "";
+    }
     showAddRuleModal = true;
   }
 

@@ -4,6 +4,7 @@
    * Network interface configuration with full CRUD
    */
 
+  import { onMount } from "svelte";
   import { config, api } from "$lib/stores/app";
   import {
     Card,
@@ -23,6 +24,7 @@
   let showBondModal = $state(false);
   let showEditModal = $state(false);
   let editingInterface = $state<any>(null);
+  let interfaceStatus = $state<any[]>([]);
 
   // VLAN form
   let vlanParent = $state("");
@@ -38,15 +40,37 @@
 
   // Edit form
   let editDescription = $state("");
-  let editZone = $state("");
+  // Zone editing removed as per user request (deprecated field)
   let editIpv4 = $state("");
   let editDhcp = $state(false);
   let editMtu = $state("");
   let editGateway = $state("");
   let editDisabled = $state(false);
 
+  // Load runtime status
+  onMount(async () => {
+    try {
+      interfaceStatus = await api.getInterfaces();
+    } catch (e) {
+      console.error("Failed to load interface status", e);
+    }
+  });
+
   const zones = $derived($config?.zones || []);
-  const interfaces = $derived($config?.interfaces || []);
+  const rawInterfaces = $derived($config?.interfaces || []);
+
+  // Merge static config with runtime status
+  const interfaces = $derived(
+    rawInterfaces.map((iface: any) => {
+      const status = interfaceStatus.find((s) => s.Name === iface.Name);
+      return {
+        ...iface,
+        // Prefer runtime IPs if available, otherwise fallback to config
+        IPv4: status?.IPv4Addrs?.length ? status.IPv4Addrs : iface.IPv4,
+        State: status?.State || iface.State,
+      };
+    }),
+  );
 
   // All hardware interfaces for bond creation (with availability status)
   const hardwareInterfaces = $derived(
@@ -66,11 +90,14 @@
         const isBond =
           iface.Bond?.members?.length > 0 || iface.Members?.length > 0;
         // Check if has an IP assigned (in use)
-        const hasIP = iface.IPv4?.length > 0 || iface.DHCP;
+        // Note: We check config IPv4/DHCP, as runtime IPs might just be auto-conf
+        const hasIP =
+          (iface.IPv4?.length > 0 && !iface.IPv4[0].startsWith("169.254")) ||
+          iface.DHCP;
         // Check if assigned to a zone
         const hasZone = !!iface.Zone;
 
-        const isAvailable = !inBond && !isBond;
+        const isAvailable = !inBond && !isBond && !hasIP && !hasZone;
         const usageReason = inBond
           ? "in bond"
           : isBond
@@ -117,7 +144,6 @@
   function openEditInterface(iface: any) {
     editingInterface = iface;
     editDescription = iface.Description || "";
-    editZone = iface.Zone || "";
     editIpv4 = (iface.IPv4 || []).join(", ");
     editDhcp = iface.DHCP || false;
     editMtu = iface.MTU?.toString() || "";
@@ -134,7 +160,7 @@
       await api.updateInterface({
         name: editingInterface.Name,
         description: editDescription || undefined,
-        zone: editZone || undefined,
+        // Zone is not updated here anymore
         ipv4: editIpv4
           ? editIpv4
               .split(",")
@@ -147,6 +173,8 @@
         disabled: editDisabled,
       });
       showEditModal = false;
+      // Refresh status
+      interfaceStatus = await api.getInterfaces();
     } catch (e) {
       console.error("Failed to update interface:", e);
     } finally {
@@ -285,10 +313,15 @@
             <div class="detail-row">
               <span class="detail-label">IPv4:</span>
               <span class="detail-value mono">
-                {#if iface.DHCP}
-                  DHCP
+                {#if iface.DHCP && (!iface.IPv4 || iface.IPv4.length === 0)}
+                  DHCP (Acquiring...)
                 {:else if iface.IPv4?.length > 0}
                   {iface.IPv4.join(", ")}
+                  {#if iface.DHCP}
+                    <span class="text-xs text-muted-foreground ml-1"
+                      >(DHCP)</span
+                    >
+                  {/if}
                 {:else}
                   None
                 {/if}
@@ -353,15 +386,7 @@
       placeholder="e.g., Primary WAN"
     />
 
-    <Select
-      id="edit-zone"
-      label="Zone"
-      bind:value={editZone}
-      options={[
-        { value: "", label: "None" },
-        ...zones.map((z: any) => ({ value: z.name, label: z.name })),
-      ]}
-    />
+    <!-- Zone editing removed (deprecated) -->
 
     <Toggle label="Use DHCP" bind:checked={editDhcp} />
 
@@ -385,8 +410,8 @@
       id="edit-mtu"
       label="MTU (optional)"
       bind:value={editMtu}
-      placeholder="Default"
-      type="number"
+      placeholder="1500"
+      type="text"
     />
 
     <Toggle
@@ -514,7 +539,8 @@
 
       {#if availableInterfaces.length === 0}
         <p class="member-warning">
-          ⚠️ No available interfaces for bonding. All interfaces are in use.
+          ⚠️ No available interfaces for bonding. All interfaces are in use (IP
+          assigned or in Zone).
         </p>
       {:else if availableInterfaces.length === 1}
         <p class="member-info">

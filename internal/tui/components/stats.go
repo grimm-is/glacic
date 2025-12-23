@@ -37,8 +37,13 @@ func NewStatsModel(def ui.Stats) StatsModel {
 	return StatsModel{def: def}
 }
 
-func (m *StatsModel) SetData(data interface{}) {
-	m.data = data
+func (m *StatsModel) SetData(data map[string]interface{}) {
+	if m.def.DataSource == "" {
+		return
+	}
+	if val, ok := data[m.def.DataSource]; ok {
+		m.data = val
+	}
 }
 
 func (m StatsModel) View() string {

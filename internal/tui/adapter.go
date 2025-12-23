@@ -7,13 +7,29 @@ import (
 	"grimm.is/glacic/internal/ctlplane"
 )
 
+// Backend defines the interface for data retrieval
+type Backend interface {
+	GetStatus() (*ctlplane.Status, error)
+	GetNotifications(lastID int64) ([]ctlplane.Notification, int64, error)
+	Fetch(dataSource string) (interface{}, error)
+	Submit(endpoint string, data map[string]interface{}) error
+}
+
 // DataAdapter mediates between UI DataSource paths and Control Plane RPC calls
 type DataAdapter struct {
 	client *ctlplane.Client
 }
 
-func NewDataAdapter(client *ctlplane.Client) *DataAdapter {
+func NewBackend(client *ctlplane.Client) Backend {
 	return &DataAdapter{client: client}
+}
+
+func (d *DataAdapter) GetStatus() (*ctlplane.Status, error) {
+	return d.client.GetStatus()
+}
+
+func (d *DataAdapter) GetNotifications(lastID int64) ([]ctlplane.Notification, int64, error) {
+	return d.client.GetNotifications(lastID)
 }
 
 // Fetch retrieves data for a given DataSource URI
@@ -121,5 +137,23 @@ func (d *DataAdapter) fetchConfig(path string) (interface{}, error) {
 	default:
 		// Return full config if specific section mapping missing
 		return cfg, nil
+	}
+}
+
+// Submit sends data to the specified endpoint
+func (d *DataAdapter) Submit(endpoint string, data map[string]interface{}) error {
+	// For now, map common endpoints to control plane calls
+	switch {
+	case strings.HasPrefix(endpoint, "/api/config"):
+		// Fetch current config
+		cfg, err := d.client.GetConfig()
+		if err != nil {
+			return fmt.Errorf("failed to get config: %w", err)
+		}
+		// TODO: Merge `data` into `cfg` based on schema
+		// For now, just re-apply current config (triggers reload)
+		return d.client.ApplyConfig(cfg)
+	default:
+		return fmt.Errorf("submit not implemented for endpoint: %s", endpoint)
 	}
 }

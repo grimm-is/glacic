@@ -7,12 +7,14 @@
   interface Props {
     open?: boolean;
     title?: string;
+    size?: "sm" | "md" | "lg" | "xl";
     onclose?: () => void;
   }
 
   let {
     open = $bindable(false),
     title = "",
+    size = "md",
     onclose,
     children,
   }: Props & { children?: any } = $props();
@@ -48,7 +50,7 @@
       }
     }}
   >
-    <div class="modal-content">
+    <div class="modal-content modal-{size}">
       {#if title}
         <div class="modal-header">
           <h2 class="modal-title">{title}</h2>
@@ -90,10 +92,23 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg);
     width: 100%;
-    max-width: 500px;
     max-height: 90vh;
     overflow: auto;
+  }
+
+  .modal-sm {
+    max-width: 400px;
+  }
+  .modal-md {
+    max-width: 500px;
+  }
+  .modal-lg {
+    max-width: 800px;
+  }
+  .modal-xl {
+    max-width: 1000px;
   }
 
   .modal-header {

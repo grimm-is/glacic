@@ -2,6 +2,10 @@
   /**
    * Firewall Page
    * Policy and rule management
+   *
+   * Supports two views:
+   * - Classic: Card-based policy groups
+   * - ClearPath: Unified rule table with sparklines
    */
 
   import { config, api } from "$lib/stores/app";
@@ -15,6 +19,10 @@
     Table,
     Spinner,
   } from "$lib/components";
+  import { PolicyEditor } from "$lib/components/policy";
+
+  // View mode: 'classic' or 'clearpath'
+  let viewMode = $state<"classic" | "clearpath">("classic");
 
   let loading = $state(false);
   let showRuleModal = $state(false);
@@ -180,9 +188,63 @@
 <div class="firewall-page">
   <div class="page-header">
     <h2>Firewall Policies</h2>
+
+    <!-- View Mode Toggle -->
+    <div class="view-toggle">
+      <button
+        class="toggle-btn"
+        class:active={viewMode === "clearpath"}
+        onclick={() => (viewMode = "clearpath")}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="icon"
+        >
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        ClearPath
+      </button>
+      <button
+        class="toggle-btn"
+        class:active={viewMode === "classic"}
+        onclick={() => (viewMode = "classic")}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="icon"
+        >
+          <rect x="3" y="3" width="7" height="7" /><rect
+            x="14"
+            y="3"
+            width="7"
+            height="7"
+          />
+          <rect x="3" y="14" width="7" height="7" /><rect
+            x="14"
+            y="14"
+            width="7"
+            height="7"
+          />
+        </svg>
+        Classic
+      </button>
+    </div>
   </div>
 
-  {#if policies.length === 0}
+  <!-- ClearPath View: Unified Rule Table -->
+  {#if viewMode === "clearpath"}
+    <div class="clearpath-container">
+      <PolicyEditor title="" showGroupFilter={true} />
+    </div>
+
+    <!-- Classic View: Card-based policies -->
+  {:else if policies.length === 0}
     <Card>
       <p class="empty-message">No firewall policies configured.</p>
     </Card>
@@ -347,6 +409,13 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
+    height: 100%;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .page-header h2 {
@@ -354,6 +423,50 @@
     font-weight: 600;
     margin: 0;
     color: var(--color-foreground);
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: var(--space-1);
+    background: var(--color-backgroundSecondary);
+    border-radius: var(--radius-md);
+    padding: var(--space-1);
+  }
+
+  .toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .toggle-btn:hover {
+    color: var(--color-foreground);
+  }
+
+  .toggle-btn.active {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .toggle-btn .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .clearpath-container {
+    flex: 1;
+    min-height: 0;
+    background: var(--color-backgroundSecondary);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
   }
 
   .policies-grid {

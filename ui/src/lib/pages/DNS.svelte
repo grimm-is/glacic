@@ -13,11 +13,23 @@
     Badge,
     Spinner,
     Icon,
+    Toggle,
   } from "$lib/components";
 
   let loading = $state(false);
   let showAddForwarderModal = $state(false);
+  let showServeModal = $state(false);
   let newForwarder = $state("");
+  let editingServe = $state<any>(null);
+
+  // Serve Config
+  let serveZone = $state("");
+  let serveLocalDomain = $state("");
+  let serveExpandHosts = $state(false);
+  let serveDhcp = $state(false);
+  let serveCache = $state(false);
+  let serveCacheSize = $state("10000");
+  let serveLogging = $state(false);
 
   const dnsConfig = $derived(
     $config?.dns ||
@@ -29,6 +41,9 @@
   async function toggleDNS() {
     loading = true;
     try {
+      // Logic depends on legacy vs new.
+      // For new format, often presence implies enabled, or we toggle specific services.
+      // But preserving existing logic for now if it works.
       const field = usingNewFormat ? "dns" : "dns_server";
       await api.updateDNS({
         [field]: {
@@ -38,6 +53,93 @@
       });
     } catch (e) {
       console.error("Failed to toggle DNS:", e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function openAddServe() {
+    editingServe = null;
+    serveZone = "lan";
+    serveLocalDomain = "lan";
+    serveExpandHosts = true;
+    serveDhcp = true;
+    serveCache = true;
+    serveCacheSize = 10000;
+    serveLogging = false;
+    showServeModal = true;
+  }
+
+  function editServe(serve: any) {
+    editingServe = serve;
+    serveZone = serve.zone;
+    serveLocalDomain = serve.local_domain || "";
+    serveExpandHosts = serve.expand_hosts || false;
+    serveDhcp = serve.dhcp_integration || false;
+    serveCache = serve.cache_enabled || false;
+    serveCacheSize = serve.cache_size || 10000;
+    serveLogging = serve.query_logging || false;
+    showServeModal = true;
+  }
+
+  async function saveServe() {
+    if (!serveZone) return;
+
+    loading = true;
+    try {
+      const serveData = {
+        zone: serveZone,
+        local_domain: serveLocalDomain,
+        expand_hosts: serveExpandHosts,
+        dhcp_integration: serveDhcp,
+        cache_enabled: serveCache,
+        cache_size: Number(serveCacheSize),
+        query_logging: serveLogging,
+      };
+
+      let updatedServe: any[];
+      const currentServes = dnsConfig.serve || [];
+
+      if (editingServe) {
+        updatedServe = currentServes.map((s: any) =>
+          s.zone === editingServe.zone ? { ...s, ...serveData } : s,
+        );
+      } else {
+        updatedServe = [...currentServes, serveData];
+      }
+
+      await api.updateDNS({
+        dns: {
+          ...dnsConfig,
+          serve: updatedServe,
+        },
+      });
+      showServeModal = false;
+    } catch (e) {
+      console.error("Failed to save serve config:", e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function deleteServe(zoneName: string) {
+    if (!confirm(`Delete DNS serving for zone ${zoneName}?`)) return;
+
+    loading = true;
+    try {
+      const currentServes = dnsConfig.serve || [];
+      const updatedServe = currentServes.filter(
+        (s: any) => s.zone !== zoneName,
+      );
+
+      await api.updateDNS({
+        dns: {
+          ...dnsConfig,
+          serve: updatedServe,
+        },
+      });
+    } catch (e) {
+      console.error("Failed to delete serve config:", e);
     } finally {
       loading = false;
     }
@@ -125,11 +227,7 @@
   <div class="section">
     <div class="section-header">
       <h3>Upstream Forwarders</h3>
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={() => (showAddForwarderModal = true)}
-      >
+      <Button variant="outline" onclick={() => (showAddForwarderModal = true)}>
         + Add Forwarder
       </Button>
     </div>
@@ -142,10 +240,9 @@
               <span class="forwarder-ip mono">{forwarder}</span>
               <Button
                 variant="ghost"
-                size="sm"
                 onclick={() => removeForwarder(forwarder)}
               >
-                <Icon name="delete" size="sm" />
+                <Icon name="delete" />
               </Button>
             </div>
           </Card>
@@ -157,6 +254,62 @@
       </Card>
     {/if}
   </div>
+
+  <!-- Zone Serving (New Format) -->
+  {#if usingNewFormat}
+    <div class="section">
+      <div class="section-header">
+        <h3>Zone Serving</h3>
+        <Button variant="outline" onclick={openAddServe}>
+          + Add Zone Config
+        </Button>
+      </div>
+
+      {#if dnsConfig.serve?.length > 0}
+        <div class="serve-list">
+          {#each dnsConfig.serve as serve}
+            <Card>
+              <div class="serve-item">
+                <div class="serve-info">
+                  <span class="zone-badge">{serve.zone}</span>
+                  <div class="serve-details">
+                    {#if serve.local_domain}
+                      <Badge variant="outline"
+                        >Domain: {serve.local_domain}</Badge
+                      >
+                    {/if}
+                    {#if serve.cache_enabled}
+                      <Badge variant="secondary"
+                        >Cache: {serve.cache_size}</Badge
+                      >
+                    {/if}
+                    {#if serve.dhcp_integration}
+                      <Badge variant="secondary">DHCP Linked</Badge>
+                    {/if}
+                  </div>
+                </div>
+                <div class="serve-actions">
+                  <Button variant="ghost" onclick={() => editServe(serve)}>
+                    <Icon name="edit" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onclick={() => deleteServe(serve.zone)}
+                  >
+                    <Icon name="delete" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          {/each}
+        </div>
+      {:else}
+        <Card>
+          <p class="empty-message">No zone serving configured.</p>
+        </Card>
+      {/if}
+    </div>
+  {/if}
 
   <!-- DNS Inspection (Only shown if using new format) -->
   {#if usingNewFormat && dnsConfig.inspect?.length > 0}
@@ -211,6 +364,68 @@
       <Button onclick={addForwarder} disabled={loading || !newForwarder}>
         {#if loading}<Spinner size="sm" />{/if}
         Add Forwarder
+      </Button>
+    </div>
+  </div>
+</Modal>
+
+<!-- Add/Edit Serve Modal -->
+<Modal
+  bind:open={showServeModal}
+  title={editingServe ? "Edit Zone Config" : "Add Zone Config"}
+>
+  <div class="form-stack">
+    <div class="grid grid-cols-2 gap-4">
+      <Input
+        id="serve-zone"
+        label="Zone Name"
+        bind:value={serveZone}
+        placeholder="e.g., lan / internal-*"
+        required
+        disabled={!!editingServe}
+      />
+      <Input
+        id="serve-domain"
+        label="Local Domain"
+        bind:value={serveLocalDomain}
+        placeholder="e.g., lan"
+      />
+    </div>
+
+    <div class="p-4 bg-secondary/10 rounded-lg space-y-4">
+      <h3 class="text-sm font-medium text-foreground">Integration</h3>
+      <Toggle label="DHCP Integration" bind:checked={serveDhcp} />
+      <p class="text-xs text-muted-foreground pb-2">
+        Resolve hostnames from DHCP leases
+      </p>
+
+      <Toggle label="Expand Hosts" bind:checked={serveExpandHosts} />
+      <p class="text-xs text-muted-foreground">Expand /etc/hosts entries</p>
+    </div>
+
+    <div class="p-4 bg-secondary/10 rounded-lg space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-medium text-foreground">Caching</h3>
+        <Toggle label="" bind:checked={serveCache} />
+      </div>
+
+      {#if serveCache}
+        <Input
+          id="serve-cache-size"
+          label="Cache Size"
+          type="number"
+          bind:value={serveCacheSize}
+        />
+      {/if}
+    </div>
+
+    <div class="modal-actions">
+      <Button variant="ghost" onclick={() => (showServeModal = false)}
+        >Cancel</Button
+      >
+      <Button onclick={saveServe} disabled={loading || !serveZone}>
+        {#if loading}<Spinner size="sm" />{/if}
+        {editingServe ? "Save Changes" : "Add Config"}
       </Button>
     </div>
   </div>
@@ -335,5 +550,41 @@
     margin-top: var(--space-4);
     padding-top: var(--space-4);
     border-top: 1px solid var(--color-border);
+  }
+  .serve-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .serve-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .serve-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .zone-badge {
+    background-color: var(--color-primary);
+    color: white;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: var(--text-sm);
+  }
+
+  .serve-details {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .serve-actions {
+    display: flex;
+    gap: var(--space-1);
   }
 </style>

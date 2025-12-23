@@ -1,29 +1,204 @@
 <script lang="ts">
   /**
    * VPN Page
-   * WireGuard peer management
+   * WireGuard connection and peer management
    */
 
   import { config, api } from "$lib/stores/app";
-  import { Card, Button, Modal, Input, Badge, Spinner } from "$lib/components";
+  import {
+    Card,
+    Button,
+    Modal,
+    Input,
+    Badge,
+    Spinner,
+    Icon,
+    Table,
+  } from "$lib/components";
 
   let loading = $state(false);
+  let showConnModal = $state(false);
+  let showPeerModal = $state(false);
 
-  const vpnConfig = $derived($config?.vpn || { enabled: false, peers: [] });
-  const peers = $derived(vpnConfig.peers || []);
+  // Connection State
+  let editingConnIndex = $state<number | null>(null);
+  let connName = $state("");
+  let connInterface = $state("wg0");
+  let connPort = $state("51820");
+  let connPrivateKey = $state("");
+  let connAddresses = $state("");
+  let connDns = $state("");
+  let connMtu = $state("1420");
+  let connMark = $state("");
+  let connPeers = $state<any[]>([]);
 
-  async function toggleVPN() {
+  // Peer State (nested)
+  let editingPeerIndex = $state<number | null>(null);
+  let peerName = $state("");
+  let peerPublicKey = $state("");
+  let peerPresharedKey = $state("");
+  let peerEndpoint = $state("");
+  let peerAllowedIps = $state("");
+  let peerKeepalive = $state("25");
+
+  const vpnConfig = $derived($config?.vpn || { wireguard: [] });
+  const connections = $derived(vpnConfig.wireguard || []);
+
+  const peerColumns = [
+    { key: "name", label: "Name" },
+    { key: "public_key", label: "Public Key" },
+    { key: "allowed_ips", label: "Allowed IPs" },
+    { key: "endpoint", label: "Endpoint" },
+  ];
+
+  /* --- Connection Management --- */
+
+  function openAddConnection() {
+    editingConnIndex = null;
+    connName = "New Connection";
+    connInterface = "wg0";
+    connPort = "51820";
+    connPrivateKey = "";
+    connAddresses = "";
+    connDns = "";
+    connMtu = "1420";
+    connMark = "";
+    connPeers = [];
+    showConnModal = true;
+  }
+
+  function openEditConnection(index: number) {
+    editingConnIndex = index;
+    const c = connections[index];
+    connName = c.name || "";
+    connInterface = c.interface || "wg0";
+    connPort = String(c.listen_port || "51820");
+    connPrivateKey = c.private_key || "";
+    connAddresses = (c.address || []).join(", ");
+    connDns = (c.dns || []).join(", ");
+    connMtu = String(c.mtu || "1420");
+    connMark = String(c.fwmark || "");
+    connPeers = [...(c.peers || [])];
+    showConnModal = true;
+  }
+
+  async function saveConnection() {
     loading = true;
     try {
+      const newConn = {
+        name: connName,
+        interface: connInterface,
+        listen_port: Number(connPort),
+        private_key: connPrivateKey,
+        address: connAddresses
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        dns: connDns
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        mtu: Number(connMtu),
+        fwmark: connMark ? Number(connMark) : undefined,
+        peers: connPeers,
+        enabled: true, // Default to enabled on create/save
+      };
+
+      let updatedWg = [...connections];
+      if (editingConnIndex !== null) {
+        updatedWg[editingConnIndex] = {
+          ...updatedWg[editingConnIndex],
+          ...newConn,
+        };
+      } else {
+        updatedWg.push(newConn);
+      }
+
       await api.updateVPN({
         ...vpnConfig,
-        enabled: !vpnConfig.enabled,
+        wireguard: updatedWg,
       });
+      showConnModal = false;
     } catch (e) {
-      console.error("Failed to toggle VPN:", e);
+      console.error("Failed to save connection:", e);
     } finally {
       loading = false;
     }
+  }
+
+  async function deleteConnection(index: number) {
+    if (!confirm("Delete this WireGuard connection?")) return;
+    loading = true;
+    try {
+      const updatedWg = connections.filter((_: any, i: number) => i !== index);
+      await api.updateVPN({
+        ...vpnConfig,
+        wireguard: updatedWg,
+      });
+    } catch (e) {
+      console.error("Failed to delete connection:", e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  /* --- Peer Management --- */
+
+  function openAddPeer() {
+    editingPeerIndex = null;
+    peerName = "";
+    peerPublicKey = "";
+    peerPresharedKey = "";
+    peerEndpoint = "";
+    peerAllowedIps = "";
+    peerKeepalive = "25";
+    showPeerModal = true;
+  }
+
+  function openEditPeer(index: number) {
+    editingPeerIndex = index;
+    const p = connPeers[index];
+    peerName = p.name || "";
+    peerPublicKey = p.public_key || "";
+    peerPresharedKey = p.preshared_key || "";
+    peerEndpoint = p.endpoint || "";
+    peerAllowedIps = (p.allowed_ips || []).join(", ");
+    peerKeepalive = String(p.persistent_keepalive || "25");
+    showPeerModal = true;
+  }
+
+  function savePeer() {
+    const newPeer = {
+      name: peerName,
+      public_key: peerPublicKey,
+      preshared_key: peerPresharedKey || undefined,
+      endpoint: peerEndpoint || undefined,
+      allowed_ips: peerAllowedIps
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      persistent_keepalive: Number(peerKeepalive),
+    };
+
+    if (editingPeerIndex !== null) {
+      connPeers[editingPeerIndex] = newPeer;
+    } else {
+      connPeers = [...connPeers, newPeer];
+    }
+    showPeerModal = false;
+  }
+
+  function deletePeer(index: number) {
+    if (!confirm("Delete this peer?")) return;
+    connPeers = connPeers.filter((_, i) => i !== index);
+  }
+
+  function generateKey() {
+    // TODO: Implement key generation via API or WASM?
+    // For now just placeholders or instruct user.
+    alert(
+      "Key generation not implemented in UI yet. Please generate elsewhere.",
+    );
   }
 </script>
 
@@ -31,94 +206,249 @@
   <div class="page-header">
     <h2>WireGuard VPN</h2>
     <div class="header-actions">
-      <Button
-        variant={vpnConfig.enabled ? "destructive" : "default"}
-        onclick={toggleVPN}
-        disabled={loading}
-      >
-        {vpnConfig.enabled ? "Disable VPN" : "Enable VPN"}
-      </Button>
+      <Button onclick={openAddConnection}>+ Add Interface</Button>
     </div>
   </div>
 
-  <!-- Status -->
-  <Card>
-    <div class="status-row">
-      <span class="status-label">Status:</span>
-      <Badge variant={vpnConfig.enabled ? "success" : "secondary"}>
-        {vpnConfig.enabled ? "Active" : "Inactive"}
-      </Badge>
-    </div>
-    {#if vpnConfig.interface}
-      <div class="status-row" style="margin-top: var(--space-2)">
-        <span class="status-label">Interface:</span>
-        <span class="mono">{vpnConfig.interface}</span>
-      </div>
-    {/if}
-    {#if vpnConfig.listen_port}
-      <div class="status-row" style="margin-top: var(--space-2)">
-        <span class="status-label">Listen Port:</span>
-        <span class="mono">{vpnConfig.listen_port}</span>
-      </div>
-    {/if}
-  </Card>
-
-  <!-- Peers -->
-  <div class="section">
-    <div class="section-header">
-      <h3>Peers ({peers.length})</h3>
-    </div>
-
-    {#if peers.length === 0}
-      <Card>
-        <p class="empty-message">No WireGuard peers configured.</p>
-      </Card>
-    {:else}
-      <div class="peers-grid">
-        {#each peers as peer}
-          <Card>
-            <div class="peer-header">
-              <h4>{peer.name || "Unnamed Peer"}</h4>
-              <Badge variant={peer.handshake ? "success" : "secondary"}>
-                {peer.handshake ? "Connected" : "Offline"}
+  {#if connections.length === 0}
+    <Card>
+      <p class="empty-message">No WireGuard interfaces configured.</p>
+    </Card>
+  {:else}
+    <div class="connections-list">
+      {#each connections as conn, i}
+        <Card>
+          <div class="conn-header">
+            <div class="flex items-center gap-3">
+              <h3 class="text-lg font-bold">{conn.name}</h3>
+              <Badge variant="outline">{conn.interface}</Badge>
+              <Badge variant={conn.enabled ? "success" : "secondary"}>
+                {conn.enabled ? "Enabled" : "Disabled"}
               </Badge>
             </div>
-
-            <div class="peer-details">
-              <div class="detail-row">
-                <span class="detail-label">Public Key:</span>
-                <code class="detail-value"
-                  >{peer.public_key?.substring(0, 12)}...</code
-                >
-              </div>
-
-              {#if peer.endpoint}
-                <div class="detail-row">
-                  <span class="detail-label">Endpoint:</span>
-                  <code class="detail-value">{peer.endpoint}</code>
-                </div>
-              {/if}
-
-              {#if peer.allowed_ips}
-                <div class="detail-row">
-                  <span class="detail-label">Allowed IPs:</span>
-                  <code class="detail-value">{peer.allowed_ips}</code>
-                </div>
-              {/if}
-
-              {#if peer.handshake}
-                <div class="detail-row">
-                  <span class="detail-label">Last Handshake:</span>
-                  <span class="detail-value">{peer.handshake}</span>
-                </div>
-              {/if}
+            <div class="conn-actions">
+              <Button variant="ghost" onclick={() => openEditConnection(i)}>
+                <Icon name="edit" />
+              </Button>
+              <Button variant="ghost" onclick={() => deleteConnection(i)}>
+                <Icon name="delete" />
+              </Button>
             </div>
-          </Card>
-        {/each}
-      </div>
-    {/if}
-  </div>
+          </div>
+
+          <div
+            class="conn-details mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm"
+          >
+            <div>
+              <span class="text-muted-foreground block text-xs">Port</span>
+              <span class="font-mono">{conn.listen_port}</span>
+            </div>
+            <div>
+              <span class="text-muted-foreground block text-xs">Address</span>
+              <span class="font-mono">{(conn.address || []).join(", ")}</span>
+            </div>
+            <div>
+              <span class="text-muted-foreground block text-xs">DNS</span>
+              <span class="font-mono">{(conn.dns || []).join(", ")}</span>
+            </div>
+            <div>
+              <span class="text-muted-foreground block text-xs">Peers</span>
+              <span>{(conn.peers || []).length}</span>
+            </div>
+          </div>
+        </Card>
+      {/each}
+    </div>
+  {/if}
 </div>
+
+<!-- Connection Modal -->
+<Modal
+  bind:open={showConnModal}
+  title={editingConnIndex !== null ? "Edit Interface" : "Add Interface"}
+  size="lg"
+>
+  <div class="form-stack">
+    <div class="grid grid-cols-2 gap-4">
+      <Input
+        id="conn-name"
+        label="Name"
+        bind:value={connName}
+        placeholder="My VPN"
+      />
+      <Input
+        id="conn-iface"
+        label="Interface"
+        bind:value={connInterface}
+        placeholder="wg0"
+      />
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <Input
+        id="conn-port"
+        label="Listen Port"
+        type="number"
+        bind:value={connPort}
+      />
+      <Input
+        id="conn-mtu"
+        label="MTU"
+        type="number"
+        bind:value={connMtu}
+        placeholder="1420"
+      />
+      <Input
+        id="conn-mark"
+        label="Firewall Mark"
+        type="number"
+        bind:value={connMark}
+        placeholder="Optional"
+      />
+    </div>
+
+    <div class="flex gap-2 items-end">
+      <div class="flex-1">
+        <Input
+          id="conn-privkey"
+          label="Private Key"
+          bind:value={connPrivateKey}
+          type="password"
+          placeholder="base64 key..."
+        />
+      </div>
+      <Button variant="outline" onclick={generateKey}>Generate</Button>
+    </div>
+
+    <Input
+      id="conn-addr"
+      label="Addresses (comma separated)"
+      bind:value={connAddresses}
+      placeholder="10.100.0.1/24"
+    />
+
+    <Input
+      id="conn-dns"
+      label="DNS Servers"
+      bind:value={connDns}
+      placeholder="1.1.1.1"
+    />
+
+    <div class="peers-section border-t border-border pt-4 mt-2">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-sm font-medium">Peers</h3>
+        <Button size="sm" variant="outline" onclick={openAddPeer}
+          >+ Add Peer</Button
+        >
+      </div>
+
+      {#if connPeers.length > 0}
+        <div class="peers-list space-y-2">
+          {#each connPeers as peer, i}
+            <div
+              class="flex items-center justify-between p-3 bg-secondary/10 rounded-md border border-border"
+            >
+              <div class="grid grid-cols-3 gap-4 flex-1 text-sm">
+                <div class="font-medium">{peer.name}</div>
+                <div class="font-mono text-xs text-muted-foreground truncate">
+                  {peer.public_key}
+                </div>
+                <div class="font-mono text-xs">
+                  {(peer.allowed_ips || []).join(", ")}
+                </div>
+              </div>
+              <div class="flex gap-1 ml-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onclick={() => openEditPeer(i)}
+                >
+                  <Icon name="edit" />
+                </Button>
+                <Button variant="ghost" size="sm" onclick={() => deletePeer(i)}>
+                  <Icon name="delete" />
+                </Button>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <p class="text-sm text-muted-foreground italic">No peers configured.</p>
+      {/if}
+    </div>
+
+    <div class="modal-actions">
+      <Button
+        variant="ghost"
+        onclick={() => {
+          showConnModal = false;
+        }}>Cancel</Button
+      >
+      <Button onclick={saveConnection} disabled={loading}>Save Interface</Button
+      >
+    </div>
+  </div>
+</Modal>
+
+<!-- Peer Modal (Stacked) -->
+{#if showPeerModal}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+  >
+    <div
+      class="bg-background border border-border rounded-lg shadow-xl w-full max-w-md p-6 m-4"
+      role="dialog"
+    >
+      <h3 class="text-lg font-semibold mb-4">
+        {editingPeerIndex !== null ? "Edit Peer" : "Add Peer"}
+      </h3>
+
+      <div class="form-stack space-y-4">
+        <Input id="peer-name" label="Name" bind:value={peerName} required />
+        <Input
+          id="peer-pubkey"
+          label="Public Key"
+          bind:value={peerPublicKey}
+          required
+          placeholder="base64..."
+        />
+        <Input
+          id="peer-psk"
+          label="Preshared Key (Optional)"
+          bind:value={peerPresharedKey}
+          type="password"
+        />
+        <Input
+          id="peer-endpoint"
+          label="Endpoint (Optional)"
+          bind:value={peerEndpoint}
+          placeholder="ip:port"
+        />
+        <Input
+          id="peer-ips"
+          label="Allowed IPs"
+          bind:value={peerAllowedIps}
+          placeholder="0.0.0.0/0"
+        />
+        <Input
+          id="peer-ka"
+          label="Keepalive (seconds)"
+          type="number"
+          bind:value={peerKeepalive}
+        />
+
+        <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-border">
+          <Button variant="ghost" onclick={() => (showPeerModal = false)}
+            >Cancel</Button
+          >
+          <Button onclick={savePeer} disabled={!peerName || !peerPublicKey}
+            >Save Peer</Button
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .vpn-page {
@@ -140,88 +470,38 @@
     color: var(--color-foreground);
   }
 
-  .status-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-  }
-
-  .status-label {
-    font-weight: 500;
-    color: var(--color-foreground);
-  }
-
-  .section {
+  .connections-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .section-header h3 {
-    font-size: var(--text-lg);
-    font-weight: 600;
-    margin: 0;
-    color: var(--color-foreground);
-  }
-
-  .peers-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: var(--space-4);
   }
 
-  .peer-header {
+  .conn-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--space-3);
-    padding-bottom: var(--space-3);
+    align-items: center;
+    padding-bottom: var(--space-2);
     border-bottom: 1px solid var(--color-border);
-  }
-
-  .peer-header h4 {
-    font-size: var(--text-base);
-    font-weight: 600;
-    margin: 0;
-    color: var(--color-foreground);
-  }
-
-  .peer-details {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
-  .detail-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: var(--text-sm);
-  }
-
-  .detail-label {
-    color: var(--color-muted);
-  }
-
-  .detail-value {
-    color: var(--color-foreground);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-  }
-
-  .mono {
-    font-family: var(--font-mono);
   }
 
   .empty-message {
     color: var(--color-muted);
     text-align: center;
     margin: 0;
+  }
+
+  .form-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
   }
 </style>
