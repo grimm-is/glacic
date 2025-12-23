@@ -130,6 +130,9 @@ type PolicyRule struct {
 	// Metadata
 	Comment string   `hcl:"comment,optional" json:"comment,omitempty"`
 	Tags    []string `hcl:"tags,optional" json:"tags,omitempty"` // For grouping/filtering in UI
+
+	// UI Organization
+	GroupTag string `hcl:"group,optional" json:"group,omitempty"` // Section grouping: "User Access", "IoT Isolation"
 }
 
 // NATRule defines Network Address Translation rules.
@@ -147,4 +150,5 @@ type NATRule struct {
 	ToIP         string `hcl:"to_ip,optional" json:"to_ip,omitempty"`                 // Target IP for DNAT
 	ToPort       string `hcl:"to_port,optional" json:"to_port,omitempty"`             // Target Port for DNAT
 	SNATIP       string `hcl:"snat_ip,optional" json:"snat_ip,omitempty"`             // for snat (Target IP)
+	Hairpin      bool   `hcl:"hairpin,optional" json:"hairpin,omitempty"`             // Enable Hairpin NAT (NAT Reflection)
 }

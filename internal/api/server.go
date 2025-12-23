@@ -34,6 +34,7 @@ import (
 	"grimm.is/glacic/internal/metrics"
 	"grimm.is/glacic/internal/ratelimit"
 	"grimm.is/glacic/internal/state"
+	"grimm.is/glacic/internal/stats"
 	"grimm.is/glacic/internal/tls"
 	"grimm.is/glacic/internal/ui"
 
@@ -85,6 +86,10 @@ type Server struct {
 	wsManager       *WSManager         // Websocket manager
 	healthy         atomic.Bool        // Cached health status
 	adminCreationMu sync.Mutex         // Mutex to prevent race conditions in admin creation
+
+	// ClearPath Policy Editor support
+	statsCollector *stats.Collector // Rule stats for sparklines
+	deviceLookup   DeviceLookup     // Device name resolution for UI pills
 
 	mux *http.ServeMux
 }
@@ -308,6 +313,12 @@ func (s *Server) initRoutes() {
 		mux.Handle("POST /api/policies/reorder", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handlePolicyReorder)))
 		mux.Handle("POST /api/rules/reorder", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleRuleReorder)))
 
+		// ClearPath Policy Editor - Enriched Rules API
+		rulesHandler := NewRulesHandler(s, s.statsCollector, s.deviceLookup)
+		mux.Handle("GET /api/rules", s.require(storage.PermReadFirewall, http.HandlerFunc(rulesHandler.HandleGetRules)))
+		mux.Handle("GET /api/rules/flat", s.require(storage.PermReadFirewall, http.HandlerFunc(rulesHandler.HandleGetFlatRules)))
+		mux.Handle("GET /api/rules/groups", s.require(storage.PermReadFirewall, http.HandlerFunc(rulesHandler.HandleGetRuleGroups)))
+
 		// Uplink Management
 		uplinkAPI := NewUplinkAPI(s.client)
 		mux.Handle("GET /api/uplinks/groups", s.require(storage.PermReadConfig, http.HandlerFunc(uplinkAPI.HandleGetGroups)))
@@ -430,6 +441,12 @@ func (s *Server) initRoutes() {
 
 		mux.HandleFunc("POST /api/policies/reorder", s.handlePolicyReorder)
 		mux.HandleFunc("POST /api/rules/reorder", s.handleRuleReorder)
+
+		// ClearPath Policy Editor - Enriched Rules API
+		rulesHandlerNoAuth := NewRulesHandler(s, s.statsCollector, s.deviceLookup)
+		mux.HandleFunc("GET /api/rules", rulesHandlerNoAuth.HandleGetRules)
+		mux.HandleFunc("GET /api/rules/flat", rulesHandlerNoAuth.HandleGetFlatRules)
+		mux.HandleFunc("GET /api/rules/groups", rulesHandlerNoAuth.HandleGetRuleGroups)
 
 		mux.HandleFunc("POST /api/system/reboot", s.handleReboot)
 		mux.HandleFunc("GET /api/system/stats", s.handleSystemStats)

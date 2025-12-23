@@ -78,13 +78,13 @@ func TestRuleExpressionGeneration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildRuleExpression(tt.rule)
+			result, err := BuildRuleExpression(tt.rule)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("buildRuleExpression() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && got != tt.want {
-				t.Errorf("buildRuleExpression() = %q, want %q", got, tt.want)
+			if !tt.wantErr && result != tt.want {
+				t.Errorf("buildRuleExpression() = %q, want %q", result, tt.want)
 			}
 		})
 	}

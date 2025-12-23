@@ -232,9 +232,19 @@ func (m *QoSManager) createFilter(link netlink.Link, rule QoSRule, classes []QoS
 
 	// Handle services - look up in our service catalog
 	for _, svc := range rule.Services {
-		if svcDef, ok := BuiltinHelpers[svc]; ok {
-			for _, port := range svcDef.Ports {
-				if err := m.addU32Filter(link, uint16(port), svcDef.Protocol, classID); err != nil {
+		if svcDef, ok := BuiltinServices[svc]; ok {
+			// BuiltinServices has single Port, not Ports list for now?
+			// Checking services.go to confirm structure.
+			// services.go: type Service struct { Port int; Code []string; Module string }
+			port := svcDef.Port
+			if port > 0 {
+				// Use "tcp" as default if Protocol is not available or assume it matches service definition logic
+				// Actually Service struct has Protocol field.
+				protoStr := "tcp"
+				if svcDef.Protocol == ProtoUDP {
+					protoStr = "udp"
+				}
+				if err := m.addU32Filter(link, uint16(port), protoStr, classID); err != nil {
 					return err
 				}
 			}

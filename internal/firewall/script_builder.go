@@ -331,29 +331,61 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 	sb.AddRule("output", "tcp dport 53 accept")
 
 	// Allow DNS/API/SSH/etc based on Zone and Interface config
-	// Consolidate into sets for cleaner ruleset
-	services := map[string][]string{
-		"dns_udp": {},
-		"dns_tcp": {},
-		"ntp":     {},
-		"ssh":     {},
-		"icmp":    {},
-		"snmp":    {},
-		"syslog":  {},
-		"web_api": {}, // Standard 80/443
+
+	// Consolidate services into TCP and UDP sets for concatenation
+	// Format: "iifname . port"
+	var tcpElements []string
+	var udpElements []string
+	var icmpElements []string
+
+	// Helper to add a service for an interface
+	addService := func(ifaceName, serviceName string) {
+		svc, ok := BuiltinServices[serviceName]
+		if !ok {
+			return // Should not happen for known builtins
+		}
+
+		// Handle TCP
+		if svc.Protocol&ProtoTCP != 0 {
+			if len(svc.Ports) > 0 {
+				for _, p := range svc.Ports {
+					tcpElements = append(tcpElements, fmt.Sprintf("%s . %d", ifaceName, p))
+				}
+			} else if svc.Port > 0 {
+				tcpElements = append(tcpElements, fmt.Sprintf("%s . %d", ifaceName, svc.Port))
+			} else if svc.Ports == nil && svc.Port == 0 && svc.EndPort == 0 {
+				// No ports defined (rare for TCP service, maybe fully custom?)
+			}
+		}
+
+		// Handle UDP
+		if svc.Protocol&ProtoUDP != 0 {
+			if len(svc.Ports) > 0 {
+				for _, p := range svc.Ports {
+					udpElements = append(udpElements, fmt.Sprintf("%s . %d", ifaceName, p))
+				}
+			} else if svc.Port > 0 {
+				udpElements = append(udpElements, fmt.Sprintf("%s . %d", ifaceName, svc.Port))
+			}
+		}
+
+		// Handle ICMP
+		if svc.Protocol&ProtoICMP != 0 {
+			icmpElements = append(icmpElements, ifaceName)
+		}
 	}
-	// Track custom Web/API ports separately: port -> []interfaces
-	customWebPorts := make(map[int][]string)
 
+	// Iterate interfaces to collect allowed services
 	for _, iface := range cfg.Interfaces {
-		// Resolve Management Configuration (Hybrid: Interface Override > Zone Default)
-
 		// 1. Zone Config (Default)
 		var zone *config.Zone
-		for i := range cfg.Zones {
-			if strings.EqualFold(cfg.Zones[i].Name, iface.Zone) {
-				zone = &cfg.Zones[i]
-				break
+		// Map zone name (could optimize with map but loop is fine for small count)
+		if iface.Zone != "" {
+			for i := range cfg.Zones {
+				if strings.EqualFold(cfg.Zones[i].Name, iface.Zone) {
+					zone = &cfg.Zones[i]
+					break
+				}
 			}
 		}
 
@@ -374,12 +406,13 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 				allowDNS = zone.Services.DNS
 				allowNTP = zone.Services.NTP
 
-				// Custom Ports (Zone only) - still handled per-interface for now as they are specific
+				// Custom Ports (Zone only)
 				for _, cp := range zone.Services.CustomPorts {
 					endPort := cp.EndPort
 					if endPort == 0 {
 						endPort = cp.Port
 					}
+					// Inline rule for custom ports (ranges hard to putting in sets with single ports)
 					sb.AddRule("input", fmt.Sprintf("iifname %q %s dport %d-%d accept", iface.Name, cp.Protocol, cp.Port, endPort))
 				}
 			} else {
@@ -415,80 +448,104 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 			}
 		}
 
-		// Collect interfaces for each service
+		// Quote interface name for nftables
+		qIface := forceQuote(iface.Name)
+
+		// Collect services
 		if allowDNS {
-			services["dns_udp"] = append(services["dns_udp"], forceQuote(iface.Name))
-			services["dns_tcp"] = append(services["dns_tcp"], forceQuote(iface.Name))
+			addService(qIface, "dns")
 		}
 		if allowNTP {
-			services["ntp"] = append(services["ntp"], forceQuote(iface.Name))
+			addService(qIface, "ntp")
 		}
 		if allowSSH {
-			services["ssh"] = append(services["ssh"], forceQuote(iface.Name))
+			addService(qIface, "ssh")
 		}
 		if allowICMP {
-			services["icmp"] = append(services["icmp"], forceQuote(iface.Name))
+			addService(qIface, "icmp")
 		}
 		if allowSNMP {
-			services["snmp"] = append(services["snmp"], forceQuote(iface.Name))
+			addService(qIface, "snmp")
 		}
 		if allowSyslog {
-			services["syslog"] = append(services["syslog"], forceQuote(iface.Name))
+			addService(qIface, "syslog")
 		}
 
+
 		if allowWeb || allowAPI {
-			services["web_api"] = append(services["web_api"], forceQuote(iface.Name))
+			addService(qIface, "http")
+			addService(qIface, "https")
+
+			// Allow forwarding to sandbox for web/api
+			// This is critical for DNATed traffic to reach the API namespace
+			// 169.254.255.2 is the hardcoded sandbox IP
+			sb.AddRule("forward", fmt.Sprintf("iifname %s ip daddr 169.254.255.2 tcp dport { 8080, 8443 } accept", qIface))
+
 			// Custom port if legacy field used
 			if iface.WebUIPort > 0 && iface.WebUIPort != 80 && iface.WebUIPort != 443 {
-				customWebPorts[iface.WebUIPort] = append(customWebPorts[iface.WebUIPort], forceQuote(iface.Name))
+				tcpElements = append(tcpElements, fmt.Sprintf("%s . %d", qIface, iface.WebUIPort))
 			}
 		}
 	}
 
-	// Consolidate services into TCP and UDP sets for concatenation
-	// Format: "iifname . port"
-	var tcpElements []string
-	var udpElements []string
-
-	// 'services' map contains QUOTED interface names.
-
-	// TCP Services
-	for _, iface := range services["ssh"] {
-		tcpElements = append(tcpElements, fmt.Sprintf("%s . 22", iface))
-	}
-	for _, iface := range services["dns_tcp"] {
-		tcpElements = append(tcpElements, fmt.Sprintf("%s . 53", iface))
-	}
-	for _, iface := range services["web_api"] {
-		tcpElements = append(tcpElements, fmt.Sprintf("%s . 80", iface))
-		tcpElements = append(tcpElements, fmt.Sprintf("%s . 443", iface))
-	}
-	for port, ifaces := range customWebPorts {
-		for _, iface := range ifaces {
-			tcpElements = append(tcpElements, fmt.Sprintf("%s . %d", iface, port))
+	// Process zones directly (for zones using match blocks instead of interface.zone)
+	// This ensures zones with management/services blocks are processed even without explicit interface config
+	zoneMap := buildZoneMapForScript(cfg)
+	for _, zone := range cfg.Zones {
+		if zone.Management == nil && zone.Services == nil {
+			continue // No rules to generate
 		}
-	}
 
-	// UDP Services
-	for _, iface := range services["dns_udp"] {
-		udpElements = append(udpElements, fmt.Sprintf("%s . 53", iface))
-	}
-	for _, iface := range services["ntp"] {
-		udpElements = append(udpElements, fmt.Sprintf("%s . 123", iface))
-	}
-	for _, iface := range services["snmp"] {
-		udpElements = append(udpElements, fmt.Sprintf("%s . 161", iface))
-	}
-	for _, iface := range services["syslog"] {
-		udpElements = append(udpElements, fmt.Sprintf("%s . 514", iface))
+		// Get interfaces for this zone
+		zoneIfaces, ok := zoneMap[zone.Name]
+		if !ok || len(zoneIfaces) == 0 {
+			continue
+		}
+
+		for _, ifaceName := range zoneIfaces {
+			qIface := forceQuote(ifaceName)
+
+			// Zone Services
+			if zone.Services != nil {
+				if zone.Services.DNS {
+					addService(qIface, "dns")
+				}
+				if zone.Services.NTP {
+					addService(qIface, "ntp")
+				}
+				if zone.Services.DHCP {
+					// DHCP is already globally allowed, but if we want interface-specific:
+					// addService(qIface, "dhcp")
+				}
+			}
+
+			// Zone Management
+			if zone.Management != nil {
+				if zone.Management.SSH {
+					addService(qIface, "ssh")
+				}
+				if zone.Management.Web || zone.Management.WebUI || zone.Management.API {
+					addService(qIface, "http")
+					addService(qIface, "https")
+
+					// Allow forwarding to sandbox for web/api
+					sb.AddRule("forward", fmt.Sprintf("iifname %s ip daddr 169.254.255.2 tcp dport { 8080, 8443 } accept", qIface))
+				}
+				if zone.Management.ICMP {
+					addService(qIface, "icmp")
+				}
+				if zone.Management.SNMP {
+					addService(qIface, "snmp")
+				}
+				if zone.Management.Syslog {
+					addService(qIface, "syslog")
+				}
+			}
+		}
 	}
 
 	// Apply Consolidated Rules
 	if len(tcpElements) > 0 {
-		// Sort for deterministic output (optional but good for tests)
-		// We'll rely on the order of insertion which is range-based (unstable from maps, stable from slice? 'services' is map)
-		// Sorting would be better but let's trust the set syntax handles it.
-		// Use anonymous set
 		sb.AddRule("input", fmt.Sprintf("iifname . tcp dport { %s } accept", strings.Join(tcpElements, ", ")))
 	}
 
@@ -497,8 +554,8 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 	}
 
 	// ICMP (Keep separate as it doesn't match dport)
-	if len(services["icmp"]) > 0 {
-		sb.AddRule("input", fmt.Sprintf("iifname { %s } meta l4proto icmp accept", strings.Join(services["icmp"], ", ")))
+	if len(icmpElements) > 0 {
+		sb.AddRule("input", fmt.Sprintf("iifname { %s } meta l4proto icmp accept", strings.Join(icmpElements, ", ")))
 	}
 
 	// Add auto-generated IPSet block rules
@@ -550,7 +607,7 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 	}
 
 	// Build zone map for policy rules
-	zoneMap := buildZoneMapForScript(cfg)
+	zoneMap = buildZoneMapForScript(cfg)
 
 	// Add policy chains and rules
 	// Initialize maps for O(1) dispatch
@@ -574,7 +631,7 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 			if rule.Disabled {
 				continue
 			}
-			ruleExpr, err := buildRuleExpression(rule)
+			ruleExpr, err := BuildRuleExpression(rule)
 			if err != nil {
 				return nil, err
 			}
@@ -719,8 +776,9 @@ func buildZoneMapForScript(cfg *Config) map[string][]string {
 	return zoneMap
 }
 
-// buildRuleExpression converts a PolicyRule to an nft rule expression.
-func buildRuleExpression(rule config.PolicyRule) (string, error) {
+// BuildRuleExpression converts a PolicyRule to an nft rule expression string.
+// Exported for use by the API layer to show generated syntax.
+func BuildRuleExpression(rule config.PolicyRule) (string, error) {
 	var parts []string
 
 	// Protocol
@@ -786,10 +844,6 @@ func buildRuleExpression(rule config.PolicyRule) (string, error) {
 		}
 	}
 
-	// Counter
-	// Only add counter if one hasn't been effectively added by a log statement that doesn't terminate
-	// But standard practice in nft is `... counter accept` or `... log ... counter drop`
-
 	// Action
 	action := "accept"
 	switch strings.ToLower(rule.Action) {
@@ -805,9 +859,25 @@ func buildRuleExpression(rule config.PolicyRule) (string, error) {
 		parts = append(parts, "limit rate 10/minute log group 0 prefix \"DROP_RULE: \"")
 	}
 
-	// Add final counter and verdict
-	parts = append(parts, "counter")
+	// Add counter for observability (required for sparklines)
+	// Named counter if specified, anonymous otherwise
+	if rule.Counter != "" {
+		parts = append(parts, fmt.Sprintf("counter name %q", rule.Counter))
+	} else {
+		parts = append(parts, "counter")
+	}
+
+	// Add verdict
 	parts = append(parts, action)
+
+	// Add rule ID comment for stats collector correlation
+	// This allows mapping nft counters back to config rule IDs
+	if rule.ID != "" {
+		parts = append(parts, fmt.Sprintf(`comment "rule:%s"`, rule.ID))
+	} else if rule.Name != "" {
+		// Fallback for rules without explicit IDs
+		parts = append(parts, fmt.Sprintf(`comment "rule:%s"`, rule.Name))
+	}
 
 	return strings.Join(parts, " "), nil
 }
@@ -896,6 +966,9 @@ func BuildNATTableScript(cfg *Config) (*ScriptBuilder, error) {
 	// Postrouting chain for SNAT/Masquerade (policy accept)
 	sb.AddChain("postrouting", "nat", "postrouting", 100, "accept")
 
+	// Pre-calculate zone map for correct interface resolution (supports match blocks)
+	zoneMap := buildZoneMapForScript(cfg)
+
 	// Track interfaces with masquerade enabled to prevent duplicates
 	seenMasq := make(map[string]bool)
 
@@ -975,6 +1048,77 @@ func BuildNATTableScript(cfg *Config) (*ScriptBuilder, error) {
 			combinedMatch := fmt.Sprintf("oifname \"%s\" %s", r.OutInterface, match)
 			sb.AddRule("postrouting", fmt.Sprintf("%ssnat to %s%s", combinedMatch, r.SNATIP, commentSuffix))
 		}
+
+		// Hairpin NAT (NAT Reflection)
+		if r.Type == "dnat" && r.Hairpin && r.ToIP != "" {
+			// Resolve WAN IPs to match against
+			var hairpinIPs []string
+			if r.DestIP != "" {
+				hairpinIPs = append(hairpinIPs, r.DestIP)
+			} else if r.InInterface != "" {
+				// Try to resolve interface IP
+				for _, iface := range cfg.Interfaces {
+					if iface.Name == r.InInterface {
+						for _, ipCIDR := range iface.IPv4 {
+							ip, _, err := net.ParseCIDR(ipCIDR)
+							if err == nil && ip != nil {
+								hairpinIPs = append(hairpinIPs, ip.String())
+							}
+						}
+						break
+					}
+				}
+			}
+
+			if len(hairpinIPs) > 0 {
+				for _, ipAddr := range hairpinIPs {
+					// 1. Reflected DNAT
+					hairpinMatch := ""
+					if r.Protocol != "" && r.Protocol != "any" && !suppressProto {
+						hairpinMatch += fmt.Sprintf("meta l4proto %s ", r.Protocol)
+					}
+					hairpinMatch += fmt.Sprintf("ip daddr %s ", ipAddr)
+					
+					if r.DestPort != "" {
+						proto := r.Protocol
+						if proto == "" || proto == "any" {
+							proto = "tcp"
+						}
+						hairpinMatch += fmt.Sprintf("%s dport %s ", proto, r.DestPort)
+					}
+
+					if r.InInterface != "" {
+						hairpinMatch = fmt.Sprintf("iifname != \"%s\" %s", r.InInterface, hairpinMatch)
+					}
+
+					target := fmt.Sprintf("%s:%s", r.ToIP, r.ToPort)
+					if r.ToPort == "" {
+						target = r.ToIP
+					}
+					
+					sb.AddRule("prerouting", fmt.Sprintf("%sdnat to %s comment \"hairpin: %s\"", hairpinMatch, target, r.Name))
+
+					// 2. Hairpin SNAT (Masquerade)
+					masqMatch := ""
+					if r.InInterface != "" {
+						masqMatch += fmt.Sprintf("iifname != \"%s\" ", r.InInterface)
+					}
+					
+					masqMatch += fmt.Sprintf("ip daddr %s ", r.ToIP)
+					if r.ToPort != "" {
+						proto := r.Protocol
+						if proto == "" || proto == "any" {
+							blockProto := "tcp"
+							masqMatch += fmt.Sprintf("%s dport %s ", blockProto, r.ToPort)
+						} else {
+							masqMatch += fmt.Sprintf("%s dport %s ", proto, r.ToPort)
+						}
+					}
+					
+					sb.AddRule("postrouting", fmt.Sprintf("%smasquerade comment \"hairpin-masq: %s\"", masqMatch, r.Name))
+				}
+			}
+		}
 	}
 
 	// 1b. Policy-based auto-masquerade
@@ -994,17 +1138,21 @@ func BuildNATTableScript(cfg *Config) (*ScriptBuilder, error) {
 			srcZone := findZone(cfg.Zones, pol.From)
 			dstZone := findZone(cfg.Zones, pol.To)
 			if srcZone != nil && dstZone != nil {
-				srcIsInternal := isZoneInternal(srcZone)
-				dstIsExternal := isZoneExternal(dstZone, cfg.Interfaces)
+				// Use resolved interfaces for zone checks
+				srcIfaces := zoneMap[srcZone.Name]
+				dstIfaces := zoneMap[dstZone.Name]
+				srcIsInternal := isZoneInternal(srcZone, srcIfaces)
+				dstIsExternal := isZoneExternal(dstZone, dstIfaces, cfg.Interfaces)
 				shouldMasquerade = srcIsInternal && dstIsExternal
 			}
 		}
 
 		if shouldMasquerade {
 			// Get outbound interfaces for the destination zone
-			dstZone := findZone(cfg.Zones, pol.To)
-			if dstZone != nil {
-				for _, ifName := range dstZone.Interfaces {
+			// Use resolved interfaces from zoneMap
+			dstIfaces, ok := zoneMap[pol.To]
+			if ok {
+				for _, ifName := range dstIfaces {
 					if !seenMasq[ifName] {
 						comment := fmt.Sprintf("auto-masq %s->%s", pol.From, pol.To)
 						sb.AddRule("postrouting", fmt.Sprintf("oifname \"%s\" masquerade comment %q", ifName, comment))
@@ -1044,6 +1192,52 @@ func BuildNATTableScript(cfg *Config) (*ScriptBuilder, error) {
 				sb.AddRule("prerouting", fmt.Sprintf(
 					"iifname \"%s\" tcp dport %d redirect to :8080",
 					iface.Name, extPort))
+			}
+		}
+	}
+
+	// Zone-based Web UI DNAT (for zones using management { web = true })
+	// This redirects standard ports 80/443 to the sandbox high ports
+	for _, zone := range cfg.Zones {
+		if zone.Management == nil || (!zone.Management.Web && !zone.Management.WebUI && !zone.Management.API) {
+			continue
+		}
+
+		// Get interfaces for this zone
+		zoneIfaces, ok := zoneMap[zone.Name]
+		if !ok || len(zoneIfaces) == 0 {
+			continue
+		}
+
+		for _, ifaceName := range zoneIfaces {
+			if sandboxEnabled {
+				// HTTPS: 443 -> sandbox:8443
+				sb.AddRule("prerouting", fmt.Sprintf(
+					"iifname \"%s\" tcp dport 443 dnat to 169.254.255.2:8443",
+					ifaceName))
+				// HTTP: 80 -> sandbox:8080 (for redirect to HTTPS)
+				sb.AddRule("prerouting", fmt.Sprintf(
+					"iifname \"%s\" tcp dport 80 dnat to 169.254.255.2:8080",
+					ifaceName))
+
+				// Direct Access: 8443 -> sandbox:8443
+				// Required because HTTP redirect sends clients to :8443
+				sb.AddRule("prerouting", fmt.Sprintf(
+					"iifname \"%s\" tcp dport 8443 dnat to 169.254.255.2:8443",
+					ifaceName))
+				// Direct Access: 8080 -> sandbox:8080
+				sb.AddRule("prerouting", fmt.Sprintf(
+					"iifname \"%s\" tcp dport 8080 dnat to 169.254.255.2:8080",
+					ifaceName))
+			} else {
+				// Sandbox disabled - redirect to host ports
+				sb.AddRule("prerouting", fmt.Sprintf(
+					"iifname \"%s\" tcp dport 443 redirect to :8443",
+					ifaceName))
+				sb.AddRule("prerouting", fmt.Sprintf(
+					"iifname \"%s\" tcp dport 80 redirect to :8080",
+					ifaceName))
+				// Direct 8443/8080 (no redirect needed if already listening there)
 			}
 		}
 	}
@@ -1123,6 +1317,12 @@ func BuildNATTableScript(cfg *Config) (*ScriptBuilder, error) {
 		// Add masquerade for redirected DNS traffic
 		sb.AddRule("postrouting", fmt.Sprintf("ip daddr %s udp dport %d masquerade comment \"dns-inspect-masq\"", listenAddr, listenPort))
 		sb.AddRule("postrouting", fmt.Sprintf("ip daddr %s tcp dport %d masquerade comment \"dns-inspect-masq\"", listenAddr, listenPort))
+	}
+
+	// Always masquerade traffic to the sandbox to ensure return traffic works
+	// and to solve routing issues with Link-Local addresses from external interfaces.
+	if sandboxEnabled {
+		sb.AddRule("postrouting", "ip daddr 169.254.255.2 masquerade comment \"sandbox-masq\"")
 	}
 
 	return sb, nil
@@ -1301,7 +1501,7 @@ func findZone(zones []config.Zone, name string) *config.Zone {
 }
 
 // isZoneInternal returns true if the zone contains RFC1918 (internal) networks
-func isZoneInternal(zone *config.Zone) bool {
+func isZoneInternal(zone *config.Zone, zoneIfaces []string) bool {
 	// Check zone's explicitly defined networks
 	for _, network := range zone.Networks {
 		if isRFC1918Network(network) {
@@ -1311,14 +1511,14 @@ func isZoneInternal(zone *config.Zone) bool {
 	// Zones with only interfaces are typically internal (LAN)
 	// But we can't determine this without checking interface IPs
 	// Default: if zone has interfaces but no networks, assume internal
-	if len(zone.Interfaces) > 0 && len(zone.Networks) == 0 {
+	if len(zoneIfaces) > 0 && len(zone.Networks) == 0 {
 		return true
 	}
 	return false
 }
 
 // isZoneExternal returns true if the zone is external (WAN) based on heuristics
-func isZoneExternal(zone *config.Zone, interfaces []config.Interface) bool {
+func isZoneExternal(zone *config.Zone, zoneIfaces []string, interfaces []config.Interface) bool {
 	// 1. Explicit setting
 	if zone.External != nil {
 		return *zone.External
@@ -1331,7 +1531,7 @@ func isZoneExternal(zone *config.Zone, interfaces []config.Interface) bool {
 	}
 
 	// 3. Interface has DHCP client enabled (getting address from upstream)
-	for _, ifName := range zone.Interfaces {
+	for _, ifName := range zoneIfaces {
 		for _, iface := range interfaces {
 			if iface.Name == ifName && iface.DHCP {
 				return true

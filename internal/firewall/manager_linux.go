@@ -5,6 +5,7 @@ package firewall
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"unsafe"
@@ -168,6 +169,72 @@ func (m *Manager) ApplyConfig(cfg *Config) error {
 		}
 	}
 
+	// 7. Enable route_localnet to allow routing to 169.254.x.x (sandbox)
+	// This is required because the kernel treats Link-Local as non-routable by default.
+	if err := m.enableRouteLocalnet(localCfg); err != nil {
+		m.logger.Warn("Failed to enable route_localnet", "error", err)
+	}
+
+	return nil
+}
+
+// enableRouteLocalnet enables route_localnet on interfaces where Web/API access is required.
+func (m *Manager) enableRouteLocalnet(cfg *Config) error {
+	// Helper to write file
+	writeSysctl := func(path, value string) error {
+		return os.WriteFile(path, []byte(value), 0644)
+	}
+
+	// We no longer enable globally on all/default to adhere to least privilege.
+	// Only interfaces that actually need to route to the sandbox (Link-Local) will have it enabled.
+
+	// Helper to check if an interface needs route_localnet
+	needsRouteLocalnet := func(iface config.Interface) bool {
+		// 1. Legacy Interface Config
+		if iface.AccessWebUI {
+			return true
+		}
+		if iface.Management != nil && (iface.Management.Web || iface.Management.WebUI || iface.Management.API) {
+			return true
+		}
+
+		// 2. Zone Config
+		// Find zone for this interface
+		if iface.Zone != "" {
+			for _, z := range cfg.Zones {
+				if strings.EqualFold(z.Name, iface.Zone) {
+					if z.Management != nil && (z.Management.Web || z.Management.WebUI || z.Management.API) {
+						return true
+					}
+					break
+				}
+			}
+		}
+		return false
+	}
+
+	// Enable on specific interfaces
+	for _, iface := range cfg.Interfaces {
+		// sanitization for path safety not strictly needed as interface names are validated differently,
+		// but good practice. Assuming verified interface names.
+		path := fmt.Sprintf("/proc/sys/net/ipv4/conf/%s/route_localnet", iface.Name)
+		
+		// Only enable if needed
+		targetValue := "0"
+		if needsRouteLocalnet(iface) {
+			targetValue = "1"
+		}
+
+		if _, err := os.Stat(path); err == nil {
+			if err := writeSysctl(path, targetValue); err != nil {
+				m.logger.Warn("Failed to set route_localnet on interface", "interface", iface.Name, "value", targetValue, "error", err)
+			} else {
+				if targetValue == "1" {
+					m.logger.Debug("Enabled route_localnet on interface", "interface", iface.Name)
+				}
+			}
+		}
+	}
 	return nil
 }
 

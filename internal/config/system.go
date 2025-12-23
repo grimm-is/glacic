@@ -10,12 +10,14 @@ type Features struct {
 
 // APIConfig configures the REST API server.
 type APIConfig struct {
-	Enabled        bool   `hcl:"enabled,optional" json:"enabled,omitempty"`
-	DisableSandbox bool   `hcl:"disable_sandbox,optional" json:"disable_sandbox,omitempty"` // Default: false (Sandbox Enabled)
-	Listen         string `hcl:"listen,optional" json:"listen,omitempty"`                   // e.g., "127.0.0.1:8080"
-	TLSCert        string `hcl:"tls_cert,optional" json:"tls_cert,omitempty"`               // Path to TLS certificate
-	TLSKey         string `hcl:"tls_key,optional" json:"tls_key,omitempty"`                 // Path to TLS key
-	RequireAuth    bool   `hcl:"require_auth,optional" json:"require_auth,omitempty"`       // Require API key auth
+	Enabled             bool   `hcl:"enabled,optional" json:"enabled,omitempty"`
+	DisableSandbox      bool   `hcl:"disable_sandbox,optional" json:"disable_sandbox,omitempty"`       // Default: false (Sandbox Enabled)
+	Listen              string `hcl:"listen,optional" json:"listen,omitempty"`                         // HTTP listen address, e.g., ":8080" (for redirect to HTTPS)
+	TLSListen           string `hcl:"tls_listen,optional" json:"tls_listen,omitempty"`                 // HTTPS listen address, e.g., ":8443"
+	TLSCert             string `hcl:"tls_cert,optional" json:"tls_cert,omitempty"`                     // Path to TLS certificate
+	TLSKey              string `hcl:"tls_key,optional" json:"tls_key,omitempty"`                       // Path to TLS key
+	DisableHTTPRedirect bool   `hcl:"disable_http_redirect,optional" json:"disable_http_redirect,omitempty"` // Disable HTTP->HTTPS redirect
+	RequireAuth         bool   `hcl:"require_auth,optional" json:"require_auth,omitempty"`             // Require API key auth
 
 	// Bootstrap key (for initial setup, should be removed after creating real keys)
 	BootstrapKey string `hcl:"bootstrap_key,optional" json:"bootstrap_key,omitempty"`
