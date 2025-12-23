@@ -11,7 +11,6 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -654,22 +653,22 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 			subReq.AddCookie(c)
 		}
 
-		// Capture response
-		rr := httptest.NewRecorder()
+		// Capture response using our own writer (avoids httptest dependency)
+		rr := &batchResponseWriter{header: make(http.Header), statusCode: http.StatusOK}
 		s.mux.ServeHTTP(rr, subReq)
 
 		// Parse body if JSON
 		var respBody any
-		if rr.Body.Len() > 0 {
-			if contentType := rr.Header().Get("Content-Type"); strings.Contains(contentType, "application/json") {
-				_ = json.Unmarshal(rr.Body.Bytes(), &respBody)
+		if rr.body.Len() > 0 {
+			if contentType := rr.header.Get("Content-Type"); strings.Contains(contentType, "application/json") {
+				_ = json.Unmarshal(rr.body.Bytes(), &respBody)
 			} else {
-				respBody = rr.Body.String()
+				respBody = rr.body.String()
 			}
 		}
 
 		responses[i] = BatchResponse{
-			Status: rr.Code,
+			Status: rr.statusCode,
 			Body:   respBody,
 		}
 	}
@@ -823,6 +822,26 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		return h.Hijack()
 	}
 	return nil, nil, fmt.Errorf("hijack not supported")
+}
+
+// batchResponseWriter captures HTTP responses for batch API processing.
+// This avoids importing net/http/httptest in production code.
+type batchResponseWriter struct {
+	header     http.Header
+	body       bytes.Buffer
+	statusCode int
+}
+
+func (w *batchResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *batchResponseWriter) Write(b []byte) (int, error) {
+	return w.body.Write(b)
+}
+
+func (w *batchResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
