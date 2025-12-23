@@ -681,6 +681,39 @@ func (s *Server) handleBrand(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, brand.Get())
 }
 
+func (s *Server) handleOpenAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/yaml")
+	w.Write(openAPISpec)
+}
+
+func (s *Server) handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
+	// Simple Swagger UI HTML
+	html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="SwaggerHTT" />
+    <title>Glacic API Documentation</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+<script>
+    window.onload = () => {
+        window.ui = SwaggerUIBundle({
+            url: '/api/openapi.yaml',
+            dom_id: '#swagger-ui',
+        });
+    };
+</script>
+</body>
+</html>`
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(html))
+}
+
 // Start starts the HTTP server.
 // Mitigation: OWASP A02:2021-Cryptographic Failures (TLS encryption)
 func (s *Server) Start(addr string) error {
@@ -704,24 +737,93 @@ func (s *Server) Start(addr string) error {
 	s.collector.UpdateSystemMetrics(uptime)
 
 	// Check if TLS is configured
-	if s.Config != nil && s.Config.API != nil &&
-		s.Config.API.TLSCert != "" && s.Config.API.TLSKey != "" {
+	// TLS is enabled if tls_listen is set OR if tls_cert/tls_key are set
+	tlsEnabled := s.Config != nil && s.Config.API != nil &&
+		(s.Config.API.TLSListen != "" ||
+			(s.Config.API.TLSCert != "" && s.Config.API.TLSKey != ""))
+
+	if tlsEnabled {
+		// Use default cert paths if not specified
+		tlsCert := s.Config.API.TLSCert
+		tlsKey := s.Config.API.TLSKey
+		if tlsCert == "" {
+			tlsCert = "/var/lib/glacic/certs/server.crt"
+		}
+		if tlsKey == "" {
+			tlsKey = "/var/lib/glacic/certs/server.key"
+		}
 
 		// Auto-generate self-signed cert if missing
 		// We use a 1 year validity for self-signed certs
-		if _, err := tls.EnsureCertificate(s.Config.API.TLSCert, s.Config.API.TLSKey, 365); err != nil {
+		if _, err := tls.EnsureCertificate(tlsCert, tlsKey, 365); err != nil {
 			logging.APILog("error", "Failed to ensure TLS certificate: %v", err)
 			return err
 		}
 
-		logging.APILog("info", "API server starting with TLS on %s", addr)
-		return server.ListenAndServeTLS(s.Config.API.TLSCert, s.Config.API.TLSKey)
+		// Determine TLS listen address (use TLSListen if set, otherwise addr)
+		tlsAddr := addr
+		if s.Config.API.TLSListen != "" {
+			tlsAddr = s.Config.API.TLSListen
+		}
+
+		// Create TLS server
+		tlsServer := &http.Server{
+			Addr:              tlsAddr,
+			Handler:           s.Handler(),
+			ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+			ReadTimeout:       cfg.ReadTimeout,
+			WriteTimeout:      cfg.WriteTimeout,
+			IdleTimeout:       cfg.IdleTimeout,
+			MaxHeaderBytes:    cfg.MaxHeaderBytes,
+		}
+
+		// Start HTTP redirect server (unless disabled)
+		if !s.Config.API.DisableHTTPRedirect {
+			go s.startHTTPRedirectServer()
+		}
+
+		logging.APILog("info", "API server starting with TLS on %s", tlsAddr)
+		return tlsServer.ListenAndServeTLS(tlsCert, tlsKey)
 	}
 
 	logging.APILog("info", "API server starting on %s (no TLS)", addr)
 	return server.ListenAndServe()
 }
 
+// startHTTPRedirectServer starts a plain HTTP server that redirects to HTTPS.
+func (s *Server) startHTTPRedirectServer() {
+	// Determine listen address for HTTP redirect
+	httpAddr := ":8080" // default
+	if s.Config != nil && s.Config.API != nil && s.Config.API.Listen != "" {
+		httpAddr = s.Config.API.Listen
+	}
+
+	redirectHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Build HTTPS URL - use port 8443 for internal redirect, or 443 for external
+		target := "https://" + r.Host
+		// If connecting to 8080, redirect to 8443
+		// If connecting to 80 (DNATed), redirect to 443
+		if strings.Contains(r.Host, ":8080") {
+			target = strings.Replace(target, ":8080", ":8443", 1)
+		} else if !strings.Contains(r.Host, ":") {
+			// No port in Host header, assume standard ports (80->443)
+			// Keep target as-is (will use default 443)
+		}
+		target += r.URL.RequestURI()
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	})
+
+	redirectServer := &http.Server{
+		Addr:              httpAddr,
+		Handler:           redirectHandler,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	logging.APILog("info", "HTTP redirect server starting on %s -> HTTPS", httpAddr)
+	if err := redirectServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logging.APILog("error", "HTTP redirect server error: %v", err)
+	}
+}
 // ServeListener starts the API server using an existing listener.
 // This is used during seamless upgrades when the listener is handed off.
 func (s *Server) ServeListener(listener net.Listener) error {
@@ -1979,8 +2081,8 @@ func (s *Server) handleUpdateDNS(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Run migration
-	s.Config.MigrateDNSConfig()
+	// Run post-load migrations (e.g., DNS config migration)
+	config.ApplyPostLoadMigrations(s.Config)
 
 	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
@@ -2566,6 +2668,11 @@ type SystemSettingsRequest struct {
 	IPForwarding      *bool `json:"ip_forwarding,omitempty"`
 	MSSClamping       *bool `json:"mss_clamping,omitempty"`
 	EnableFlowOffload *bool `json:"enable_flow_offload,omitempty"`
+
+	// Feature Flags
+	QoS             *bool `json:"qos,omitempty"`
+	ThreatIntel     *bool `json:"threat_intel,omitempty"`
+	NetworkLearning *bool `json:"network_learning,omitempty"`
 }
 
 // handleSystemSettings handles global system settings updates
@@ -2602,6 +2709,27 @@ func (s *Server) handleSystemSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.EnableFlowOffload != nil {
 		cfg.EnableFlowOffload = *req.EnableFlowOffload
+		changes = true
+	}
+
+	// Update Features
+	// Note: We access the nested Features struct fields directly
+	// Initialize Features if nil (config file may not have features block)
+	if req.QoS != nil || req.ThreatIntel != nil || req.NetworkLearning != nil {
+		if cfg.Features == nil {
+			cfg.Features = &config.Features{}
+		}
+	}
+	if req.QoS != nil {
+		cfg.Features.QoS = *req.QoS
+		changes = true
+	}
+	if req.ThreatIntel != nil {
+		cfg.Features.ThreatIntel = *req.ThreatIntel
+		changes = true
+	}
+	if req.NetworkLearning != nil {
+		cfg.Features.NetworkLearning = *req.NetworkLearning
 		changes = true
 	}
 
@@ -3520,9 +3648,12 @@ func (s *Server) handleMonitoringConntrack(w http.ResponseWriter, r *http.Reques
 
 // require checks for sufficient permission from EITHER an API Key OR a User Session.
 func (s *Server) require(perm storage.Permission, handler http.Handler) http.Handler {
+	// Chain: handler -> audit -> CSRF -> auth check
+	auditedHandler := s.auditMiddleware(handler)
+	
 	// Apply CSRF protection to the inner handler
 	// The CSRF middleware itself handles skipping for API keys or non-state-changing methods
-	protectedHandler := CSRFMiddleware(s.csrfManager, s.authStore)(handler)
+	protectedHandler := CSRFMiddleware(s.csrfManager, s.authStore)(auditedHandler)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 1. API Key Check
@@ -3599,33 +3730,4 @@ func (s *Server) permToRole(perm storage.Permission) string {
 	return "view"
 }
 
-func (s *Server) handleOpenAPI(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/yaml")
-	w.Write(openAPISpec)
-}
 
-func (s *Server) handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprint(w, `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="SwaggerUI" />
-    <title>Glacic Firewall API</title>
-    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
-</head>
-<body>
-<div id="swagger-ui"></div>
-<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
-<script>
-    window.onload = () => {
-        window.ui = SwaggerUIBundle({
-            url: '/api/openapi.yaml',
-            dom_id: '#swagger-ui',
-        });
-    };
-</script>
-</body>
-</html>`)
-}

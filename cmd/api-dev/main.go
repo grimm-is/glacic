@@ -15,6 +15,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -178,6 +179,11 @@ func main() {
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println("\nStart UI: cd ui && npm run dev")
 	fmt.Println("")
+
+
+	// OpenAPI & Docs
+	mux.HandleFunc("/api/openapi.yaml", handleOpenAPI)
+	mux.HandleFunc("/api/docs", handleSwaggerUI)
 
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(mux)))
 }
@@ -815,6 +821,47 @@ func handleLearningRules(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	})
+}
+
+
+// ========== Docs Handlers ==========
+
+func handleOpenAPI(w http.ResponseWriter, r *http.Request) {
+	// Read the generated spec file
+	// In dev mode, we read from the file system
+	content, err := os.ReadFile("internal/api/spec/openapi.yaml")
+	if err != nil {
+		http.Error(w, "Spec not found (run cmd/gen-docs): "+err.Error(), 404)
+		return
+	}
+	w.Header().Set("Content-Type", "text/yaml")
+	w.Write(content)
+}
+
+func handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="SwaggerUI" />
+    <title>Glacic Firewall API</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+<script>
+    window.onload = () => {
+        window.ui = SwaggerUIBundle({
+            url: '/api/openapi.yaml',
+            dom_id: '#swagger-ui',
+        });
+    };
+</script>
+</body>
+</html>`)
 }
 
 // ========== Helpers ==========
