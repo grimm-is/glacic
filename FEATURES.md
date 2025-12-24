@@ -88,7 +88,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Advanced | Recursive Resolver | 🔲 L1 | Config only |
 | **SERVICES** | | | |
 | WoL | Wake-on-LAN | 🟩 L4 | Magic packet works |
-| IPv6 | Router Advertisements | 🟧 L2 | Basic RA, limited testing |
+| IPv6 | Router Advertisements | 🟩 L4 | SLAAC prefix info, `t/01-sanity/ipv6_only_test.sh` |
 | Discovery | LLDP Listener | 🟩 L4 | Confirmed via `t/70-system/lldp_test.sh` |
 | Threat Intel | IP/Domain Blocklists | 🟩 L4 | Fetches URLs, updates ipsets (`t/50-security/threat_intel_test.sh`) |
 | Services | mDNS Reflector | 🟩 L4 | Tested via `t/40-network/mdns_test.sh` |

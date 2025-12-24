@@ -83,37 +83,59 @@ func (s *Service) runRA(cfg config.Interface) {
 	}
 	defer conn.Close()
 
-	// Note: Prefix parsing from cfg.IPv6 is deferred - the current implementation
-	// sends minimal RAs. Full prefix info options can be added when needed.
+	// Parse prefixes from config
+	var prefixOpts []ndp.Option
+	for _, cidr := range cfg.IPv6 {
+		prefix, err := netip.ParsePrefix(cidr)
+		if err != nil {
+			log.Printf("[RA] Invalid IPv6 prefix %q on %s: %v", cidr, cfg.Name, err)
+			continue
+		}
+		// Skip link-local prefixes
+		if prefix.Addr().IsLinkLocalUnicast() {
+			continue
+		}
+		prefixOpts = append(prefixOpts, &ndp.PrefixInformation{
+			PrefixLength:                   uint8(prefix.Bits()),
+			OnLink:                         true,
+			AutonomousAddressConfiguration: true, // Enable SLAAC
+			ValidLifetime:                  86400 * time.Second, // 1 day
+			PreferredLifetime:              14400 * time.Second, // 4 hours
+			Prefix:                         prefix.Addr(),
+		})
+	}
 
-	ticker := time.NewTicker(10 * time.Second) // Send RA every 10s (too frequent for prod, good for test)
+	if len(prefixOpts) == 0 {
+		log.Printf("[RA] No valid prefixes for %s, RA will not advertise SLAAC", cfg.Name)
+	}
+
+	ticker := time.NewTicker(30 * time.Second) // Send RA every 30s
 	defer ticker.Stop()
+
+	// Send initial RA immediately
+	s.sendRA(conn, cfg.Name, prefixOpts)
 
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
 		case <-ticker.C:
-			// Construct RA
-			ra := &ndp.RouterAdvertisement{
-				CurrentHopLimit:           64,
-				RouterSelectionPreference: ndp.Medium,
-				RouterLifetime:            1800 * time.Second, // 30 mins
-				Options:                   []ndp.Option{
-					// Prefix Option
-					// MTU Option
-				},
-			}
-
-			// Send to multicast
-			// to := &net.IPAddr{IP: net.IPv6linklocalallrouters} // Unused for now
-			// RAs are sent to LinkLocalAllNodes (ff02::1)
-			// netip.Addr is required by mdlayher/ndp v1
-			dst, _ := netip.ParseAddr("ff02::1")
-
-			if err := conn.WriteTo(ra, nil, dst); err != nil {
-				log.Printf("[RA] Failed to send RA on %s: %v", cfg.Name, err)
-			}
+			s.sendRA(conn, cfg.Name, prefixOpts)
 		}
 	}
 }
+
+func (s *Service) sendRA(conn *ndp.Conn, ifaceName string, prefixOpts []ndp.Option) {
+	ra := &ndp.RouterAdvertisement{
+		CurrentHopLimit:           64,
+		RouterSelectionPreference: ndp.Medium,
+		RouterLifetime:            1800 * time.Second, // 30 mins
+		Options:                   prefixOpts,
+	}
+
+	dst, _ := netip.ParseAddr("ff02::1")
+	if err := conn.WriteTo(ra, nil, dst); err != nil {
+		log.Printf("[RA] Failed to send RA on %s: %v", ifaceName, err)
+	}
+}
+

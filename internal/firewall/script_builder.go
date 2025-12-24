@@ -1360,6 +1360,99 @@ func BuildNATTableScript(cfg *Config) (*ScriptBuilder, error) {
 	return sb, nil
 }
 
+// BuildNAT6TableScript builds the IPv6 NAT table (NAT66) for masquerade support.
+// This enables private IPv6 networks (e.g., ULA, fd00::/8) to route to the public internet.
+func BuildNAT6TableScript(cfg *Config) (*ScriptBuilder, error) {
+	if cfg.Interfaces == nil {
+		return nil, nil
+	}
+
+	// Only build NAT6 if there's at least one policy with masquerade potential
+	// or an explicit IPv6 NAT rule
+	hasIPv6Masq := false
+	for _, pol := range cfg.Policies {
+		if pol.Disabled {
+			continue
+		}
+		// Check if policy might need masquerade (from internal to external)
+		if pol.Masquerade != nil && *pol.Masquerade {
+			hasIPv6Masq = true
+			break
+		}
+	}
+	// Also check for auto-masquerade (internal->external zones)
+	if !hasIPv6Masq {
+		for _, pol := range cfg.Policies {
+			if pol.Disabled {
+				continue
+			}
+			srcZone := findZone(cfg.Zones, pol.From)
+			dstZone := findZone(cfg.Zones, pol.To)
+			if srcZone != nil && dstZone != nil {
+				zoneMap := buildZoneMapForScript(cfg)
+				srcIfaces := zoneMap[srcZone.Name]
+				dstIfaces := zoneMap[dstZone.Name]
+				srcIsInternal := isZoneInternal(srcZone, srcIfaces)
+				dstIsExternal := isZoneExternal(dstZone, dstIfaces, cfg.Interfaces)
+				if srcIsInternal && dstIsExternal {
+					hasIPv6Masq = true
+					break
+				}
+			}
+		}
+	}
+
+	if !hasIPv6Masq {
+		return nil, nil
+	}
+
+	sb := NewScriptBuilder("nat6", "ip6")
+	sb.AddTable()
+
+	// Postrouting chain for IPv6 masquerade (policy accept)
+	sb.AddChain("postrouting", "nat", "postrouting", 100, "accept")
+
+	// Build zone map for interface resolution
+	zoneMap := buildZoneMapForScript(cfg)
+	seenMasq := make(map[string]bool)
+
+	// Add masquerade rules for internal->external policies
+	for _, pol := range cfg.Policies {
+		if pol.Disabled {
+			continue
+		}
+
+		shouldMasquerade := pol.Masquerade != nil && *pol.Masquerade
+		if !shouldMasquerade {
+			// Auto-detect: internal zone -> external zone
+			srcZone := findZone(cfg.Zones, pol.From)
+			dstZone := findZone(cfg.Zones, pol.To)
+			if srcZone != nil && dstZone != nil {
+				srcIfaces := zoneMap[srcZone.Name]
+				dstIfaces := zoneMap[dstZone.Name]
+				srcIsInternal := isZoneInternal(srcZone, srcIfaces)
+				dstIsExternal := isZoneExternal(dstZone, dstIfaces, cfg.Interfaces)
+				shouldMasquerade = srcIsInternal && dstIsExternal
+			}
+		}
+
+		if shouldMasquerade {
+			dstIfaces, ok := zoneMap[pol.To]
+			if ok {
+				for _, ifName := range dstIfaces {
+					if !seenMasq[ifName] {
+						comment := fmt.Sprintf("ipv6-masq %s->%s", pol.From, pol.To)
+						sb.AddRule("postrouting", fmt.Sprintf("oifname \"%s\" masquerade comment %q", ifName, comment))
+						seenMasq[ifName] = true
+					}
+				}
+			}
+		}
+	}
+
+	return sb, nil
+}
+
 // resolveZoneInterfaces resolves a zone name or wildcard to a list of interface names.
 func resolveZoneInterfaces(pattern string, zoneMap map[string][]string) []string {
 	if interfaces, ok := zoneMap[pattern]; ok {
