@@ -47,7 +47,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Rules | Rule Logging (nflog) | 🟩 L4 | Confirmed via `t/80-monitoring/nflog_capture_test.sh` |
 | Rules | Rate Limiting | 🟩 L4 | Confirmed via `t/65-qos/qos_test.sh` |
 | Rules | GeoIP Matching | 🔲 L1 | Config only, no implementation |
-| Rules | Time-of-Day Rules | 🔲 L1 | Parsing exists, scheduler incomplete |
+| Rules | Time-of-Day Rules | 🟨 L3 | nftables meta hour/day (kernel 5.4+) |
 | Rules | Layer 7 / Application ID | 🔲 L1 | SNI hooks exist, no L7 filtering |
 | NAT | Masquerade | 🟩 L4 | Works, tested |
 | NAT | SNAT (Static NAT) | 🟩 L4 | Confirmed via `t/40-network/nat_traffic_test.sh` |

@@ -864,6 +864,31 @@ func BuildRuleExpression(rule config.PolicyRule) (string, error) {
 		parts = append(parts, fmt.Sprintf("ct state %s", rule.ConnState))
 	}
 
+	// Time-of-day matching (meta hour/day, requires kernel 5.4+)
+	if rule.TimeStart != "" && rule.TimeEnd != "" {
+		// nftables uses: meta hour >= 09:00:00 meta hour < 17:00:00
+		// Time format must be HH:MM:SS without quotes
+		start := rule.TimeStart
+		if len(start) == 5 {
+			start += ":00"
+		}
+		end := rule.TimeEnd
+		if len(end) == 5 {
+			end += ":00"
+		}
+		parts = append(parts, fmt.Sprintf("meta hour >= %s meta hour < %s", start, end))
+	}
+
+	// Days of week matching
+	if len(rule.Days) > 0 {
+		// nftables uses lowercase day names
+		days := make([]string, len(rule.Days))
+		for i, d := range rule.Days {
+			days[i] = strings.ToLower(d)
+		}
+		parts = append(parts, fmt.Sprintf("meta day { %s }", strings.Join(days, ", ")))
+	}
+
 	// Destination port - only if L4 protocol
 	if rule.DestPort > 0 {
 		proto := rule.Protocol

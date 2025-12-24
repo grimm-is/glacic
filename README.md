@@ -34,6 +34,7 @@ These work for happy-path scenarios but have limited testing:
 - **Seamless Upgrades** - Socket handoff works (note: FRR/VPN state not serialized)
 - **Multi-WAN** - Health checks, failover, load balancing (unit tested)
 - **WireGuard** - Full native implementation via netlink/wgctrl
+- **Time-of-Day Rules** - Schedule-based firewall rules (kernel 5.4+)
 
 ## Incomplete Features (L1-L2)
 

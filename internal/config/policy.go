@@ -116,6 +116,11 @@ type PolicyRule struct {
 	OutInterface string `hcl:"out_interface,optional" json:"out_interface,omitempty"` // Match specific output interface
 	ConnState    string `hcl:"conn_state,optional" json:"conn_state,omitempty"`       // "new", "established", "related", "invalid"
 
+	// Time-of-day matching (uses nftables meta hour/day, requires kernel 5.4+)
+	TimeStart string   `hcl:"time_start,optional" json:"time_start,omitempty"` // Start time "HH:MM" (24h format)
+	TimeEnd   string   `hcl:"time_end,optional" json:"time_end,omitempty"`     // End time "HH:MM" (24h format)
+	Days      []string `hcl:"days,optional" json:"days,omitempty"`             // Days of week: "Monday", "Tuesday", etc.
+
 	// Action
 	Action     string `hcl:"action" json:"action"`                              // accept, drop, reject, jump, return, log
 	JumpTarget string `hcl:"jump_target,optional" json:"jump_target,omitempty"` // Target chain for jump action
