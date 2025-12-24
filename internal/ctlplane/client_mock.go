@@ -537,5 +537,20 @@ func (m *MockControlPlaneClient) Ping(target string, timeoutSeconds int) (*PingR
 	return callArgs.Get(0).(*PingReply), callArgs.Error(1)
 }
 
+// --- Safe Mode ---
+
+func (m *MockControlPlaneClient) IsInSafeMode() (bool, error) {
+	callArgs := m.Called()
+	return callArgs.Bool(0), callArgs.Error(1)
+}
+
+func (m *MockControlPlaneClient) EnterSafeMode() error {
+	return m.Called().Error(0)
+}
+
+func (m *MockControlPlaneClient) ExitSafeMode() error {
+	return m.Called().Error(0)
+}
+
 // Compile-time check
 var _ ControlPlaneClient = (*MockControlPlaneClient)(nil)

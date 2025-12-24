@@ -56,7 +56,7 @@ type ctlServices struct {
 	ctlServer       *ctlplane.Server
 	upgradeMgr      *upgrade.Manager
 	dispatcher      *notification.Dispatcher
-	
+
 	// Cleanup functions to call on shutdown
 	cleanupFuncs []func()
 }
@@ -166,7 +166,30 @@ func loadConfiguration(rtCfg *CtlRuntimeConfig) (*config.Config, error) {
 
 	result, err := config.LoadFileWithOptions(rtCfg.ConfigFile, config.DefaultLoadOptions())
 	if err != nil {
-		return nil, fmt.Errorf("failed to load configuration: %w", err)
+		// Normal load failed - try forgiving parse
+		logging.Warn(fmt.Sprintf("Normal config load failed: %v", err))
+		logging.Info("Attempting forgiving parse to salvage configuration...")
+
+		data, readErr := os.ReadFile(rtCfg.ConfigFile)
+		if readErr != nil {
+			return nil, fmt.Errorf("failed to read configuration file: %w", readErr)
+		}
+
+		forgiving := config.LoadForgiving(data, rtCfg.ConfigFile)
+		if forgiving.FatalError != nil {
+			logging.Error(fmt.Sprintf("Forgiving parse also failed: %v", forgiving.FatalError))
+			logging.Warn("Using minimal safe mode configuration")
+		} else if forgiving.HadErrors {
+			logging.Warn("Configuration salvaged with errors - some blocks were skipped")
+			for _, skipped := range forgiving.SkippedBlocks {
+				logging.Warn(fmt.Sprintf("  Skipped lines %d-%d: %s", skipped.StartLine, skipped.EndLine, skipped.Reason))
+			}
+			logging.Info("Use 'glacic config diff' or Web UI to see full details")
+		}
+
+		// Store the forgiving result for later API access
+		// TODO: Make this accessible via API/ctlplane
+		return forgiving.Config, nil
 	}
 
 	if result.WasMigrated {
@@ -174,6 +197,11 @@ func loadConfiguration(rtCfg *CtlRuntimeConfig) (*config.Config, error) {
 			result.OriginalVersion, result.CurrentVersion))
 	}
 	logging.Info(fmt.Sprintf("Configuration loaded (schema version %s)", result.Config.SchemaVersion))
+
+	// Save safe mode hints for future recovery scenarios
+	if err := config.SaveSafeModeHints(result.Config); err != nil {
+		logging.Warn(fmt.Sprintf("Could not save safe mode hints: %v", err))
+	}
 
 	return result.Config, nil
 }
@@ -398,8 +426,23 @@ func initializeCoreServices(ctx context.Context, cfg *config.Config, netMgr *net
 		logging.Error(fmt.Sprintf("Error initializing firewall manager: %v", err))
 	} else {
 		services.fwMgr = fwMgr
+
+		// BOOT TO SAFE MODE FIRST
+		// Apply minimal safe mode rules immediately to ensure a secure baseline.
+		// This protects the system even if full config application fails.
+		fwMgr.PreRenderSafeMode(fw.FromGlobalConfig(cfg))
+		if err := fwMgr.ApplySafeMode(); err != nil {
+			logging.Error(fmt.Sprintf("Error applying safe mode: %v", err))
+			// Continue anyway - we'll try to apply full config
+		} else {
+			logging.Info("Safe mode applied (secure baseline).")
+		}
+
+		// Now apply the full configuration
 		if err := fwMgr.ApplyConfig(fw.FromGlobalConfig(cfg)); err != nil {
 			logging.Error(fmt.Sprintf("Error applying firewall rules: %v", err))
+			// System remains in safe mode - still accessible via LAN
+			logging.Warn("Firewall config failed - system remains in safe mode")
 		} else {
 			logging.Info("Firewall rules applied.")
 		}

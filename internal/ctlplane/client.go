@@ -875,3 +875,24 @@ func (c *Client) Ping(target string, timeoutSeconds int) (*PingReply, error) {
 	}
 	return &reply, nil
 }
+
+// --- Safe Mode Operations ---
+
+// IsInSafeMode checks if safe mode is currently active.
+func (c *Client) IsInSafeMode() (bool, error) {
+	var reply SafeModeStatusReply
+	if err := c.call("Server.IsInSafeMode", &Empty{}, &reply); err != nil {
+		return false, err
+	}
+	return reply.InSafeMode, nil
+}
+
+// EnterSafeMode activates safe mode (emergency lockdown).
+func (c *Client) EnterSafeMode() error {
+	return c.call("Server.EnterSafeMode", &Empty{}, &Empty{})
+}
+
+// ExitSafeMode deactivates safe mode and restores normal operation.
+func (c *Client) ExitSafeMode() error {
+	return c.call("Server.ExitSafeMode", &Empty{}, &Empty{})
+}

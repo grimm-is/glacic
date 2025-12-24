@@ -146,7 +146,7 @@ func main() {
 	case "show":
 		showFlags := flag.NewFlagSet("show", flag.ExitOnError)
 		summary := showFlags.Bool("summary", false, "Show configuration summary")
-		remote := showFlags.String("remote", "", "Remote Glacic API URL (e.g., https://192.168.1.1:8080)")
+		remote := showFlags.String("remote", "", "Remote Glacic API URL (e.g., https://192.168.1.1:8443)")
 		apiKey := showFlags.String("api-key", "", "API key for remote authentication")
 		showFlags.Parse(os.Args[2:])
 
@@ -226,7 +226,14 @@ func main() {
 
 	case "console":
 		// TUI Console
-		cmd.RunConsole()
+		consoleFlags := flag.NewFlagSet("console", flag.ExitOnError)
+		remote := consoleFlags.String("remote", "", "Remote Glacic API URL")
+		apiKey := consoleFlags.String("api-key", "", "API Key for remote authentication")
+		insecure := consoleFlags.Bool("insecure", false, "Skip TLS verification")
+		debug := consoleFlags.Bool("debug", false, "Enable debug logging to tui.log")
+		consoleFlags.Parse(os.Args[2:])
+		
+		cmd.RunConsole(*remote, *apiKey, *insecure, *debug)
 
 	case "config":
 		// Configuration management commands
@@ -412,6 +419,7 @@ Utility Commands:
   diff      Compare two configuration files
   import    Import configuration from other firewalls
   console   Interactive TUI dashboard
+            Options: --remote <url>, --api-key <key>, --insecure, --debug
   setup     First-run setup wizard
   reset     Factory reset (--confirm required)
   upgrade   Seamless upgrade with socket handoff
@@ -424,7 +432,7 @@ Examples:
   %s stop                           # Stop the daemon
   %s api generate --name "monitor" --preset readonly
   %s check -v /etc/glacic/glacic.hcl
-  %s show --remote https://192.168.1.1:8080 --api-key xxx
+  %s show --remote https://192.168.1.1:8443 --api-key xxx
   %s log -f
 
 For command-specific help: %s help <command>

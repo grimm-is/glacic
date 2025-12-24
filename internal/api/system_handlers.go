@@ -208,3 +208,51 @@ func (s *Server) handleSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		"routes": routes,
 	})
 }
+
+// handleSafeModeStatus returns safe mode status
+// GET /api/system/safe-mode
+func (s *Server) handleSafeModeStatus(w http.ResponseWriter, r *http.Request) {
+	inSafeMode, err := s.client.IsInSafeMode()
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to check safe mode status: "+err.Error())
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"in_safe_mode": inSafeMode,
+	})
+}
+
+// handleEnterSafeMode activates safe mode (emergency lockdown)
+// POST /api/system/safe-mode
+func (s *Server) handleEnterSafeMode(w http.ResponseWriter, r *http.Request) {
+	err := s.client.EnterSafeMode()
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to enter safe mode: "+err.Error())
+		return
+	}
+
+	log.Printf("[API] Safe mode activated by user")
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"success":      true,
+		"message":      "Safe mode activated - forwarding disabled",
+		"in_safe_mode": true,
+	})
+}
+
+// handleExitSafeMode deactivates safe mode
+// DELETE /api/system/safe-mode
+func (s *Server) handleExitSafeMode(w http.ResponseWriter, r *http.Request) {
+	err := s.client.ExitSafeMode()
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to exit safe mode: "+err.Error())
+		return
+	}
+
+	log.Printf("[API] Safe mode deactivated by user")
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"success":      true,
+		"message":      "Safe mode deactivated - normal operation resumed",
+		"in_safe_mode": false,
+	})
+}

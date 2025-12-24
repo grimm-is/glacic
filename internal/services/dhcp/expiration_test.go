@@ -61,6 +61,7 @@ func TestLeaseExpiration_CallbackFiresOnExpiry(t *testing.T) {
 
 	store := &LeaseStore{
 		Leases:       make(map[string]net.IP),
+		TakenIPs:     make(map[string]string),
 		Reservations: make(map[string]config.DHCPReservation),
 		ReservedIPs:  make(map[string]string),
 		RangeStart:   startIP,
@@ -117,6 +118,7 @@ func TestLeaseRenewal_ExtendsExpiration(t *testing.T) {
 
 	store := &LeaseStore{
 		Leases:       make(map[string]net.IP),
+		TakenIPs:     make(map[string]string),
 		Reservations: make(map[string]config.DHCPReservation),
 		ReservedIPs:  make(map[string]string),
 		RangeStart:   startIP,
@@ -168,6 +170,7 @@ func TestExpiredLease_IPIsReclaimed(t *testing.T) {
 
 	store := &LeaseStore{
 		Leases:       make(map[string]net.IP),
+		TakenIPs:     make(map[string]string),
 		Reservations: make(map[string]config.DHCPReservation),
 		ReservedIPs:  make(map[string]string),
 		RangeStart:   startIP,

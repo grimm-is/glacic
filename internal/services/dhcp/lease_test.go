@@ -12,6 +12,7 @@ func TestLeaseStore_Allocate(t *testing.T) {
 
 	store := &LeaseStore{
 		Leases:       make(map[string]net.IP),
+		TakenIPs:     make(map[string]string),
 		Reservations: make(map[string]config.DHCPReservation),
 		ReservedIPs:  make(map[string]string),
 		RangeStart:   startIP,

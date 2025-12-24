@@ -32,6 +32,10 @@ type Manager struct {
 	expectedGenID  uint32
 	monitorEnabled bool
 
+	// Safe Mode: pre-rendered ruleset for instant emergency lockdown
+	safeModeScript string
+	inSafeMode     bool
+
 	logger   *logging.Logger
 	cacheDir string
 }
@@ -484,4 +488,80 @@ func (m *Manager) GenerateRules(cfg *Config) (string, error) {
 	}
 
 	return combinedScript.String(), nil
+}
+
+// PreRenderSafeMode generates and caches the safe mode ruleset for instant application.
+// Call this during startup after config is loaded.
+func (m *Manager) PreRenderSafeMode(cfg *Config) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Determine trusted interfaces (non-WAN)
+	var trustedInterfaces []string
+	for _, iface := range cfg.Interfaces {
+		// Skip WAN-like interfaces
+		isWAN := false
+		for _, zone := range cfg.Zones {
+			if zone.Name == "WAN" || zone.Name == "wan" || zone.Name == "Internet" {
+				for _, zi := range zone.Interfaces {
+					if zi == iface.Name {
+						isWAN = true
+						break
+					}
+				}
+				if iface.Zone == zone.Name {
+					isWAN = true
+				}
+			}
+		}
+		if !isWAN {
+			trustedInterfaces = append(trustedInterfaces, iface.Name)
+		}
+	}
+
+	m.safeModeScript = BuildSafeModeScript(brand.LowerName, trustedInterfaces)
+	m.logger.Info("Safe mode ruleset pre-rendered", "trusted_interfaces", trustedInterfaces)
+}
+
+// ApplySafeMode instantly applies the pre-rendered safe mode ruleset.
+// This is the "big red button" for emergency lockdown.
+// LAN can still access Web UI/API, but no forwarding occurs.
+func (m *Manager) ApplySafeMode() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.safeModeScript == "" {
+		return fmt.Errorf("safe mode not pre-rendered; call PreRenderSafeMode first")
+	}
+
+	applier := NewAtomicApplier()
+	if err := applier.ApplyScript(m.safeModeScript); err != nil {
+		return fmt.Errorf("failed to apply safe mode: %w", err)
+	}
+
+	m.inSafeMode = true
+	m.logger.Warn("SAFE MODE ACTIVATED - forwarding disabled")
+	return nil
+}
+
+// ExitSafeMode reapplies the normal configuration.
+func (m *Manager) ExitSafeMode() error {
+	m.mu.Lock()
+	if m.baseConfig == nil {
+		m.mu.Unlock()
+		return fmt.Errorf("no base config to restore")
+	}
+	cfg := m.baseConfig
+	m.inSafeMode = false
+	m.mu.Unlock()
+
+	m.logger.Info("Exiting safe mode, reapplying normal config")
+	return m.ApplyConfig(cfg)
+}
+
+// IsInSafeMode returns whether safe mode is currently active.
+func (m *Manager) IsInSafeMode() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.inSafeMode
 }

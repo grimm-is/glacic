@@ -44,22 +44,22 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Zones | Management Zone Access | 🟨 L3 | Works, needs more testing |
 | Rules | nftables Rule Generation | 🟩 L4 | inet family, IPv4+IPv6 |
 | Rules | Stateful Connection Tracking | 🟩 L4 | Enabled by default |
-| Rules | Rule Logging (nflog) | 🟩 L4 | Confirmed via `nflog_capture_test.sh` |
+| Rules | Rule Logging (nflog) | 🟩 L4 | Confirmed via `t/80-monitoring/nflog_capture_test.sh` |
 | Rules | Rate Limiting | 🟩 L4 | Confirmed via `t/65-qos/qos_test.sh` |
 | Rules | GeoIP Matching | 🔲 L1 | Config only, no implementation |
 | Rules | Time-of-Day Rules | 🔲 L1 | Parsing exists, scheduler incomplete |
 | Rules | Layer 7 / Application ID | 🔲 L1 | SNI hooks exist, no L7 filtering |
 | NAT | Masquerade | 🟩 L4 | Works, tested |
-| NAT | SNAT (Static NAT) | 🟩 L4 | Confirmed via `nat_traffic_test.sh` |
-| NAT | DNAT / Port Forwarding | 🟩 L4 | Confirmed via `nat_traffic_test.sh` |
-| NAT | Hairpin NAT | 🟨 L3 | Tests exist (`hairpin_test.sh`) |
-| Protection | SYN Flood Protection | 🟩 L4 | Confirmed via `protection_traffic_test.sh` |
-| Protection | Anti-Spoofing / Bogon | 🟩 L4 | Confirmed via `protection_traffic_test.sh` |
+| NAT | SNAT (Static NAT) | 🟩 L4 | Confirmed via `t/40-network/nat_traffic_test.sh` |
+| NAT | DNAT / Port Forwarding | 🟩 L4 | Confirmed via `t/40-network/nat_traffic_test.sh` |
+| NAT | Hairpin NAT | 🟨 L3 | Tests exist (`t/30-firewall/hairpin_test.sh`) |
+| Protection | SYN Flood Protection | 🟩 L4 | Confirmed via `t/50-security/protection_traffic_test.sh` |
+| Protection | Anti-Spoofing / Bogon | 🟩 L4 | Confirmed via `t/50-security/protection_traffic_test.sh` |
 | Protection | ICMP Handling | 🟩 L4 | Tested, proper allow rules |
 | Protection | Panic Mode (Lockdown) | 🟩 L4 | Works via API |
-| IPSets | Manual Entries | 🟩 L4 | Confirmed via `ipset_traffic_test.sh` |
+| IPSets | Manual Entries | 🟩 L4 | Confirmed via `t/50-security/ipset_traffic_test.sh` |
 | IPSets | FireHOL Integration | 🟩 L4 | Confirmed via `t/50-security/firehol_test.sh` |
-| IPSets | IPSet in Policy Rules | 🟩 L4 | Confirmed via `ipset_traffic_test.sh` |
+| IPSets | IPSet in Policy Rules | 🟩 L4 | Confirmed via `t/50-security/ipset_traffic_test.sh` |
 | Accounting | Traffic Accounting | 🟨 L3 | Per-IP/Subnet bytes/packets (internal/firewall/accounting.go) |
 | **DHCP** | | | |
 | Server | DHCP Server Core | 🟩 L4 | DISCOVER/OFFER/REQUEST/ACK works |
@@ -92,7 +92,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Discovery | LLDP Listener | 🟩 L4 | Confirmed via `t/70-system/lldp_test.sh` |
 | Threat Intel | IP/Domain Blocklists | 🟩 L4 | Fetches URLs, updates ipsets (`t/50-security/threat_intel_test.sh`) |
 | Services | mDNS Reflector | 🟩 L4 | Tested via `t/40-network/mdns_test.sh` |
-| Future | UPnP/NAT-PMP | ⬜ L0 | Not started |
+| Future | UPnP/NAT-PMP | 🟨 L3 | Implementation exists, needs testing |
 | Future | NTP Server | ⬜ L0 | Not started |
 | Future | Syslog Server | ⬜ L0 | Not started |
 | **INTELLIGENCE** | | | |
@@ -100,7 +100,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Discovery | Device Discovery (ARP) | 🔲 L1 | Designed, not implemented |
 | Discovery | MAC Vendor Lookup | 🟨 L3 | Works for known vendors |
 | Discovery | Device Identity | 🟨 L3 | Persists User/Owner metadata |
-| Flows | Flow Tracking | 🟩 L4 | Confirmed via `learning_traffic_test.sh` |
+| Flows | Flow Tracking | 🟩 L4 | Confirmed via `t/50-security/learning_traffic_test.sh` |
 | Flows | SNI Snooping | 🟨 L3 | TLS SNI extracted, storage limited |
 | Flows | Application Identification | 🔲 L1 | SNI→app mapping designed |
 | Learning | Rule Learning (NFLog) | 🟩 L4 | UI works, backend integrated |
@@ -113,19 +113,19 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Arch | Chroot Sandboxing | 🟩 L4 | Works, tested |
 | Arch | Network Namespace | 🟨 L3 | Works, some edge cases |
 | Auth | API Key Authentication | 🟩 L4 | Works, persisted |
-| Auth | Password Authentication | 🟩 L4 | Confirmed via `api_auth_test.sh` |
-| Auth | Session Management | 🟩 L4 | Confirmed via `api_auth_test.sh` |
-| Auth | Fail2Ban-style Blocking | 🔲 L1 | Config only |
+| Auth | Password Authentication | 🟩 L4 | Confirmed via `t/10-api/api_auth_test.sh` |
+| Auth | Session Management | 🟩 L4 | Confirmed via `t/10-api/api_auth_test.sh` |
+| Auth | Fail2Ban-style Blocking | � L2 | SecurityManager exists, not wired to auth flow |
 | Audit | Audit Logging | 🔲 L1 | Basic logs, no audit trail |
-| TLS | TLS for API | 🟩 L4 | `api_tls.sh` verifies cert/HTTPS |
+| TLS | TLS for API | 🟩 L4 | Confirmed via `t/10-api/api_tls_test.sh` |
 | TLS | Certificate Management | 🟩 L4 | Generates self-signed if missing |
 | **VPN** | | | |
 | Tailscale | Status Monitoring | 🟨 L3 | Works if tailscaled running |
 | Tailscale | Up/Down Control | 🟨 L3 | CLI wrapper works |
-| Tailscale | Firewall Bypass | 🟩 L4 | Confirmed via `vpn_isolation_test.sh` |
+| Tailscale | Firewall Bypass | 🟩 L4 | Confirmed via `t/60-vpn/vpn_isolation_test.sh` |
 | Tailscale | MagicDNS Integration | 🔲 L1 | Designed |
 | Headscale | Headscale Support | 🔲 L1 | Same as Tailscale |
-| WireGuard | WireGuard Native | 🟩 L4 | Tested via `vpn_test.sh`, status reporting works |
+| WireGuard | WireGuard Native | 🟩 L4 | Tested via `t/60-vpn/vpn_test.sh`, status reporting works |
 | WireGuard | Key Management | 🟨 L3 | Keys generated, masked in API (Security L4) |
 | General | VPN Lockout Protection | 🟧 L2 | Flag exists, incomplete |
 | **OPERATIONS** | | | |
@@ -133,28 +133,28 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Config | Config Validation | 🟩 L4 | Works, good error messages |
 | Config | Schema Versioning | 🟨 L3 | Framework works |
 | Config | Schema Migration | 🟧 L2 | Framework exists, few migrations |
-| Config | Config Hot Reload | 🟩 L4 | Confirmed via `reload_test.sh` |
+| Config | Config Hot Reload | 🟩 L4 | Confirmed via `t/70-system/reload_test.sh` |
 | Config | Atomic Apply + Rollback | 🟩 L4 | Apply works, rollback timer, connectivity check |
-| Upgrade | Seamless Upgrade | 🟩 L4 | Confirmed via `upgrade_test.sh`, socket handoff works |
+| Upgrade | Seamless Upgrade | 🟩 L4 | Confirmed via `t/70-system/upgrade_test.sh`, socket handoff works |
 | State | State Store (SQLite) | 🟩 L4 | Works, buckets for all services |
-| State | State Replication | 🟩 L4 | Confirmed via `replication_test.sh` (Hot Standby, no VIP/VRRP) |
+| State | State Replication | 🟩 L4 | Confirmed via `t/70-system/replication_test.sh` (Hot Standby, no VIP/VRRP) |
 | State | VIP Failover (VRRP) | ⬜ L0 | Requires external keepalived/VRRP for auto-failover |
 | Backup | Config Backup/Restore | 🟩 L4 | Works, versioned |
 | Monitoring | Prometheus Metrics | 🟩 L4 | Confirmed via `t/80-monitoring/metrics_endpoint_test.sh` |
 | Logging | Structured Logging | 🟩 L4 | slog-based, works |
 | Logging | Log Forwarding (syslog) | 🔲 L1 | Config only |
-| Supervisor | Watchdog/Monitor | 🟩 L4 | Confirmed via `monitor_test.sh` |
+| Supervisor | Watchdog/Monitor | 🟩 L4 | Confirmed via `t/80-monitoring/monitor_test.sh` |
 | Stability | Crash / Boot Loop Protection | 🟩 L4 | Panic counting, safe mode persistence |
 | **API** | | | |
 | Endpoints | Status Endpoints | 🟩 L4 | Works |
-| Endpoints | Interface CRUD | 🟩 L4 | Works (Tested via `api_crud_test.sh`) |
-| Endpoints | Firewall/Policy CRUD | 🟩 L4 | Basic works (Tested via `api_crud_test.sh`) |
-| Endpoints | DHCP Endpoints | 🟩 L4 | Leases work, scopes partial (Tested via `api_crud_test.sh`) |
+| Endpoints | Interface CRUD | 🟩 L4 | Works (Tested via `t/10-api/api_crud_test.sh`) |
+| Endpoints | Firewall/Policy CRUD | 🟩 L4 | Basic works (Tested via `t/10-api/api_crud_test.sh`) |
+| Endpoints | DHCP Endpoints | 🟩 L4 | Leases work, scopes partial (Tested via `t/10-api/api_crud_test.sh`) |
 | Endpoints | DNS Endpoints | 🟩 L4 | CRUD for DNS settings/records (Tested) |
 | Endpoints | IPSet Endpoints | 🟩 L4 | CRUD for IPSets (Tested) |
-| Endpoints | VPN Endpoints | 🟩 L4 | Confirmed via `vpn_test.sh` |
+| Endpoints | VPN Endpoints | 🟩 L4 | Confirmed via `t/60-vpn/vpn_test.sh` |
 | Endpoints | Learning Endpoints | 🟨 L3 | CRUD works |
-| Endpoints | System (reboot, upgrade) | 🟩 L4 | Tested via `upgrade_test.sh`, `lifecycle_test.sh` |
+| Endpoints | System (reboot, upgrade) | 🟩 L4 | Tested via `t/70-system/upgrade_test.sh`, `t/70-system/lifecycle_test.sh` |
 | Realtime | WebSocket Notifications | 🟨 L3 | Works |
 | Docs | OpenAPI Documentation | 🟧 L2 | Generator exists (`internal/api/spec/`) |
 | **WEB UI** | | | |
@@ -181,7 +181,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Commands | `glacic test` | 🟩 L4 | Config test mode |
 | Commands | `glacic upgrade` | 🟩 L4 | Confirmed via `upgrade_test.sh` |
 | Commands | `glacic status` | 🟨 L3 | Basic status |
-| Commands | `glacic config validate` | 🟩 L4 | Confirmed via `config_test.sh` |
+| Commands | `glacic config validate` | 🟩 L4 | Confirmed via `t/70-system/config_test.sh` |
 | Commands | `glacic ipset` | 🟩 L4 | Confirmed via `t/90-cli/ipset_cli_test.sh` |
 | **TUI** | | | |
 | Console | Navigation | 🟧 L2 | Basic works |
@@ -231,6 +231,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 - Fix remaining integration test failures
 - DHCP lease expiration testing
 - DNS blocklist URL download
+- Wire Fail2Ban-style blocking to auth flow
 
 ### Short Term (This Month)
 - [x] **Endpoints**: L3 (Functional) - Routes, Peers, Status checks implemented.
@@ -244,6 +245,14 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 - Multi-WAN implementation
 - Complete Web UI features
 - Performance benchmarks
+- Migrate integration tests to BATS (cleaner syntax, TAP output)
+
+### Threat Detection & Response (Backlog)
+- Port scan detection (nflog-based, auto-block after threshold)
+- Tarpitting for suspected scanners
+- SYN flood detection
+- Geographic anomaly detection
+- `blocked_scanners` IPSet integration
 
 ---
 
@@ -254,7 +263,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 make build
 
 # Start (requires root for ctl)
-sudo glacic ctl /etc/glacic/firewall.hcl &
+sudo glacic ctl /etc/glacic/glacic.hcl &
 glacic api
 
 # Development

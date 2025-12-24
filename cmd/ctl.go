@@ -43,16 +43,13 @@ func runCtlOnce(configFile string, testMode bool, stateDir string, dryRun bool, 
 		return runDryRun(rtCfg.ConfigFile)
 	}
 
-	// Check if config file exists BEFORE redirecting stderr to log file
-	// This ensures the error message goes to the terminal, not a log file
+	// Check if config file exists
+	// For fresh installs, we boot into safe mode to allow setup via Web UI
+	noConfig := false
 	if _, err := os.Stat(rtCfg.ConfigFile); os.IsNotExist(err) {
-		return fmt.Errorf("configuration file not found: %s\n\n"+
-			"To create a configuration file, run:\n"+
-			"  %s setup\n\n"+
-			"Or create a minimal config manually:\n"+
-			"  mkdir -p /etc/glacic\n"+
-			"  echo 'schema_version = \"1.0\"' > /etc/glacic/glacic.hcl",
-			rtCfg.ConfigFile, brand.BinaryName)
+		noConfig = true
+		logging.Warn(fmt.Sprintf("No configuration file found at %s - booting into safe mode", rtCfg.ConfigFile))
+		// Don't error - we'll boot into safe mode below
 	}
 
 	// Context for services
@@ -91,9 +88,34 @@ func runCtlOnce(configFile string, testMode bool, stateDir string, dryRun bool, 
 	initClockAnchor()
 
 	// Load configuration with crash loop protection
-	cfg, err := loadConfiguration(rtCfg)
-	if err != nil {
-		return err
+	var cfg *config.Config
+	if noConfig {
+		// Fresh install: use minimal config for safe mode boot
+		logging.Info("Fresh install detected - using minimal safe mode configuration")
+		cfg = &config.Config{
+			SchemaVersion: "1.0",
+			IPForwarding:  true, // Required for API sandbox
+			API: &config.APIConfig{
+				Enabled:   true,
+				Listen:    ":8080",
+				TLSListen: ":8443",
+			},
+		}
+
+		// Write default config to disk so CLI users can edit it
+		if err := config.SaveFile(cfg, rtCfg.ConfigFile); err != nil {
+			logging.Warn(fmt.Sprintf("Could not write default config to %s: %v", rtCfg.ConfigFile, err))
+			logging.Info("Configuration can be created via Web UI setup wizard")
+		} else {
+			logging.Info(fmt.Sprintf("Default configuration written to %s", rtCfg.ConfigFile))
+			logging.Info("Edit the file and run 'glacic reload' to apply changes")
+		}
+	} else {
+		var err error
+		cfg, err = loadConfiguration(rtCfg)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Configure syslog if enabled

@@ -310,3 +310,23 @@ func (r *RealCommandRunner) RunInput(input string, name string, args ...string) 
 
 // DefaultCommandRunner is the default command runner.
 var DefaultCommandRunner CommandRunner = &RealCommandRunner{}
+
+// PreRenderSafeMode generates and caches safe mode ruleset (stub for non-Linux).
+func (m *Manager) PreRenderSafeMode(cfg *Config) {
+	// No-op on non-Linux
+}
+
+// ApplySafeMode applies safe mode ruleset (stub for non-Linux).
+func (m *Manager) ApplySafeMode() error {
+	return ErrNotSupported
+}
+
+// ExitSafeMode exits safe mode (stub for non-Linux).
+func (m *Manager) ExitSafeMode() error {
+	return ErrNotSupported
+}
+
+// IsInSafeMode returns safe mode status (stub for non-Linux).
+func (m *Manager) IsInSafeMode() bool {
+	return false
+}

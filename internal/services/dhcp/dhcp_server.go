@@ -238,6 +238,7 @@ type LeaseExpiry struct {
 type LeaseStore struct {
 	sync.Mutex
 	Leases       map[string]net.IP                 // MAC -> IP
+	TakenIPs     map[string]string                 // IP (string) -> MAC (for O(1) isTaken lookup)
 	Reservations map[string]config.DHCPReservation // MAC -> Reservation
 	ReservedIPs  map[string]string                 // IP (string) -> MAC
 	RangeStart   net.IP
@@ -292,6 +293,7 @@ func (s *LeaseStore) Allocate(mac string) (net.IP, error) {
 			}
 
 			s.Leases[mac] = newIP
+			s.TakenIPs[newIP.String()] = mac // Maintain reverse lookup
 			s.setLeaseExpiry(mac)
 			return newIP, nil
 		}
@@ -308,6 +310,7 @@ func (s *LeaseStore) Allocate(mac string) (net.IP, error) {
 		}
 
 		s.Leases[mac] = newIP
+		s.TakenIPs[newIP.String()] = mac // Maintain reverse lookup
 		s.setLeaseExpiry(mac)
 		return newIP, nil
 	}
@@ -316,12 +319,9 @@ func (s *LeaseStore) Allocate(mac string) (net.IP, error) {
 }
 
 func (s *LeaseStore) isTaken(ip net.IP) bool {
-	for _, allocated := range s.Leases {
-		if allocated.Equal(ip) {
-			return true
-		}
-	}
-	return false
+	// O(1) lookup using TakenIPs reverse map
+	_, exists := s.TakenIPs[ip.String()]
+	return exists
 }
 
 func incIP(ip net.IP) net.IP {
@@ -438,6 +438,9 @@ func (s *LeaseStore) ExpireLeases(dnsUpdater DNSUpdater, listener ExpirationList
 
 			// Remove lease
 			delete(s.Leases, mac)
+			if ip != nil {
+				delete(s.TakenIPs, ip.String()) // Maintain reverse lookup
+			}
 			delete(s.leaseExpiry, mac)
 			if s.hostnames != nil {
 				delete(s.hostnames, mac)
@@ -473,6 +476,7 @@ func createServer(scope config.DHCPScope, dnsUpdater DNSUpdater, listener LeaseL
 	// Setup Lease Store with Reservations
 	ls := &LeaseStore{
 		Leases:       make(map[string]net.IP),
+		TakenIPs:     make(map[string]string), // O(1) reverse lookup
 		Reservations: make(map[string]config.DHCPReservation),
 		ReservedIPs:  make(map[string]string),
 		RangeStart:   startIP,
@@ -497,6 +501,7 @@ func createServer(scope config.DHCPScope, dnsUpdater DNSUpdater, listener LeaseL
 						// Note: We intentionally don't check if IP is within this scope's range.
 						// Leases may span pool boundaries if config changed, and we preserve them.
 						ls.Leases[l.MAC] = ip
+						ls.TakenIPs[ip.String()] = l.MAC // Populate reverse lookup
 					}
 				}
 				log.Printf("[DHCP] Loaded %d leases from state store", len(leases))

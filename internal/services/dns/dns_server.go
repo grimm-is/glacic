@@ -126,135 +126,85 @@ func (s *Service) Reload(cfg *config.Config) (bool, error) {
 	// NEW CONFIG MODE (dns {})
 	// -------------------------------------------------------------
 	if activeMode == "new" {
-		dnsCfg := cfg.DNS
-		
-		// 1. Gather all listeners and records
-		var listenAddrs []string
-		newRecords := make(map[string]config.DNSRecord)
-		newBlocked := make(map[string]bool)
-		
-		// Map interfaces to zones for IP resolution
-		zoneIfaceMap := make(map[string][]string) // zone -> [ip1, ip2]
-		
-		// Build interface IP map
-		for _, iface := range cfg.Interfaces {
-			// Extract IPs
-			var ips []string
-			for _, cidr := range iface.IPv4 {
-				ip, _, err := net.ParseCIDR(cidr)
-				if err == nil {
-					ips = append(ips, ip.String())
-				}
-			}
-			// IPv6
-			for _, cidr := range iface.IPv6 {
-				ip, _, err := net.ParseCIDR(cidr)
-				if err == nil {
-					ips = append(ips, ip.String())
-				}
-			}
-			
-			// Associate with zones
-			// 1. Explicit interface zone
-			if iface.Zone != "" {
-				zoneIfaceMap[strings.ToLower(iface.Zone)] = append(zoneIfaceMap[strings.ToLower(iface.Zone)], ips...)
-			}
-			
-			// 2. Referenced in zone block (canonical)
-			for _, z := range cfg.Zones {
-				// Legacy interfaces list
-				for _, matchIf := range z.Interfaces {
-					if matchIf == iface.Name {
-						zoneIfaceMap[strings.ToLower(z.Name)] = append(zoneIfaceMap[strings.ToLower(z.Name)], ips...)
-					}
-				}
-				// Match list
-				for _, m := range z.Matches {
-					if m.Interface == iface.Name {
-						zoneIfaceMap[strings.ToLower(z.Name)] = append(zoneIfaceMap[strings.ToLower(z.Name)], ips...)
-					}
-				}
-			}
+		state := s.buildServerState(cfg)
+		s.mu.Lock()
+		// Map back to legacy config structure for internal compatibility
+		// We create a dummy DNSServer config to satisfy s.config
+
+		s.config = &config.DNSServer{
+			ConditionalForwarders: cfg.DNS.ConditionalForwarders,
+			// ... other fields if needed
 		}
+		
 
-		// Process Serve blocks
-		for _, serve := range dnsCfg.Serve {
-			// Determine Listen IPs
-			zoneName := strings.ToLower(serve.Zone)
-			if zoneName == "*" || zoneName == "any" {
-				listenAddrs = append(listenAddrs, "0.0.0.0")
-			} else {
-				if ips, ok := zoneIfaceMap[zoneName]; ok {
-					listenAddrs = append(listenAddrs, ips...)
-				} else {
-					log.Printf("[DNS] Warning: serve zone %q has no associated interfaces/IPs", serve.Zone)
+		// 1. Build records map
+		newRecords := make(map[string]config.DNSRecord)
+		for _, serve := range cfg.DNS.Serve {
+			serveZone := dns.Fqdn(serve.Zone)
+			
+			// Process Zones
+			for _, z := range serve.Zones {
+				// z is config.DNSZone
+				subZoneName := dns.Fqdn(z.Name)
+				// Handle relative names if not fully qualified? 
+				// config.DNSZone usually has Name, Records.
+				
+				for _, rec := range z.Records {
+					fqdn := subZoneName
+					if rec.Name != "@" {
+						fqdn = dns.Fqdn(rec.Name + "." + subZoneName)
+					}
+					newRecords[strings.ToLower(fqdn)] = rec
 				}
 			}
 
-			// Hosts
+			// Process Hosts (Static Host entries)
 			for _, host := range serve.Hosts {
 				for _, hostname := range host.Hostnames {
+					// Is hostname relative to the serve zone? Usually hosts are FQDNs or relative.
+					// Assuming hosts are relative to the zone if not FQDN, but `DNSHostEntry` usually has `Hostnames`.
+					// Let's assume they are effectively records.
+					
 					fqdn := dns.Fqdn(hostname)
+					if !strings.Contains(hostname, ".") {
+						fqdn = dns.Fqdn(hostname + "." + serveZone)
+					}
+
 					recType := "A"
 					if ip := net.ParseIP(host.IP); ip != nil && ip.To4() == nil {
 						recType = "AAAA"
 					}
-					newRecords[strings.ToLower(fqdn)] = config.DNSRecord{
+					rec := config.DNSRecord{
 						Name:  hostname,
 						Type:  recType,
 						Value: host.IP,
 						TTL:   3600,
 					}
-				}
-			}
-			
-			// Blocklists
-			if len(serve.Blocklists) > 0 {
-				bl, _ := loadBlocklistsFromConfig(serve.Blocklists)
-				for k, v := range bl {
-					newBlocked[k] = v
+					newRecords[strings.ToLower(fqdn)] = rec
 				}
 			}
 		}
 		
-		// Dedup listeners
-		listenAddrs = uniqueStrings(listenAddrs)
-		if len(listenAddrs) == 0 {
-			// Default to localhost if enabled but no targets found? 
-			// Or just assume 0.0.0.0 if not specified? 
-			// If mode is forward/recursive, usually means running.
-			// But if no serve block, maybe we act as resolver only?
-			// Let's default to nothing if explicit serve blocks were missing.
-			// But check global mode.
-		}
+		// 2. Build forwarders
+		s.forwarders = cfg.DNS.Forwarders
+		s.records = newRecords
+		s.blockedDomains = make(map[string]bool) // TODO: Implement blocklists for new config
 
-
-		// Always restart for now if new config is active to ensure purity
-		if wasRunning {
-			s.Stop(context.Background())
-		}
+		// 3. Build servers
+		log.Printf("[DNS] Starting DNS server (New Config Mode)")
+		listeners := []string{"0.0.0.0"} // Default
+		// TODO: Add listeners to cfg.DNS
 		
 		var newServers []*dns.Server
-		for _, addr := range listenAddrs {
-			// Port? serve block has port. Assuming 53 for now or need mixed ports support.
-			// Currently s.servers handles one set.
-			// If multiple ports needed, architecture needs update.
-			// Assuming port 53 for all.
-			newServers = append(newServers, &dns.Server{Addr: addr + ":53", Net: "udp", Handler: s})
-			newServers = append(newServers, &dns.Server{Addr: addr + ":53", Net: "tcp", Handler: s})
+		for _, addr := range listeners {
+			newServers = append(newServers, &dns.Server{Addr: net.JoinHostPort(addr, "53"), Net: "udp", Handler: s})
+			newServers = append(newServers, &dns.Server{Addr: net.JoinHostPort(addr, "53"), Net: "tcp", Handler: s})
 		}
-		
-		s.mu.Lock()
-		// Map back to legacy config structure for internal compatibility
-		// We create a dummy DNSServer config to satisfy s.config
-		s.config = &config.DNSServer{
-			ConditionalForwarders: dnsCfg.ConditionalForwarders,
-			// ... other fields if needed
-		}
-		s.forwarders = dnsCfg.Forwarders
-		s.records = newRecords
-		s.blockedDomains = newBlocked
 		s.servers = newServers
+		s.forwarders = state.forwarders
+		s.records = state.records
+		s.blockedDomains = state.blockedDomains
+		s.servers = state.servers
 		s.mu.Unlock()
 
 		return true, s.Start(context.Background())

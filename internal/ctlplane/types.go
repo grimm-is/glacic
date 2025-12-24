@@ -1,5 +1,59 @@
 // Package ctlplane provides the RPC interface between the privileged control plane
 // and the unprivileged API server.
+//
+// # Type Categories
+//
+// This file contains RPC request/response types organized by domain:
+//
+// ## Status Types
+//   - [Status]: System status (running, uptime, safe mode)
+//   - [ServiceStatus]: Individual service status (DHCP, DNS)
+//   - [InterfaceStatus]: Full interface details with stats
+//   - [InterfaceState]: Interface state enum (up, down, no_carrier)
+//
+// ## Interface Management
+//   - [UpdateInterfaceArgs]: Enable/disable/update interfaces
+//   - [CreateVLANArgs], [CreateVLANReply]: VLAN creation
+//   - [CreateBondArgs], [CreateBondReply]: Bond creation
+//   - [InterfaceStats]: Traffic counters
+//   - [InterfaceOffloads]: NIC offload features
+//
+// ## DHCP
+//   - [DHCPLease]: Active lease with enriched data (hostname, vendor)
+//   - [GetDHCPLeasesReply]: Lease list response
+//   - [DHCPScope*]: DHCP scope CRUD types
+//
+// ## DNS
+//   - [DNSSettings]: DNS server configuration
+//   - [DNSRecord]: Local DNS records
+//   - [SplitHorizon*]: Split-horizon DNS types
+//
+// ## Firewall
+//   - [ZoneInfo]: Zone configuration with interfaces
+//   - [PolicyInfo]: Policy rules between zones
+//   - [FirewallDiagnostics]: Rule counters, chain stats
+//
+// ## VPN
+//   - [VPNStatus]: WireGuard/Tailscale status
+//   - [VPNPeerStatus]: Peer connection details
+//   - [WireGuard*]: WireGuard-specific types
+//
+// ## Learning Engine
+//   - [PendingFlow]: Unclassified traffic for learning
+//   - [LearnedRule]: Suggested firewall rules
+//
+// ## System
+//   - [ApplyConfigArgs]: Config reload request
+//   - [SystemStatsReply]: CPU, memory, disk stats
+//   - [BackupReply], [RestoreArgs]: Backup/restore
+//
+// # RPC Naming Convention
+//
+// All RPC types follow the pattern:
+//   - Request: {MethodName}Args
+//   - Response: {MethodName}Reply
+//
+// Empty is used for methods with no arguments.
 package ctlplane
 
 import (
@@ -1037,4 +1091,11 @@ type GetConfigDiffRequest struct{}
 type GetConfigDiffReply struct {
 	Diff  string `json:"diff"`
 	Error string `json:"error,omitempty"`
+}
+
+// --- Safe Mode ---
+
+// SafeModeStatusReply is the response for IsInSafeMode
+type SafeModeStatusReply struct {
+	InSafeMode bool `json:"in_safe_mode"`
 }

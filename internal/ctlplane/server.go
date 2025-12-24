@@ -750,6 +750,8 @@ func (s *Server) ReloadConfig(newCfg *config.Config) error {
 // reloadConfigInternal contains the core logic for applying a config.
 // Caller must hold the mutex.
 func (s *Server) reloadConfigInternal(newCfg *config.Config) error {
+	// Track critical errors (subsystems that must succeed for a valid state)
+	var criticalErrors []string
 
 	// 1. Update config reference
 	s.config = newCfg
@@ -761,8 +763,19 @@ func (s *Server) reloadConfigInternal(newCfg *config.Config) error {
 	}
 
 	// 2. Apply Network Settings
-	if err := s.netLib.SetIPForwarding(newCfg.IPForwarding); err != nil {
+	// Auto-enable IP forwarding if API sandbox is active.
+	// The sandbox architecture requires forwarding to route traffic to 169.254.255.2.
+	// This prevents new users from being locked out of the Web UI.
+	ipForwarding := newCfg.IPForwarding
+	if newCfg.API != nil && newCfg.API.Enabled && !newCfg.API.DisableSandbox {
+		if !ipForwarding {
+			log.Printf("[CTL] Auto-enabling IP forwarding (required for API sandbox)")
+		}
+		ipForwarding = true
+	}
+	if err := s.netLib.SetIPForwarding(ipForwarding); err != nil {
 		log.Printf("[CTL] Error setting IP forwarding: %v", err)
+		// Non-critical: log but continue
 	}
 	s.netLib.SetupLoopback()
 
@@ -770,19 +783,22 @@ func (s *Server) reloadConfigInternal(newCfg *config.Config) error {
 	for _, iface := range newCfg.Interfaces {
 		if err := s.netLib.ApplyInterface(iface); err != nil {
 			log.Printf("[CTL] Error applying interface %s: %v", iface.Name, err)
+			// Interface errors are non-critical for config apply (may be transient)
 		}
 	}
 
-	// Apply Policy Routing (Tables & Rules)
+	// Apply Policy Routing (Tables & Rules) - CRITICAL
 	if err := s.policyRouting.Reload(newCfg.RoutingTables, newCfg.PolicyRoutes); err != nil {
 		log.Printf("[CTL] Error applying policy routing: %v", err)
 		s.Notify(NotifyWarning, "Policy Routing Error", fmt.Sprintf("Failed to apply: %v", err))
+		criticalErrors = append(criticalErrors, fmt.Sprintf("policy routing: %v", err))
 	}
 
 	// Apply Uplink Groups (Multi-WAN & Health Checking)
 	if err := s.uplinkManager.Reload(newCfg.UplinkGroups); err != nil {
 		log.Printf("[CTL] Error reloading uplink manager: %v", err)
 		s.Notify(NotifyWarning, "Uplink Config Error", fmt.Sprintf("Failed to apply: %v", err))
+		// Uplink is non-critical for basic operation
 	} else {
 		// Set notification callback
 		s.uplinkManager.SetHealthCallback(func(uplink *network.Uplink, healthy bool) {
@@ -797,11 +813,15 @@ func (s *Server) reloadConfigInternal(newCfg *config.Config) error {
 		s.uplinkManager.StartHealthChecking(5*time.Second, []string{"8.8.8.8", "1.1.1.1"})
 	}
 
-	// 3. Apply Config to all services
+	// 3. Apply Config to all services - CRITICAL (includes firewall)
 	result := s.serviceOrchestrator.ReloadAll(newCfg)
 	if !result.Success {
 		for svc, errMsg := range result.FailedServices {
 			log.Printf("[CTL] Service %s reload failed: %s", svc, errMsg)
+			// Firewall failure is critical
+			if svc == "firewall" || svc == "Firewall" {
+				criticalErrors = append(criticalErrors, fmt.Sprintf("firewall: %s", errMsg))
+			}
 		}
 		// Notify about partial failure
 		s.Notify(NotifyWarning, "Configuration Applied", "Some services failed to reload")
@@ -810,26 +830,32 @@ func (s *Server) reloadConfigInternal(newCfg *config.Config) error {
 		s.Notify(NotifySuccess, "Configuration Applied", "Firewall rules have been updated")
 	}
 
-	log.Printf("[CTL] Configuration applied successfully")
-
-	// 4. Sync Scheduled Rules
+	// 4. Sync Scheduled Rules (non-critical)
 	if err := s.syncScheduledRules(newCfg); err != nil {
 		log.Printf("[CTL] Warning: Failed to sync scheduled rules: %v", err)
 		s.Notify(NotifyWarning, "Scheduler Error", fmt.Sprintf("Failed to sync rules: %v", err))
 	}
 
-	// 5. Sync IPSet Updates
+	// 5. Sync IPSet Updates (non-critical)
 	if err := s.syncIPSetTasks(newCfg); err != nil {
 		log.Printf("[CTL] Warning: Failed to sync ipset tasks: %v", err)
 	}
 
-	// 6. Sync UID Routes
+	// 6. Sync UID Routes (non-critical)
 	if err := s.netLib.ApplyUIDRoutes(newCfg.UIDRouting); err != nil {
 		log.Printf("[CTL] Warning: Failed to apply UID routes: %v", err)
 	}
 
+	// Return aggregated critical errors
+	if len(criticalErrors) > 0 {
+		log.Printf("[CTL] Configuration applied with critical errors: %v", criticalErrors)
+		return fmt.Errorf("critical failures: %s", strings.Join(criticalErrors, "; "))
+	}
+
+	log.Printf("[CTL] Configuration applied successfully")
 	return nil
 }
+
 
 // syncScheduledRules updates the scheduler with rules from config
 func (s *Server) syncScheduledRules(cfg *config.Config) error {
@@ -2184,4 +2210,34 @@ func (s *Server) syncIPSetTasks(cfg *config.Config) error {
 		}
 	}
 	return nil
+}
+
+// --- Safe Mode Operations ---
+
+// IsInSafeMode checks if safe mode is currently active.
+func (s *Server) IsInSafeMode(args *Empty, reply *SafeModeStatusReply) error {
+	if s.firewallManager != nil {
+		reply.InSafeMode = s.firewallManager.IsInSafeMode()
+	}
+	return nil
+}
+
+// EnterSafeMode activates safe mode (emergency lockdown).
+func (s *Server) EnterSafeMode(args *Empty, reply *Empty) error {
+	if s.firewallManager == nil {
+		return fmt.Errorf("firewall manager not initialized")
+	}
+	log.Printf("[CTL] SAFE MODE activated by RPC request")
+	s.Notify(NotifyWarning, "Safe Mode", "Safe Mode has been activated - forwarding disabled")
+	return s.firewallManager.ApplySafeMode()
+}
+
+// ExitSafeMode deactivates safe mode and restores normal operation.
+func (s *Server) ExitSafeMode(args *Empty, reply *Empty) error {
+	if s.firewallManager == nil {
+		return fmt.Errorf("firewall manager not initialized")
+	}
+	log.Printf("[CTL] Safe mode deactivated by RPC request")
+	s.Notify(NotifyInfo, "Safe Mode", "Safe Mode has been deactivated - normal operation resumed")
+	return s.firewallManager.ExitSafeMode()
 }

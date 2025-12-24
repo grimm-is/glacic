@@ -495,12 +495,17 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 		}
 
 
-		if allowWeb || allowAPI {
-			addService(qIface, "http")
-			addService(qIface, "https")
+			if allowWeb || allowAPI {
+				addService(qIface, "http")
+				addService(qIface, "https")
 
-			// Allow forwarding to sandbox for web/api
-			// This is critical for DNATed traffic to reach the API namespace
+				if allowAPI || allowWeb {
+					// Explicitly allow default API port 8443 (WebUI/API)
+					tcpElements = append(tcpElements, fmt.Sprintf("%s . %d", qIface, 8443))
+				}
+
+				// Allow forwarding to sandbox for web/api
+				// This is critical for DNATed traffic to reach the API namespace
 			// 169.254.255.2 is the hardcoded sandbox IP
 			sb.AddRule("forward", fmt.Sprintf("iifname %s ip daddr 169.254.255.2 tcp dport { 8080, 8443 } accept", qIface))
 
@@ -550,6 +555,10 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 				if zone.Management.Web || zone.Management.WebUI || zone.Management.API {
 					addService(qIface, "http")
 					addService(qIface, "https")
+
+					if zone.Management.API || zone.Management.Web || zone.Management.WebUI {
+						tcpElements = append(tcpElements, fmt.Sprintf("%s . %d", qIface, 8443))
+					}
 
 					// Allow forwarding to sandbox for web/api
 					sb.AddRule("forward", fmt.Sprintf("iifname %s ip daddr 169.254.255.2 tcp dport { 8080, 8443 } accept", qIface))

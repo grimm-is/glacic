@@ -41,6 +41,15 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	sess, err := s.authStore.Authenticate(creds.Username, creds.Password)
 	if err != nil {
 		s.logger.Warn("Failed login attempt", "username", creds.Username, "ip", clientIP)
+
+		// Record failed attempt for Fail2Ban-style blocking
+		// Auto-block after 5 failed attempts in 5 minutes
+		if s.security != nil {
+			if blockErr := s.security.RecordFailedAttempt(clientIP, "failed_login", 5, 5*time.Minute); blockErr != nil {
+				s.logger.Warn("Failed to record attempt", "error", blockErr)
+			}
+		}
+
 		WriteError(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}

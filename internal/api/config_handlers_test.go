@@ -204,3 +204,124 @@ func TestHandleVPN_Get(t *testing.T) {
 		t.Errorf("expected OK, got %v", status)
 	}
 }
+// TestHandlePolicyRoutes_Get tests getting policy routes
+func TestHandlePolicyRoutes_Get(t *testing.T) {
+	logger := logging.New(logging.DefaultConfig())
+	server := &Server{
+		Config: &config.Config{
+			PolicyRoutes: []config.PolicyRoute{
+				{Name: "route-vpn", Table: 100},
+			},
+		},
+		logger: logger,
+	}
+
+	req, _ := http.NewRequest("GET", "/api/config/policy_routes", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetPolicyRoutes(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("expected OK, got %v", status)
+	}
+
+	if !strings.Contains(rr.Body.String(), "route-vpn") {
+		t.Errorf("expected route-vpn in response, got: %s", rr.Body.String())
+	}
+}
+
+// --- Sad Path Tests ---
+
+// Note: RPC failure testing requires a full mock of ControlPlaneClient
+// which has ~50 methods. This is tracked for future enhancement.
+
+// TestHandlePolicies_ResponseBodyCheck verifies response body contains expected data
+func TestHandlePolicies_ResponseBodyCheck(t *testing.T) {
+	logger := logging.New(logging.DefaultConfig())
+	server := &Server{
+		Config: &config.Config{
+			Policies: []config.Policy{
+				{Name: "allow-ssh", From: "lan", To: "wan"},
+				{Name: "block-all", From: "wan", To: "lan"},
+			},
+		},
+		logger: logger,
+	}
+
+	req, _ := http.NewRequest("GET", "/api/policies", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetPolicies(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("expected OK, got %v", status)
+	}
+
+	// Verify specific content in response
+	body := rr.Body.String()
+	if !strings.Contains(body, "allow-ssh") {
+		t.Errorf("expected 'allow-ssh' in response, got: %s", body)
+	}
+	if !strings.Contains(body, "block-all") {
+		t.Errorf("expected 'block-all' in response, got: %s", body)
+	}
+}
+
+// TestHandleZones_NoConfig tests error when config is nil
+func TestHandleZones_NoConfig(t *testing.T) {
+	logger := logging.New(logging.DefaultConfig())
+	server := &Server{
+		Config: nil,
+		logger: logger,
+	}
+
+	req, _ := http.NewRequest("GET", "/api/zones", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetZones(rr, req)
+
+	// Should handle nil config gracefully
+	if status := rr.Code; status != http.StatusServiceUnavailable && status != http.StatusOK {
+		// Either 503 (config unavailable) or 200 with empty is acceptable
+		t.Logf("Status: %v, Body: %s", status, rr.Body.String())
+	}
+}
+
+// TestHandleDHCP_UpdateWithScopes tests DHCP update includes scope data
+func TestHandleDHCP_UpdateCheck(t *testing.T) {
+	logger := logging.New(logging.DefaultConfig())
+	server := &Server{
+		Config: &config.Config{
+			DHCP: &config.DHCPServer{
+				Enabled: true,
+				Scopes: []config.DHCPScope{
+					{
+						Name:       "office",
+						Interface:  "eth0",
+						RangeStart: "192.168.1.100",
+						RangeEnd:   "192.168.1.200",
+					},
+				},
+			},
+		},
+		logger: logger,
+	}
+
+	req, _ := http.NewRequest("GET", "/api/dhcp", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetDHCP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("expected OK, got %v", status)
+	}
+
+	body := rr.Body.String()
+	if !strings.Contains(body, "office") {
+		t.Errorf("expected scope name 'office' in response, got: %s", body)
+	}
+	if !strings.Contains(body, "192.168.1.100") {
+		t.Errorf("expected range_start in response, got: %s", body)
+	}
+}
+

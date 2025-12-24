@@ -6,9 +6,66 @@ import (
 	"net/http"
 
 	"grimm.is/glacic/internal/config"
+	"grimm.is/glacic/internal/logging"
 )
 
 // --- Config CRUD Handlers ---
+
+// applyConfigUpdate safely applies a config modification:
+// 1. Clones current config
+// 2. Applies the update function to the clone
+// 3. Validates the modified config
+// 4. Sends to control plane via RPC
+// 5. Only updates local s.Config on RPC success
+//
+// Returns true if the update was successful, false otherwise.
+// On validation errors, writes 400 Bad Request.
+// On RPC errors, writes 500 Internal Server Error.
+func (s *Server) applyConfigUpdate(w http.ResponseWriter, updateFn func(cfg *config.Config)) bool {
+	s.configMu.RLock()
+	// Deep clone via JSON (safe for nested structs)
+	data, err := json.Marshal(s.Config)
+	s.configMu.RUnlock()
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to clone config")
+		return false
+	}
+
+	var cloned config.Config
+	if err := json.Unmarshal(data, &cloned); err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to clone config")
+		return false
+	}
+
+	// Apply the update to the clone
+	updateFn(&cloned)
+
+	// Validate the modified config
+	if errs := cloned.Validate(); errs.HasErrors() {
+		WriteError(w, http.StatusBadRequest, "Validation failed: "+errs.Error())
+		return false
+	}
+
+	// Apply to control plane (if available)
+	if s.client != nil {
+		if err := s.client.ApplyConfig(&cloned); err != nil {
+			WriteError(w, http.StatusInternalServerError, "Failed to apply config: "+err.Error())
+			return false
+		}
+		// Save config to disk
+		if _, err := s.client.SaveConfig(); err != nil {
+			// Log warning but don't fail - config is applied
+			logging.Warn("Failed to persist config: " + err.Error())
+		}
+	}
+
+	// Only update local config after successful RPC
+	s.configMu.Lock()
+	updateFn(s.Config)
+	s.configMu.Unlock()
+
+	return true
+}
 
 // handleGetPolicies returns firewall policies
 // handleGetPolicies returns firewall policies
@@ -19,16 +76,16 @@ func (s *Server) handleGetPolicies(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdatePolicies updates firewall policies
-// handleUpdatePolicies updates firewall policies
 func (s *Server) handleUpdatePolicies(w http.ResponseWriter, r *http.Request) {
 	var policies []config.Policy
 	if !BindJSON(w, r, &policies) {
 		return
 	}
-	s.configMu.Lock()
-	s.Config.Policies = policies
-	s.configMu.Unlock()
-	SuccessResponse(w)
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.Policies = policies
+	}) {
+		SuccessResponse(w)
+	}
 }
 
 // handleGetNAT returns NAT configuration
@@ -40,16 +97,16 @@ func (s *Server) handleGetNAT(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateNAT updates NAT configuration
-// handleUpdateNAT updates NAT configuration
 func (s *Server) handleUpdateNAT(w http.ResponseWriter, r *http.Request) {
 	var nat []config.NATRule
 	if !BindJSON(w, r, &nat) {
 		return
 	}
-	s.configMu.Lock()
-	s.Config.NAT = nat
-	s.configMu.Unlock()
-	SuccessResponse(w)
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.NAT = nat
+	}) {
+		SuccessResponse(w)
+	}
 }
 
 // handleGetMarkRules returns mark rules
@@ -61,23 +118,16 @@ func (s *Server) handleGetMarkRules(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateMarkRules updates mark rules
-// handleUpdateMarkRules updates mark rules
 func (s *Server) handleUpdateMarkRules(w http.ResponseWriter, r *http.Request) {
 	var rules []config.MarkRule
 	if !BindJSON(w, r, &rules) {
 		return
 	}
-	s.configMu.Lock()
-	s.Config.MarkRules = rules
-	s.configMu.Unlock()
-	if s.client != nil {
-		if cfg := s.GetConfigSnapshot(w); cfg != nil {
-			cfg.MarkRules = rules
-			s.client.ApplyConfig(cfg)
-			s.client.SaveConfig()
-		}
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.MarkRules = rules
+	}) {
+		SuccessResponse(w)
 	}
-	SuccessResponse(w)
 }
 
 // handleGetUIDRouting returns UID routing rules
@@ -89,23 +139,36 @@ func (s *Server) handleGetUIDRouting(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateUIDRouting updates UID routing rules
-// handleUpdateUIDRouting updates UID routing rules
 func (s *Server) handleUpdateUIDRouting(w http.ResponseWriter, r *http.Request) {
 	var rules []config.UIDRouting
 	if !BindJSON(w, r, &rules) {
 		return
 	}
-	s.configMu.Lock()
-	s.Config.UIDRouting = rules
-	s.configMu.Unlock()
-	if s.client != nil {
-		if cfg := s.GetConfigSnapshot(w); cfg != nil {
-			cfg.UIDRouting = rules
-			s.client.ApplyConfig(cfg)
-			s.client.SaveConfig()
-		}
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.UIDRouting = rules
+	}) {
+		SuccessResponse(w)
 	}
-	SuccessResponse(w)
+}
+
+// handleGetPolicyRoutes returns policy routing rules
+func (s *Server) handleGetPolicyRoutes(w http.ResponseWriter, r *http.Request) {
+	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+		HandleGetData(w, cfg.PolicyRoutes)
+	}
+}
+
+// handleUpdatePolicyRoutes updates policy routing rules
+func (s *Server) handleUpdatePolicyRoutes(w http.ResponseWriter, r *http.Request) {
+	var rules []config.PolicyRoute
+	if !BindJSON(w, r, &rules) {
+		return
+	}
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.PolicyRoutes = rules
+	}) {
+		SuccessResponse(w)
+	}
 }
 
 // handleGetIPSets returns IPSet configuration
@@ -117,16 +180,16 @@ func (s *Server) handleGetIPSets(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateIPSets updates IPSet configuration
-// handleUpdateIPSets updates IPSet configuration
 func (s *Server) handleUpdateIPSets(w http.ResponseWriter, r *http.Request) {
 	var ipsets []config.IPSet
 	if !BindJSON(w, r, &ipsets) {
 		return
 	}
-	s.configMu.Lock()
-	s.Config.IPSets = ipsets
-	s.configMu.Unlock()
-	SuccessResponse(w)
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.IPSets = ipsets
+	}) {
+		SuccessResponse(w)
+	}
 }
 
 // handleGetDHCP returns DHCP server configuration
@@ -138,16 +201,16 @@ func (s *Server) handleGetDHCP(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateDHCP updates DHCP server configuration
-// handleUpdateDHCP updates DHCP server configuration
 func (s *Server) handleUpdateDHCP(w http.ResponseWriter, r *http.Request) {
 	var dhcp config.DHCPServer
 	if !BindJSON(w, r, &dhcp) {
 		return
 	}
-	s.configMu.Lock()
-	s.Config.DHCP = &dhcp
-	s.configMu.Unlock()
-	SuccessResponse(w)
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.DHCP = &dhcp
+	}) {
+		SuccessResponse(w)
+	}
 }
 
 // handleGetDNS returns DNS server configuration
@@ -183,33 +246,38 @@ func (s *Server) handleUpdateDNS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine which format was sent
+	var updateFn func(cfg *config.Config)
+
 	if err := json.Unmarshal(body, &req); err == nil && (req.Old != nil || req.New != nil) {
-		s.configMu.Lock()
-		if req.Old != nil {
-			s.Config.DNSServer = req.Old
+		updateFn = func(cfg *config.Config) {
+			if req.Old != nil {
+				cfg.DNSServer = req.Old
+			}
+			if req.New != nil {
+				cfg.DNS = req.New
+			}
+			config.ApplyPostLoadMigrations(cfg)
 		}
-		if req.New != nil {
-			s.Config.DNS = req.New
-		}
-		s.configMu.Unlock()
 	} else {
 		// Try legacy raw DNSServer format
 		var old config.DNSServer
 		if err := json.Unmarshal(body, &old); err == nil {
-			s.configMu.Lock()
-			s.Config.DNSServer = &old
-			s.configMu.Unlock()
+			updateFn = func(cfg *config.Config) {
+				cfg.DNSServer = &old
+				config.ApplyPostLoadMigrations(cfg)
+			}
 		} else {
 			WriteError(w, http.StatusBadRequest, "Invalid DNS configuration format")
 			return
 		}
 	}
 
-	// Run post-load migrations (e.g., DNS config migration)
-	config.ApplyPostLoadMigrations(s.Config)
-
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	if s.applyConfigUpdate(w, updateFn) {
+		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	}
 }
+
 
 // handleGetRoutes returns static route configuration
 // handleGetRoutes returns static route configuration
@@ -220,16 +288,16 @@ func (s *Server) handleGetRoutes(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateRoutes updates static route configuration
-// handleUpdateRoutes updates static route configuration
 func (s *Server) handleUpdateRoutes(w http.ResponseWriter, r *http.Request) {
 	var routes []config.Route
 	if !BindJSON(w, r, &routes) {
 		return
 	}
-	s.configMu.Lock()
-	s.Config.Routes = routes
-	s.configMu.Unlock()
-	SuccessResponse(w)
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.Routes = routes
+	}) {
+		SuccessResponse(w)
+	}
 }
 
 // handleGetZones returns zone configuration
@@ -241,16 +309,16 @@ func (s *Server) handleGetZones(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateZones updates zone configuration
-// handleUpdateZones updates zone configuration
 func (s *Server) handleUpdateZones(w http.ResponseWriter, r *http.Request) {
 	var zones []config.Zone
 	if !BindJSON(w, r, &zones) {
 		return
 	}
-	s.configMu.Lock()
-	s.Config.Zones = zones
-	s.configMu.Unlock()
-	SuccessResponse(w)
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.Zones = zones
+	}) {
+		SuccessResponse(w)
+	}
 }
 
 // handleGetProtections returns per-interface protection settings
@@ -267,12 +335,19 @@ func (s *Server) handleUpdateProtections(w http.ResponseWriter, r *http.Request)
 	var wrapper struct {
 		Protections []config.InterfaceProtection `json:"protections"`
 	}
-	body, _ := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to read request body")
+		return
+	}
+
+	var updateFn func(cfg *config.Config)
+
 	// Try parsing as wrapper
 	if err := json.Unmarshal(body, &wrapper); err == nil && wrapper.Protections != nil {
-		s.configMu.Lock()
-		s.Config.Protections = wrapper.Protections
-		s.configMu.Unlock()
+		updateFn = func(cfg *config.Config) {
+			cfg.Protections = wrapper.Protections
+		}
 	} else {
 		// Try parsing as array
 		var protections []config.InterfaceProtection
@@ -280,11 +355,14 @@ func (s *Server) handleUpdateProtections(w http.ResponseWriter, r *http.Request)
 			WriteError(w, http.StatusBadRequest, "Invalid request body")
 			return
 		}
-		s.configMu.Lock()
-		s.Config.Protections = protections
-		s.configMu.Unlock()
+		updateFn = func(cfg *config.Config) {
+			cfg.Protections = protections
+		}
 	}
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+
+	if s.applyConfigUpdate(w, updateFn) {
+		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	}
 }
 
 // handleGetVPN returns the current VPN configuration
@@ -296,17 +374,16 @@ func (s *Server) handleGetVPN(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateVPN updates the VPN configuration
-// handleUpdateVPN updates the VPN configuration
 func (s *Server) handleUpdateVPN(w http.ResponseWriter, r *http.Request) {
 	var newVPN config.VPNConfig
-	// Note: previous code used "Invalid JSON" instead of "Invalid request body", defaulting to standard
 	if !BindJSON(w, r, &newVPN) {
 		return
 	}
-	s.configMu.Lock()
-	s.Config.VPN = &newVPN
-	s.configMu.Unlock()
-	SuccessResponse(w)
+	if s.applyConfigUpdate(w, func(cfg *config.Config) {
+		cfg.VPN = &newVPN
+	}) {
+		SuccessResponse(w)
+	}
 }
 
 // handleGetQoS returns QoS policies configuration
@@ -323,20 +400,30 @@ func (s *Server) handleUpdateQoS(w http.ResponseWriter, r *http.Request) {
 	var wrapper struct {
 		QoSPolicies []config.QoSPolicy `json:"qos_policies"`
 	}
-	body, _ := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "Failed to read request body")
+		return
+	}
+
+	var updateFn func(cfg *config.Config)
+
 	if err := json.Unmarshal(body, &wrapper); err == nil && wrapper.QoSPolicies != nil {
-		s.configMu.Lock()
-		s.Config.QoSPolicies = wrapper.QoSPolicies
-		s.configMu.Unlock()
+		updateFn = func(cfg *config.Config) {
+			cfg.QoSPolicies = wrapper.QoSPolicies
+		}
 	} else {
 		var qos []config.QoSPolicy
 		if err := json.Unmarshal(body, &qos); err != nil {
 			WriteError(w, http.StatusBadRequest, "Invalid request body")
 			return
 		}
-		s.configMu.Lock()
-		s.Config.QoSPolicies = qos
-		s.configMu.Unlock()
+		updateFn = func(cfg *config.Config) {
+			cfg.QoSPolicies = qos
+		}
 	}
-	WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+
+	if s.applyConfigUpdate(w, updateFn) {
+		WriteJSON(w, http.StatusOK, map[string]bool{"success": true})
+	}
 }

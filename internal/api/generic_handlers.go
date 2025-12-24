@@ -27,9 +27,14 @@ const (
 
 // BindJSON decodes JSON from request body into the provided pointer.
 // Returns true on success, false if decoding failed (error response already sent).
+// BindJSON decodes JSON from request body into the provided pointer.
+// Returns true on success, false if decoding failed (error response already sent).
 func BindJSON[T any](w http.ResponseWriter, r *http.Request, dest *T) bool {
-	if err := json.NewDecoder(r.Body).Decode(dest); err != nil {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dest); err != nil {
 		WriteError(w, http.StatusBadRequest, ErrInvalidBody)
+		// logging.Error("JSON Decode failed: " + err.Error())
 		return false
 	}
 	return true

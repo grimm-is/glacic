@@ -158,18 +158,6 @@ func NewServer(opts ServerOptions) (*Server, error) {
 
 
 
-	// Debug: List all assets
-	if opts.Assets != nil {
-		logging.Info("Listing embedded UI assets:")
-		fs.WalkDir(opts.Assets, ".", func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				logging.Error(fmt.Sprintf("Failed to walk assets: %v", err))
-				return err
-			}
-			logging.Info(fmt.Sprintf(" - %s", path))
-			return nil
-		})
-	}
 
 	// Start background health check
 	go s.runHealthCheck()
@@ -300,6 +288,8 @@ func (s *Server) initRoutes() {
 		// Previously updated handlers here...
 		mux.Handle("GET /api/config/routes", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleGetRoutes)))
 		mux.Handle("POST /api/config/routes", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUpdateRoutes)))
+		mux.Handle("GET /api/config/policy_routes", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleGetPolicyRoutes)))
+		mux.Handle("POST /api/config/policy_routes", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleUpdatePolicyRoutes)))
 		mux.Handle("GET /api/config/zones", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleGetZones)))
 		mux.Handle("POST /api/config/zones", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleUpdateZones)))
 		mux.Handle("GET /api/config/protections", s.require(storage.PermWriteFirewall, http.HandlerFunc(s.handleGetProtections)))
@@ -343,6 +333,11 @@ func (s *Server) initRoutes() {
 		mux.Handle("GET /api/system/backup", s.require(storage.PermAdminBackup, http.HandlerFunc(s.handleBackup)))
 		mux.Handle("POST /api/system/restore", s.require(storage.PermAdminBackup, http.HandlerFunc(s.handleRestore)))
 		mux.Handle("POST /api/system/wol", s.require(storage.PermWriteConfig, http.HandlerFunc(s.handleWakeOnLAN)))
+
+		// Safe Mode (emergency lockdown)
+		mux.Handle("GET /api/system/safe-mode", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleSafeModeStatus)))
+		mux.Handle("POST /api/system/safe-mode", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleEnterSafeMode)))
+		mux.Handle("DELETE /api/system/safe-mode", s.require(storage.PermAdminSystem, http.HandlerFunc(s.handleExitSafeMode)))
 
 		// Scheduler
 		mux.Handle("GET /api/scheduler/status", s.require(storage.PermReadConfig, http.HandlerFunc(s.handleSchedulerStatus)))
@@ -472,7 +467,9 @@ func (s *Server) spaHandler(assets fs.FS, fallback string) http.Handler {
 func (s *Server) Handler() http.Handler {
 	// Apply CSRF middleware to protect against cross-site request forgery
 	csrfMiddleware := CSRFMiddleware(s.csrfManager, s.authStore)
-	return csrfMiddleware(s.mux)
+	
+	// Chain: AccessLog -> CSRF -> Mux
+	return AccessLogger(csrfMiddleware(s.mux))
 }
 
 // Batch Request/Response types
@@ -1819,7 +1816,14 @@ func (s *Server) require(perm storage.Permission, handler http.Handler) http.Han
 				return
 			}
 			// Invalid key provided
-			logging.Error(fmt.Sprintf("Auth failed: invalid api key '%s'", apiKeyStr))
+			clientIP := getClientIP(r)
+			logging.Error(fmt.Sprintf("Auth failed: invalid api key from %s", clientIP))
+
+			// Record failed attempt for Fail2Ban-style blocking
+			if s.security != nil {
+				_ = s.security.RecordFailedAttempt(clientIP, "invalid_api_key", 5, 5*time.Minute)
+			}
+
 			writeAuthError(w, http.StatusUnauthorized, "invalid api key")
 			return
 		}

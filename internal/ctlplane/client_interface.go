@@ -119,6 +119,11 @@ type ControlPlaneClient interface {
 
 	// --- Ping (Connectivity Verification) ---
 	Ping(target string, timeoutSeconds int) (*PingReply, error)
+
+	// --- Safe Mode ---
+	IsInSafeMode() (bool, error)
+	EnterSafeMode() error
+	ExitSafeMode() error
 }
 
 // Compile-time check that Client implements ControlPlaneClient
