@@ -11,18 +11,40 @@ import (
 )
 
 // RunConsole starts the TUI console
-func RunConsole() {
-	// Connect to control plane
-	client, err := ctlplane.NewClient()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to connect to control plane: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Make sure 'firewall ctl' is running first.\n")
-		os.Exit(1)
+func RunConsole(remote string, apiKey string, insecure bool, debug bool) {
+	if debug {
+		if err := tui.EnableDebugLogging("tui.log"); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to enable debug logging: %v\n", err)
+		} else {
+			defer tui.CloseDebugLog()
+			tui.DebugLog("Starting TUI Console")
+		}
 	}
-	defer client.Close()
+
+	var backend tui.Backend
+
+	if remote != "" {
+		if apiKey == "" {
+			fmt.Fprintln(os.Stderr, "Error: --api-key is required for remote connection")
+			os.Exit(1)
+		}
+		backend = tui.NewRemoteBackend(remote, apiKey, insecure)
+	} else {
+		// Local mode - connect to Unix socket - deferred to nil check below
+	}
 
 	// Start Bubble Tea app
-	backend := tui.NewBackend(client)
+	if backend == nil {
+		client, err := ctlplane.NewClient()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to connect to control plane: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Make sure 'firewall ctl' is running first.\n")
+			os.Exit(1)
+		}
+		defer client.Close()
+		backend = tui.NewLocalBackend(client)
+	}
+
 	p := tea.NewProgram(tui.NewModel(backend), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running console: %v\n", err)
