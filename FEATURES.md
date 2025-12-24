@@ -142,7 +142,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Backup | Config Backup/Restore | 🟩 L4 | Works, versioned |
 | Monitoring | Prometheus Metrics | 🟩 L4 | Confirmed via `t/80-monitoring/metrics_endpoint_test.sh` |
 | Logging | Structured Logging | 🟩 L4 | slog-based, works |
-| Logging | Log Forwarding (syslog) | 🔲 L1 | Config only |
+| Logging | Log Forwarding (syslog) | 🟩 L4 | Confirmed via `t/80-monitoring/syslog_test.sh` |
 | Supervisor | Watchdog/Monitor | 🟩 L4 | Confirmed via `t/80-monitoring/monitor_test.sh` |
 | Stability | Crash / Boot Loop Protection | 🟩 L4 | Panic counting, safe mode persistence |
 | **API** | | | |

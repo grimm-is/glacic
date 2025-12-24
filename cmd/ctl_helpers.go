@@ -366,6 +366,29 @@ func initializeCoreServices(ctx context.Context, cfg *config.Config, netMgr *net
 		netMgr:     netMgr,
 	}
 
+	// Syslog Forwarding
+	if cfg.Syslog != nil && cfg.Syslog.Enabled {
+		syslogCfg := logging.SyslogConfig{
+			Enabled:  true,
+			Host:     cfg.Syslog.Host,
+			Port:     cfg.Syslog.Port,
+			Protocol: cfg.Syslog.Protocol,
+			Tag:      cfg.Syslog.Tag,
+			Facility: cfg.Syslog.Facility,
+		}
+		syslogWriter, err := logging.NewSyslogWriter(syslogCfg)
+		if err != nil {
+			logging.Warn(fmt.Sprintf("Failed to connect to syslog server: %v", err))
+		} else {
+			// Combine stderr and syslog writers
+			multiWriter := logging.MultiWriter(os.Stderr, syslogWriter)
+			logCfg := logging.DefaultConfig()
+			logCfg.Output = multiWriter
+			logging.SetDefault(logging.New(logCfg))
+			logging.Info("Syslog forwarding enabled", "host", cfg.Syslog.Host, "port", cfg.Syslog.Port)
+		}
+	}
+
 	// DNS Service
 	services.dnsSvc = dns.NewService()
 	netMgr.SetDNSUpdater(services.dnsSvc)

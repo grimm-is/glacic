@@ -1,21 +1,33 @@
 #!/bin/sh
 
-# Syslog Configuration Test
-# Verifies: Remote syslog configuration is parsed and applied
+# Syslog Forwarding Test
+# Verifies: Logs are forwarded to remote syslog server
+# Tests actual log forwarding functionality
 
 TEST_TIMEOUT=30
 . "$(dirname "$0")/../common.sh"
 
-plan 3
+plan 4
 
 require_root
 require_binary
 
 cleanup_on_exit
 
-diag "Test: Syslog Configuration"
+diag "Test: Syslog Log Forwarding"
 
-# Create test config with syslog block
+# Start a UDP syslog receiver in background (netcat)
+SYSLOG_PORT=15514
+SYSLOG_OUTPUT=$(mktemp_compatible syslog_output.log)
+
+# Start netcat listening for UDP syslog messages
+# Use timeout to prevent hanging
+diag "Starting syslog receiver on UDP port $SYSLOG_PORT..."
+timeout 10 nc -u -l -p "$SYSLOG_PORT" > "$SYSLOG_OUTPUT" 2>/dev/null &
+NC_PID=$!
+sleep 0.5
+
+# Create test config with syslog pointing to our receiver
 TEST_CONFIG=$(mktemp_compatible syslog.hcl)
 cat > "$TEST_CONFIG" <<EOF
 schema_version = "1.0"
@@ -30,32 +42,55 @@ zone "lan" {
 }
 
 syslog {
-    host = "192.0.2.50"
-    port = 514
+    enabled = true
+    host = "127.0.0.1"
+    port = $SYSLOG_PORT
     protocol = "udp"
+    tag = "glacic-test"
 }
 EOF
 
 # Start control plane
-diag "Starting control plane..."
+diag "Starting control plane with syslog forwarding..."
 start_ctl "$TEST_CONFIG"
-ok 0 "Control plane started with syslog config"
+ok 0 "Control plane started with syslog forwarding config"
 
-# Check if the syslog config was acknowledged in logs
-sleep 2
-if grep -qi "syslog\|remote log" "$CTL_LOG" 2>/dev/null; then
-    ok 0 "Syslog configuration acknowledged in logs"
+# Wait for logs to be forwarded
+sleep 3
+
+# Check if syslog forwarding is mentioned in control plane logs
+if grep -qi "syslog forwarding enabled" "$CTL_LOG" 2>/dev/null; then
+    ok 0 "Syslog forwarding enabled message in logs"
 else
-    # Feature may not log explicitly - soft pass if config was accepted
-    ok 0 "Syslog config accepted # SKIP (no explicit log message)"
+    # Check for connection failure warning
+    if grep -qi "Failed to connect to syslog" "$CTL_LOG" 2>/dev/null; then
+        ok 1 "Syslog connection failed"
+        diag "Check if netcat is listening - port may be in use"
+    else
+        ok 0 "Syslog config accepted # SKIP (no explicit message)"
+    fi
 fi
 
-# Verify firewall is running
+# Stop netcat
+kill "$NC_PID" 2>/dev/null || true
+wait "$NC_PID" 2>/dev/null || true
+
+# Check if any logs were received by the syslog server
+if [ -s "$SYSLOG_OUTPUT" ]; then
+    ok 0 "Syslog messages received by remote server"
+    diag "Sample syslog output:"
+    head -3 "$SYSLOG_OUTPUT" | sed 's/^/# /'
+else
+    ok 1 "No syslog messages received (file empty)"
+    diag "This may be a timing issue or netcat problem"
+fi
+
+# Verify firewall is still running
 if nft list table inet glacic >/dev/null 2>&1; then
     ok 0 "Firewall table created"
 else
     ok 1 "Firewall table missing"
 fi
 
-rm -f "$TEST_CONFIG"
+rm -f "$TEST_CONFIG" "$SYSLOG_OUTPUT"
 exit 0
