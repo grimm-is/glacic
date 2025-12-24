@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -102,6 +103,7 @@ func runTests(args []string) error {
 	maxSize := 0    // 0 means no overflow (maxSize = warmSize)
 	runSkipped := false
 	verbose := false
+	var filter string
 	var tests []TestJob
 
 	for i := 0; i < len(args); i++ {
@@ -138,6 +140,15 @@ func runTests(args []string) error {
 				}
 			}
 			return fmt.Errorf("invalid -j value")
+		}
+
+		if arg == "-filter" {
+			if i+1 < len(args) {
+				filter = args[i+1]
+				i++
+				continue
+			}
+			return fmt.Errorf("missing value for -filter")
 		}
 
 
@@ -177,6 +188,21 @@ func runTests(args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to discover tests: %w", err)
 		}
+	}
+
+	// Apply filter if specified
+	if filter != "" {
+		re, err := regexp.Compile(filter)
+		if err != nil {
+			return fmt.Errorf("invalid filter regex: %w", err)
+		}
+		var filtered []TestJob
+		for _, t := range tests {
+			if re.MatchString(t.ScriptPath) {
+				filtered = append(filtered, t)
+			}
+		}
+		tests = filtered
 	}
 
 	if len(tests) == 0 {

@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # Path to the Glacic binary
-GLACIC_BIN="${GLACIC_BIN:-/mnt/glacic/build/glacic}"
+# Path to the Glacic binary
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/../common.sh"
+GLACIC_BIN="$APP_BIN"
 CONFIG_FILE="t/configs/hairpin.hcl"
 
 echo "Running Hairpin NAT generation test..."

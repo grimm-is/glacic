@@ -46,14 +46,23 @@ Present in config but not fully implemented:
 
 ## Documentation
 
+- [Architecture](ARCHITECTURE.md) - System design and developer guide
 - [Features](FEATURES.md) - Detailed feature list and roadmap
 - [Contributor License Agreement](CLA.md) - CLA for contributors
+
+### Developer Guides
+
+- [Adding API Endpoints](docs/dev/add-api-endpoint.md) - Step-by-step guide
+- [Adding Config Fields](docs/dev/add-config-field.md) - HCL configuration
+- [Running Tests](docs/dev/run-tests.md) - Integration test guide
+- [Troubleshooting](docs/dev/troubleshooting.md) - Common errors and fixes
+- [Go Code Standards](docs/dev/go-code-standards.md) - Coding conventions
 
 ## Quick Start
 
 ### Prerequisites
 
-- Go 1.21+
+- Go 1.23+ (go.mod specifies 1.25)
 - Node.js 18+ (for UI)
 - jq (for brand configuration)
 - QEMU (for VM testing)
@@ -79,6 +88,15 @@ make help
 # Start development VM with UI at http://localhost:8080
 make dev
 
+# Build everything (Smart Build: Client on Mac, Server on Linux)
+make build
+
+# Build Linux Server (forces cross-compile if on Mac)
+make server
+
+# Install to /usr/local/bin
+make install
+
 # Run TUI demo (mock data, no VM required)
 make demo
 
@@ -94,6 +112,11 @@ make test
 
 # Run integration tests in VM
 make test-int
+
+# Orca VM Pool Management
+make pool-status       # Check active VMs
+make pool-stop         # Stop active pool
+make pool-clean        # Force cleanup
 
 # Run all tests
 make test-all
@@ -156,7 +179,7 @@ glacic upgrade \
 ```bash
 glacic api generate --name "monitor" --preset readonly
 glacic check -v /etc/glacic/glacic.hcl
-glacic show --remote https://192.168.1.1:8080 --api-key xxx
+glacic show --remote https://192.168.1.1:8443 --api-key xxx
 glacic log -f
 ```
 
@@ -164,7 +187,7 @@ glacic log -f
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              glacic api (uid=nobody, port 8080)             │
+│        glacic api (uid=nobody, HTTPS:8443 HTTP:8080)         │
 │  ┌──────────┐  ┌─────────┐  ┌─────────────┐                 │
 │  │ REST API │  │  Web UI │  │  Prometheus │                 │
 │  └────┬─────┘  └─────────┘  └─────────────┘                 │
@@ -348,7 +371,12 @@ vpn {
 ├── ui/                        # Svelte web UI
 ├── docs/                      # Architecture and design docs
 ├── tests/                     # Integration test fixtures
-├── scripts/                   # Build, test, and VM scripts
+├── scripts/                   # Toolchain
+│   ├── build/                 # Build helpers
+│   ├── demo/                  # Demo environment
+│   ├── deploy/                # Deployment scripts
+│   ├── dev/                   # Env scripts
+│   └── vm/                    # VM launchers
 ├── configs/                   # Example configurations
 └── cmd/glacic-builder/        # Alpine VM & ISO builder
 ```

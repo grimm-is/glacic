@@ -57,20 +57,21 @@ zone "wan" {
   interfaces = ["veth-wan"]
 }
 
-# Use legacy dns_server{} which is well-tested  
-dns_server {
-  enabled = true
-  listen_on = ["192.168.100.1"]
+# New DNS syntax
+dns {
+  mode = "forward"
   forwarders = ["8.8.8.8"]
-  local_domain = "local"
   
-  # Static host records for internal resolution
-  host "192.168.100.50" {
-    hostnames = ["server", "server.local"]
-  }
-  
-  host "192.168.100.1" {
-    hostnames = ["router", "router.local", "gateway", "gateway.local"]
+  serve "lan" {
+    local_domain = "local"
+    
+    host "192.168.100.50" {
+      hostnames = ["server", "server.local"]
+    }
+    
+    host "192.168.100.1" {
+      hostnames = ["router", "router.local", "gateway", "gateway.local"]
+    }
   }
 }
 
@@ -116,29 +117,54 @@ wait_for_dns() {
     _count=0
     
     diag "Waiting for DNS resolution of $_host..."
-    while [ $_count -lt 25 ]; do
+    while [ $_count -lt 5 ]; do
         _result=$(run_client dig @192.168.100.1 "$_host" +short +timeout=1 2>&1)
         if echo "$_result" | grep -q "$_expected"; then
             return 0
         fi
+        diag "DNS retry $_count: $_result"
         sleep 0.2
         _count=$((_count + 1))
     done
     return 1
 }
 
+# Test: L3 Connectivity check
+diag "Checking L3 connectivity to router..."
+if run_client ping -c 1 -W 1 192.168.100.1 >/dev/null 2>&1; then
+    ok 0 "Ping to router successful"
+else
+    ok 1 "Ping to router failed"
+    diag "--- DEBUG STATE (Connectivity) ---"
+    ip addr >&2
+    ip route >&2
+    nft list ruleset >&2
+    diag "--------------------------------"
+fi
+
 # Test: LAN client resolves internal hostname
 diag "Testing LAN DNS resolution for server.local..."
 if wait_for_dns "server.local" "192.168.100.50"; then
     SERVER_RESULT=$(run_client dig @192.168.100.1 server.local +short +timeout=2 2>&1)
-if echo "$SERVER_RESULT" | grep -q "192.168.100.50"; then
-    ok 0 "server.local resolved to 192.168.100.50"
+    if echo "$SERVER_RESULT" | grep -q "192.168.100.50"; then
+        ok 0 "server.local resolved to 192.168.100.50"
+    else
+        # Check if DNS is responding at all
+        DNS_STATUS=$(run_client dig @192.168.100.1 server.local +timeout=2 2>&1 | grep "status:" || echo "no response")
+        diag "DNS response: $DNS_STATUS"
+        diag "Server result: $SERVER_RESULT"
+        ok 1 "server.local resolution failed"
+    fi
 else
-    # Check if DNS is responding at all
-    DNS_STATUS=$(run_client dig @192.168.100.1 server.local +timeout=2 2>&1 | grep "status:" || echo "no response")
-    diag "DNS response: $DNS_STATUS"
-    diag "Server result: $SERVER_RESULT"
-    ok 1 "server.local resolution failed"
+    diag "--- DEBUG STATE (Timeout) ---"
+    diag "--- CTL LOG ---"
+    cat "$CTL_LOG" | sed 's/^/    /' >&2
+    diag "---------------"
+    nft list ruleset >&2
+    ip addr >&2
+    ip route >&2
+    diag "-----------------------------"
+    fail "Timeout waiting for server.local"
 fi
 
 # Test: Router hostname also resolves
@@ -157,7 +183,11 @@ if wait_for_dns "router.local" "192.168.100.1"; then
     fi
 else
     # Helper already logged error? No, it just loops.
-    # We need to manually fail if helper returns 1
+    # We need to manually    diag "--- DEBUG STATE (Timeout) ---"
+    diag "--- CTL LOG ---"
+    cat "$CTL_LOG" | sed 's/^/    /' >&2
+    diag "---------------"
+    diag "-----------------------------"
     fail "Timeout waiting for router.local"
 fi
 

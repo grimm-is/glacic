@@ -217,7 +217,8 @@ start_firewall() {
     # Start firewall in background using dev_mode kernel param
     # vm-dev.sh args: $1=mount_path $2=unused $3=kernel_params
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    "$SCRIPT_DIR/vm-dev.sh" "$(pwd)" "" "dev_mode=true api_port=${API_PORT} config_file=build/firewall.hcl" > /tmp/firewall-demo.log 2>&1 &
+    # Points to scripts/vm/dev.sh
+    "$SCRIPT_DIR/../vm/dev.sh" "$(pwd)" "" "dev_mode=true api_port=${API_PORT} config_file=build/firewall.hcl" > /tmp/firewall-demo.log 2>&1 &
     local pid=$!
     echo $pid > "$FIREWALL_PID_FILE"
 

@@ -9,8 +9,15 @@
 #   make demo-vm      - Run live VM demo with virtual network
 #   make clean        - Clean build artifacts
 
-.PHONY: help build build-ui build-go test test-unit test-int demo demo-vm clean \
-        vm-setup vm-start vm-stop lint fmt check dev
+
+# Default target
+.DEFAULT_GOAL := help
+
+.PHONY: help all build server client ui install clean \
+        test test-unit test-int integration \
+        demo demo-web demo-vm \
+        vm-setup vm-start vm-stop \
+        lint fmt check dev
 
 # Colors
 BLUE := \033[0;34m
@@ -24,11 +31,28 @@ BRAND_NAME := $(shell jq -r '.name' internal/brand/brand.json)
 BRAND_LOWER := $(shell jq -r '.lowerName' internal/brand/brand.json)
 BRAND_BINARY := $(shell jq -r '.binaryName' internal/brand/brand.json)
 
+# Detect host architecture for cross-compilation
+HOST_ARCH := $(shell uname -m)
+# Fallback if uname fails
+ifeq ($(HOST_ARCH),)
+    HOST_ARCH := amd64
+endif
+
+ifeq ($(HOST_ARCH),arm64)
+    LINUX_ARCH := arm64
+else ifeq ($(HOST_ARCH),aarch64)
+    LINUX_ARCH := arm64
+else
+    LINUX_ARCH := amd64
+endif
+
 # Configuration
 BUILD_DIR := build
 BINARY := $(BUILD_DIR)/$(BRAND_BINARY)
 BINARY_LINUX_AMD64 := $(BUILD_DIR)/$(BRAND_BINARY)-linux-amd64
 BINARY_LINUX_ARM64 := $(BUILD_DIR)/$(BRAND_BINARY)-linux-arm64
+# Target Linux binary for current architecture (or host arch if linux)
+BINARY_TARGET := $(if $(filter arm64,$(LINUX_ARCH)),$(BINARY_LINUX_ARM64),$(BINARY_LINUX_AMD64))
 BINARY_DARWIN := $(BUILD_DIR)/$(BRAND_BINARY)-darwin-$(HOST_ARCH)
 UI_DIR := ui
 SCRIPTS_DIR := scripts
@@ -43,11 +67,12 @@ help:
 	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Build Commands:$(NC)"
-	@echo "  make build         Build everything (UI + Go binary for Linux)"
-	@echo "  make iso           Build bootable installer ISO"
-	@echo "  make build-ui      Build Svelte UI only"
-	@echo "  make build-go      Build Go binary for Linux (default target)"
-	@echo "  make build-darwin  Build Go binary for macOS (stub mode)"
+	@echo "  make              Show help"
+	@echo "  make build        Build native binary (detects OS)"
+	@echo "  make server       Build Linux binary (for VM/Deploy)"
+	@echo "  make ui           Build Svelte UI"
+	@echo "  make install      Install native binary to /usr/local/bin"
+	@echo "  make iso          Build bootable installer ISO"
 	@echo ""
 	@echo "$(YELLOW)Test Commands:$(NC)"
 	@echo "  make test              Run all unit tests (Go tests)"
@@ -84,15 +109,7 @@ help:
 # Build Targets
 # ==============================================================================
 
-# Detect host architecture for cross-compilation
-HOST_ARCH := $(shell uname -m)
-ifeq ($(HOST_ARCH),arm64)
-    LINUX_ARCH := arm64
-else ifeq ($(HOST_ARCH),aarch64)
-    LINUX_ARCH := arm64
-else
-    LINUX_ARCH := amd64
-endif
+
 
 # Build info for ldflags
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -107,38 +124,48 @@ LDFLAGS := -X 'grimm.is/glacic/internal/brand.Version=$(VERSION)' \
            -X 'grimm.is/glacic/internal/brand.GitBranch=$(GIT_BRANCH)' \
            -X 'grimm.is/glacic/internal/brand.GitMergeBase=$(GIT_MERGE_BASE)'
 
-build: build-ui build-go
-	@echo "$(GREEN)✓ Build complete$(NC)"
+# Smart Build: Detects Host OS
+# On macOS: Builds Client (glacic)
+# On Linux: Builds Server (glacic)
+build: ui $(BINARY)
+	@echo "$(GREEN)✓ Build complete: $(BINARY)$(NC)"
 
-build-ui:
+all: build
+
+# Alias
+client: build
+
+# UI Build
+ui:
 	@echo "$(BLUE)Building UI...$(NC)"
 	@cd $(UI_DIR) && \
 		if [ ! -d node_modules ]; then npm install --silent; fi && \
 		npm run build --silent
 	@echo "$(GREEN)✓ UI built$(NC)"
 
-# Build Linux binary (arch-dependent)
-BINARY_TARGET := $(if $(filter arm64,$(LINUX_ARCH)),$(BINARY_LINUX_ARM64),$(BINARY_LINUX_AMD64))
+# Native Binary (Host OS)
+$(BINARY): $(GO_FILES)
+	@echo "$(BLUE)Building native binary ($(HOST_ARCH))...$(NC)"
+	@mkdir -p $(BUILD_DIR)
+	@go build -ldflags "$(LDFLAGS)" -o $(BINARY) .
+	@echo "$(GREEN)✓ Native binary built: $(BINARY)$(NC)"
 
-build-go: $(BINARY)
-
-$(BINARY): $(BINARY_TARGET)
-	@ln -sf $(notdir $(BINARY_TARGET)) $(BINARY)
-	@echo "$(GREEN)✓ Symlink created: $(BINARY) -> $(BINARY_TARGET)$(NC)"
+# Server Build (Linux Binary - Always Cross-Compiled if needed)
+# Used by VM and Deployment
+server: $(BINARY_TARGET)
 
 $(BINARY_TARGET): $(GO_FILES)
-	@echo "$(BLUE)Building Go binary (Linux/$(LINUX_ARCH))...$(NC)"
+	@echo "$(BLUE)Building Linux Server binary ($(LINUX_ARCH))...$(NC)"
 	@mkdir -p $(BUILD_DIR)
 	@CGO_ENABLED=0 GOOS=linux GOARCH=$(LINUX_ARCH) go build -ldflags "$(LDFLAGS)" -o $(BINARY_TARGET) .
-	@echo "$(GREEN)✓ Binary built: $(BINARY_TARGET)$(NC)"
+	@echo "$(GREEN)✓ Server binary built: $(BINARY_TARGET)$(NC)"
 
-build-darwin: $(BINARY_DARWIN)
-
-$(BINARY_DARWIN): $(GO_FILES)
-	@echo "$(BLUE)Building Go binary (macOS/$(HOST_ARCH) - stub mode)...$(NC)"
-	@mkdir -p $(BUILD_DIR)
-	@go build -o $(BINARY_DARWIN) .
-	@echo "$(GREEN)✓ Binary built: $(BINARY_DARWIN)$(NC)"
+# Installation
+DESTDIR ?= /usr/local/bin
+install: build
+	@echo "$(BLUE)Installing to $(DESTDIR)...$(NC)"
+	@install -m 755 $(BINARY) $(DESTDIR)/$(BRAND_BINARY)
+	@echo "$(GREEN)✓ Installed $(BRAND_BINARY)$(NC)"
 
 build-qemu-exit:
 	@echo "$(BLUE)Building qemu-exit helper...$(NC)"
@@ -239,24 +266,37 @@ test-int-verbose: vm-ensure build-go build-tests brand-env
 	@t/run-tests.sh verbose
 
 # New Go-based parallel test orchestrator
-test-int: vm-ensure build-go build-tests brand-env build-toolbox
+test-int: vm-ensure server build-tests brand-env build-toolbox
 	@mkdir -p build/test-artifacts
-	@cp build/glacic build/test-artifacts/glacic-v1
-	@cp build/glacic build/test-artifacts/glacic-v2
+	@cp $(BINARY_TARGET) build/test-artifacts/glacic-v1
+	@cp $(BINARY_TARGET) build/test-artifacts/glacic-v2
 	@echo "$(BLUE)Calculating optimal parallelism...$(NC)"
-	@JOBS=$$(./scripts/calc_jobs.sh); \
+	@JOBS=$$(./scripts/build/calc-jobs.sh); \
 	 echo "$(BLUE)Running integration tests via parallel orca (JOBS=$$JOBS)...$(NC)"; \
-	 ./build/toolbox orca test -j $$JOBS $(ARGS)
+	 ARGS="$(ARGS)"; \
+	 if [ -n "$(FILTER)" ]; then ARGS="$$ARGS -filter $(FILTER)"; fi; \
+	 ./build/toolbox orca test -j $$JOBS $$ARGS
+
+# Orca VM Pool Management
+pool-status: build-toolbox
+	@echo "$(BLUE)Checking Orca VM Pool status...$(NC)"
+	@./build/toolbox orca status
+
+pool-check: pool-status
+
+pool-stop: build-toolbox
+	@echo "$(BLUE)Stopping Orca VM Pool...$(NC)"
+	@./build/toolbox orca stop
+
+pool-clean:
+	@echo "$(BLUE)Force cleaning stale VM sockets and processes...$(NC)"
+	@pkill -f "qemu-system" || true
+	@rm -f /tmp/glacic-vm*.sock
+	@echo "$(GREEN)✓ Cleanup complete$(NC)"
 
 test-orca: test-int
 
-test-uroot:
-	@echo "$(BLUE)Running Go integration tests in VM (u-root)...$(NC)"
-	@$(SCRIPTS_DIR)/uroot-test.sh ./internal/firewall
 
-test-uroot-shell:
-	@echo "$(BLUE)Running shell integration tests in VM (u-root)...$(NC)"
-	@$(SCRIPTS_DIR)/uroot-test.sh --shell validation_test.sh
 
 test-all: test-unit test-int
 	@echo "$(GREEN)✓ All tests passed$(NC)"
@@ -278,11 +318,11 @@ demo-web: build-ui
 
 demo-vm: build vm-ensure
 	@echo "$(BLUE)Starting VM demo with virtual network...$(NC)"
-	@$(SCRIPTS_DIR)/run-demo.sh start
+	@$(SCRIPTS_DIR)/demo/run.sh start
 
 demo-stop:
 	@echo "$(BLUE)Stopping VM demo...$(NC)"
-	@$(SCRIPTS_DIR)/run-demo.sh stop
+	@$(SCRIPTS_DIR)/demo/run.sh stop
 
 build-tuidemo:
 	@echo "$(BLUE)Building TUI demo...$(NC)"
@@ -296,11 +336,11 @@ build-tuidemo:
 dev: build vm-ensure
 	@echo "$(BLUE)Starting development environment...$(NC)"
 	@echo "$(YELLOW)Web UI: http://localhost:8080$(NC)"
-	@$(SCRIPTS_DIR)/run-dev.sh
+	@$(SCRIPTS_DIR)/dev/run.sh
 
 dev-vm: vm-ensure build-go
 	@echo "$(BLUE)Starting full dev simulated virtual machine...$(NC)"
-	@$(SCRIPTS_DIR)/run-demo.sh dev
+	@$(SCRIPTS_DIR)/demo/run.sh dev
 
 # Mock API server (no VM required, simulates notifications/logs)
 dev-api:
@@ -311,7 +351,7 @@ dev-api:
 
 # Web UI with mock API (fastest iteration, runs both together)
 dev-web:
-	@$(SCRIPTS_DIR)/dev-web.sh
+	@$(SCRIPTS_DIR)/dev/web.sh
 
 # TUI with hot-reload (requires: go install github.com/cosmtrek/air@latest)
 dev-tui:
@@ -373,9 +413,9 @@ vm-ensure:
 		$(MAKE) vm-setup; \
 	fi
 
-vm-start: vm-ensure build-go
+vm-start: vm-ensure server
 	@echo "$(BLUE)Starting VM...$(NC)"
-	@$(SCRIPTS_DIR)/vm-dev.sh &
+	@$(SCRIPTS_DIR)/vm/dev.sh &
 	@echo "$(GREEN)✓ VM started$(NC)"
 
 vm-stop:
@@ -400,30 +440,31 @@ deploy:
 	@echo "$(BLUE)Building for Linux...$(NC)"
 	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY)
 	@echo "$(BLUE)Deploying to $(HOST)...$(NC)"
-	@./scripts/deploy-remote.sh "$(HOST)" "$(BINARY)"
+	@./scripts/deploy/remote.sh "$(HOST)" "$(BINARY)"
 
 # Install as Proxmox LXC
-install-lxc: build-go
+install-lxc: server
 	@echo "$(BLUE)Proxmox LXC Installation$(NC)"
 	@echo "$(YELLOW)Copy this script to your Proxmox host and run it:$(NC)"
-	@echo "  scp scripts/install-proxmox-lxc.sh $(BINARY) root@proxmox:~/"
-	@echo "  ssh root@proxmox './install-proxmox-lxc.sh --name glacic'"
+	@echo "  scp scripts/deploy/install-proxmox.sh $(BINARY) root@proxmox:~/"
+	@echo "  ssh root@proxmox './install-proxmox.sh --name glacic'"
 	@echo ""
 	@echo "$(YELLOW)Commands:$(NC)"
-	@echo "  ./install-proxmox-lxc.sh --name glacic --wan vmbr0 --lan vmbr1"
-	@echo "  ./install-proxmox-lxc.sh --help"
+	@echo "  ./install-proxmox.sh --name glacic --wan vmbr0 --lan vmbr1"
+	@echo "  ./install-proxmox.sh --help"
 	@echo ""
 	@echo "$(YELLOW)Or run with dry-run to preview:$(NC)"
-	@echo "  ./scripts/install-proxmox-lxc.sh --dry-run"
+	@echo "  ./scripts/deploy/install-proxmox.sh --dry-run"
 
 # Create Proxmox distribution bundle
 dist-proxmox:
 	@echo "$(BLUE)Building Proxmox Bundle...$(NC)"
 	@mkdir -p $(BUILD_DIR)/proxmox-dist
 	@# Build linux binary
-	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/proxmox-dist/glacic
+	@$(MAKE) server
+	@cp $(BINARY_TARGET) $(BUILD_DIR)/proxmox-dist/glacic
 	@# Copy installer as install.sh
-	@cp scripts/install-proxmox-lxc.sh $(BUILD_DIR)/proxmox-dist/install.sh
+	@cp scripts/deploy/install-proxmox.sh $(BUILD_DIR)/proxmox-dist/install.sh
 	@chmod +x $(BUILD_DIR)/proxmox-dist/install.sh
 	@# Create tarball
 	@tar -czf $(BUILD_DIR)/glacic-proxmox.tar.gz -C $(BUILD_DIR)/proxmox-dist .
@@ -435,7 +476,7 @@ dist-proxmox:
 # Create self-extracting installer
 dist-proxmox-installer: dist-proxmox
 	@echo "$(BLUE)Building Self-Extracting Installer...$(NC)"
-	@cat scripts/self-extract-stub.sh $(BUILD_DIR)/glacic-proxmox.tar.gz > $(BUILD_DIR)/install-glacic-proxmox.sh
+	@cat scripts/build/self-extract.sh $(BUILD_DIR)/glacic-proxmox.tar.gz > $(BUILD_DIR)/install-glacic-proxmox.sh
 	@chmod +x $(BUILD_DIR)/install-glacic-proxmox.sh
 	@echo "$(GREEN)Installer created: $(BUILD_DIR)/install-glacic-proxmox.sh$(NC)"
 	@echo "To deploy: scp $(BUILD_DIR)/install-glacic-proxmox.sh root@proxmox:~/"
@@ -448,7 +489,7 @@ dist-proxmox-installer: dist-proxmox
 
 clean:
 	@echo "$(BLUE)Cleaning build artifacts...$(NC)"
-	@rm -f $(BINARY) $(BINARY_DARWIN) tuidemo
+	@rm -f $(BINARY) $(BINARY_LINUX_AMD64) $(BINARY_LINUX_ARM64) $(BINARY_DARWIN) tuidemo
 	@rm -f *.test
 	@find $(UI_DIR)/dist -mindepth 1 ! -name 'index.html' -delete 2>/dev/null || true
 	@echo "$(GREEN)✓ Clean complete$(NC)"
@@ -472,16 +513,14 @@ release: clean build
 	@tar -czvf dist/$(BRAND_BINARY)-linux-amd64.tar.gz -C dist $(BRAND_BINARY)
 	@echo "$(GREEN)✓ Release created: dist/$(BRAND_BINARY)-linux-amd64.tar.gz$(NC)"
 
-# Coverage targets
-# Host coverage (fast, macOS compatible packages only)
-coverage:
-	./scripts/test/coverage.sh $(FILTER)
-.PHONY: coverage
-
-# VM coverage (full, all packages including Linux-dependent)
-coverage-vm: build-tests
-	./scripts/test/coverage_vm.sh $(FILTER)
-.PHONY: coverage-vm
+# Coverage targets (Disabled: scripts missing)
+# coverage:
+# 	./scripts/test/coverage.sh $(FILTER)
+# .PHONY: coverage
+#
+# coverage-vm: build-tests
+# 	./scripts/test/coverage_vm.sh $(FILTER)
+# .PHONY: coverage-vm
 
 # Merge and view coverage report
 coverage-report:

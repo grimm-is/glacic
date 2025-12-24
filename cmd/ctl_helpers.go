@@ -342,7 +342,10 @@ func initializeCoreServices(ctx context.Context, cfg *config.Config, netMgr *net
 	services.dnsSvc = dns.NewService()
 	netMgr.SetDNSUpdater(services.dnsSvc)
 
-	if cfg.DNSServer != nil && cfg.DNSServer.Enabled {
+	// Initialize if either legacy or new config is present
+	shouldInitDNS := (cfg.DNSServer != nil && cfg.DNSServer.Enabled) || (cfg.DNS != nil)
+	
+	if shouldInitDNS {
 		logging.Info("DNS Server config present, initializing...")
 		if _, err := services.dnsSvc.Reload(cfg); err != nil {
 			logging.Error(fmt.Sprintf("Error initializing DNS service: %v", err))

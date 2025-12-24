@@ -20,7 +20,13 @@ for arg in $(cat /proc/cmdline); do
 done
 
 CONFIG_FILE="${KERNEL_CONFIG:-${1:-firewall.hcl}}"
-FIREWALL_BIN="$MOUNT_PATH/build/glacic"
+CONFIG_FILE="${KERNEL_CONFIG:-${1:-firewall.hcl}}"
+ARCH=$(uname -m)
+if [ -f "$MOUNT_PATH/build/glacic-linux-$ARCH" ]; then
+    FIREWALL_BIN="$MOUNT_PATH/build/glacic-linux-$ARCH"
+else
+    FIREWALL_BIN="$MOUNT_PATH/build/glacic"
+fi
 CONFIG_PATH="$MOUNT_PATH/$CONFIG_FILE"
 
 # Load kernel modules

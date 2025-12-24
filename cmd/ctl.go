@@ -19,15 +19,23 @@ import (
 	"grimm.is/glacic/internal/monitor"
 )
 
-// RunCtl runs the privileged control plane daemon.
-// This process must run as root and handles all privileged operations:
-// - Network interface configuration (netlink)
-// - Firewall rules (nftables)
-// - DHCP server/client (raw sockets, port 67)
-// - DNS server (port 53)
-// - Routing
-// listeners argument allows injecting pre-opened listeners (for zero-downtime upgrades)
+// RunCtl runs the privileged control plane daemon with automatic restart on panic.
 func RunCtl(configFile string, testMode bool, stateDir string, dryRun bool, listeners map[string]interface{}) error {
+	// Loop to restart on panic
+	for {
+		err := runCtlOnce(configFile, testMode, stateDir, dryRun, listeners)
+		if err != nil && strings.HasPrefix(err.Error(), "PANIC:") {
+			logging.Error(fmt.Sprintf("Daemon crashed with panic: %v", err))
+			logging.Info("Restarting daemon in 1 second...")
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		return err
+	}
+}
+
+// runCtlOnce contains the actual execution logic
+func runCtlOnce(configFile string, testMode bool, stateDir string, dryRun bool, listeners map[string]interface{}) (err error) {
 	rtCfg := NewCtlRuntimeConfig(configFile, testMode, stateDir, dryRun, listeners)
 
 	// Dry-run mode: generate rules and exit before any daemon setup
@@ -58,8 +66,9 @@ func RunCtl(configFile string, testMode bool, stateDir string, dryRun bool, list
 	// Global Panic Recovery
 	defer func() {
 		if r := recover(); r != nil {
-			logging.Error(fmt.Sprintf("CRITICAL PANIC in RunCtl: %v", r))
-			os.Exit(1)
+			err = fmt.Errorf("PANIC: %v", r)
+			logging.Error(fmt.Sprintf("CRITICAL PANIC in runCtlOnce: %v", r))
+			// We do NOT exit here, we return the error to allow the wrapper to restart us
 		}
 	}()
 

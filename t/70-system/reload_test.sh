@@ -6,7 +6,9 @@ TEST_TIMEOUT=30
 set -e
 
 # Path to glacic binary
-GLACIC="/mnt/glacic/build/glacic"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/../common.sh"
+GLACIC="$APP_BIN"
 PID_FILE="/var/run/glacic.pid"
 LOG_FILE="/var/log/glacic/glacic.log"
 

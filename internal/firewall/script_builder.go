@@ -375,18 +375,40 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 		}
 	}
 
+	// Build map of Interface Name -> Zone Pointer for fast lookup
+	ifaceToZone := make(map[string]*config.Zone)
+	for i := range cfg.Zones {
+		z := &cfg.Zones[i]
+		// Canonical matches
+		for _, m := range z.Matches {
+			if m.Interface != "" {
+				ifaceToZone[m.Interface] = z
+			}
+		}
+		// Legacy interfaces list (backup)
+		for _, ifName := range z.Interfaces {
+			ifaceToZone[ifName] = z
+		}
+	}
+
 	// Iterate interfaces to collect allowed services
 	for _, iface := range cfg.Interfaces {
 		// 1. Zone Config (Default)
 		var zone *config.Zone
-		// Map zone name (could optimize with map but loop is fine for small count)
+		
 		if iface.Zone != "" {
+			// Try to find zone by explicit name first
 			for i := range cfg.Zones {
 				if strings.EqualFold(cfg.Zones[i].Name, iface.Zone) {
 					zone = &cfg.Zones[i]
 					break
 				}
 			}
+		}
+		
+		// Fallback: Look up by interface map (if zone not found or not specified on interface)
+		if zone == nil {
+			zone = ifaceToZone[iface.Name]
 		}
 
 		// Defaults
@@ -447,6 +469,7 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 				allowAPI = true
 			}
 		}
+
 
 		// Quote interface name for nftables
 		qIface := forceQuote(iface.Name)

@@ -91,7 +91,7 @@ ok $? "Firewall started"
 # Wait for API/Learning to be ready (poll for log activity)
 diag "Waiting for learning service..."
 count=0
-while ! grep -q "Learning engine enabled" "$LOG_FILE" 2>/dev/null; do
+while ! grep -qE "Learning service started|starting .* learning engine" "$CTL_LOG" 2>/dev/null; do
     sleep 0.2
     count=$((count + 1))
     if [ $count -ge 25 ]; then  # 5s max
@@ -110,9 +110,9 @@ sleep 2
 
 # Test 4: Verify Logs
 diag "Verifying logs for captured flow..."
-if grep -q "new flow detected" "$LOG_FILE"; then
+if grep -q "new flow detected" "$CTL_LOG"; then
     ok 0 "Flow detection confirmed in logs"
-    grep "new flow detected" "$LOG_FILE" | head -n 1 | sed 's/^/# /'
+    grep "new flow detected" "$CTL_LOG" | head -n 1 | sed 's/^/# /'
 else
     ok 1 "Flow detection NOT found in logs"
     diag "Glacic Log content (tail):"

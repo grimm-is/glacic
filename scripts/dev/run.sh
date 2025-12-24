@@ -78,4 +78,4 @@ echo ""
 CONFIG_FILE="${1:-firewall.hcl}"
 
 # Pass dev_mode=true as kernel parameter to trigger interactive mode
-./vm-dev.sh "$(pwd)" "$CONFIG_FILE" "dev_mode=true"
+./../vm/dev.sh "$(pwd)" "$CONFIG_FILE" "dev_mode=true"

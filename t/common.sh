@@ -49,14 +49,50 @@ fi
 CTL_SOCKET="$RUN_DIR/$BRAND_LOWER-$SOCKET_NAME"
 
 # Set common variables
+# Set common variables
 MOUNT_PATH="/mnt/$BRAND_LOWER"
-APP_BIN="$MOUNT_PATH/build/$BINARY_NAME"
-# Fallback to just binary name if building in path or typical location
-if [ ! -x "$APP_BIN" ]; then
-    # Maybe we are running outside VM or path is different?
-    # Try finding it in build dir relative to project root
-    APP_BIN="$PROJECT_ROOT/build/$BINARY_NAME"
+RAW_ARCH=$(uname -m)
+
+# Normalize ARCH to match Go/Build naming (arm64, amd64)
+case "$RAW_ARCH" in
+    aarch64) ARCH="arm64" ;;
+    x86_64)  ARCH="amd64" ;;
+    *)       ARCH="$RAW_ARCH" ;;
+esac
+
+# Prefer architecture-specific linux binary
+if [ -x "$MOUNT_PATH/build/${BINARY_NAME}-linux-${ARCH}" ]; then
+    APP_BIN="$MOUNT_PATH/build/${BINARY_NAME}-linux-${ARCH}"
+elif [ -x "$PROJECT_ROOT/build/${BINARY_NAME}-linux-${ARCH}" ]; then
+    APP_BIN="$PROJECT_ROOT/build/${BINARY_NAME}-linux-${ARCH}"
+else
+    # Fallback to standard name
+    APP_BIN="$MOUNT_PATH/build/$BINARY_NAME"
+    if [ ! -x "$APP_BIN" ]; then
+        APP_BIN="$PROJECT_ROOT/build/$BINARY_NAME"
+    fi
 fi
+
+# ============================================================================
+# Minimal Utility Wrappers (Fallback to toolbox)
+# ============================================================================
+TOOLBOX_BIN="$MOUNT_PATH/build/toolbox"
+# Fallback if testing locally
+if [ ! -x "$TOOLBOX_BIN" ]; then
+    TOOLBOX_BIN="$PROJECT_ROOT/build/toolbox"
+fi
+
+link_toolbox() {
+    # If binary missing, use toolbox
+    if ! command -v "$1" >/dev/null 2>&1; then
+        eval "$1() { \"$TOOLBOX_BIN\" \"$1\" \"\$@\"; }"
+    fi
+}
+
+link_toolbox dig
+link_toolbox nc
+link_toolbox jq
+link_toolbox curl
 
 # ============================================================================
 # Global State Reset (Ensure clean slate for each test)
@@ -64,35 +100,42 @@ fi
 reset_state() {
     # Only run in VM environment (check for nft/ip availability)
     if [ "$(id -u)" -eq 0 ]; then
-        # Flush nftables to remove any leftover rules from previous tests
+        # 1. Try graceful shutdown first
+        "$APP_BIN" stop 2>/dev/null || true
+        
+        # 2. Kill any lingering glacic processes (zombies from test-api, ctl, etc.)
+        pkill -9 -f "$APP_BIN" 2>/dev/null || true
+        pkill -9 -x "$BINARY_NAME" 2>/dev/null || true
+        
+        # 3. Wait briefly for processes to exit
+        sleep 0.3
+        
+        # 4. Remove control socket
+        rm -f "$CTL_SOCKET" 2>/dev/null
+        rm -f "/var/run/${BRAND_LOWER}"*.pid 2>/dev/null
+        
+        # 5. NOW wipe state directory (after processes are dead)
+        rm -rf "$STATE_DIR"/* 2>/dev/null
+        
+        # 6. Flush nftables to remove any leftover rules from previous tests
         if command -v nft >/dev/null 2>&1; then
              nft flush ruleset 2>/dev/null || true
         fi
         
-        # Cleanup test namespaces and interfaces
+        # 7. Cleanup test namespaces and interfaces
         ip netns del test_client 2>/dev/null || true
         ip netns del test_server 2>/dev/null || true
         ip link del veth-lan 2>/dev/null || true
         ip link del veth-wan 2>/dev/null || true
         
-        # Reset IP forwarding
+        # 8. Reset IP forwarding
         echo 0 > /proc/sys/net/ipv4/ip_forward 2>/dev/null || true
-        
-        # Cleanup State Directory (prevents false positive crash loops)
-        # The crash loop detector looks at recent restarts. We must wipe this memory.
-        rm -rf "$STATE_DIR"/* 2>/dev/null
-        rm -f "/var/run/glacic"*.pid 2>/dev/null
 
-        # Ensure tun device exists (for VPN tests)
+        # 9. Ensure tun device exists (for VPN tests)
         if [ ! -c /dev/net/tun ]; then
             mkdir -p /dev/net
             mknod /dev/net/tun c 10 200 2>/dev/null || true
         fi
-        
-        # Kill any lingering glacic processes
-        pkill -9 -x glacic 2>/dev/null || true
-        pkill -9 -f "glacic ctl" 2>/dev/null || true
-        rm -f "$CTL_SOCKET" 2>/dev/null
     fi
 }
 # Execute reset immediately
@@ -358,6 +401,9 @@ start_ctl() {
     if [ -n "$GLACIC_STATE_DIR" ]; then
         set -- -state-dir "$GLACIC_STATE_DIR" "$@"
     fi
+
+    # Force logging to stdout so we can capture it
+    export GLACIC_LOG_FILE=stdout
 
     $APP_BIN ctl "$_config" "$@" > "$CTL_LOG" 2>&1 &
     CTL_PID=$!
