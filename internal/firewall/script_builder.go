@@ -224,6 +224,39 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 	sb.AddRule("forward", "ct state established,related accept")
 	sb.AddRule("output", "ct state established,related accept")
 
+	// VPN Lockout Protection Rules (ManagementAccess = true)
+	// These rules ensure VPN traffic is ALWAYS accepted, even if other rules fail
+	// Added BEFORE invalid packet drops and other rules
+	if vpn != nil {
+		// Tailscale lockout protection
+		for _, ts := range vpn.Tailscale {
+			if ts.ManagementAccess {
+				iface := "tailscale0"
+				if ts.Interface != "" {
+					iface = ts.Interface
+				}
+				sb.AddRule("input", fmt.Sprintf("iifname %q accept comment \"tailscale-lockout-protection\"", iface))
+				sb.AddRule("output", fmt.Sprintf("oifname %q accept comment \"tailscale-lockout-protection\"", iface))
+				sb.AddRule("forward", fmt.Sprintf("iifname %q accept comment \"tailscale-lockout-protection\"", iface))
+				sb.AddRule("forward", fmt.Sprintf("oifname %q accept comment \"tailscale-lockout-protection\"", iface))
+			}
+		}
+
+		// WireGuard lockout protection
+		for _, wg := range vpn.WireGuard {
+			if wg.Enabled && wg.ManagementAccess {
+				iface := wg.Interface
+				if iface == "" {
+					iface = "wg0"
+				}
+				sb.AddRule("input", fmt.Sprintf("iifname %q accept comment \"wireguard-lockout-protection\"", iface))
+				sb.AddRule("output", fmt.Sprintf("oifname %q accept comment \"wireguard-lockout-protection\"", iface))
+				sb.AddRule("forward", fmt.Sprintf("iifname %q accept comment \"wireguard-lockout-protection\"", iface))
+				sb.AddRule("forward", fmt.Sprintf("oifname %q accept comment \"wireguard-lockout-protection\"", iface))
+			}
+		}
+	}
+
 	// MSS Clamping to PMTU (Forward Chain)
 	// Keeps TCP connections healthy across links with different MTUs (e.g. PPPoE, VPNs)
 	if cfg.MSSClamping {

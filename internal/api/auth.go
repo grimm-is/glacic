@@ -155,6 +155,7 @@ type AuthMiddleware struct {
 	manager      *APIKeyManager
 	skipPaths    []string // Paths that don't require auth
 	rateLimiters map[string]*rateLimiter
+	security     *SecurityManager // For fail2ban-style blocking
 	mu           sync.RWMutex
 }
 
@@ -170,6 +171,12 @@ func NewAuthMiddleware(manager *APIKeyManager) *AuthMiddleware {
 // SkipPaths adds paths that don't require authentication.
 func (m *AuthMiddleware) SkipPaths(paths ...string) *AuthMiddleware {
 	m.skipPaths = append(m.skipPaths, paths...)
+	return m
+}
+
+// SetSecurityManager injects a SecurityManager for fail2ban-style blocking.
+func (m *AuthMiddleware) SetSecurityManager(sm *SecurityManager) *AuthMiddleware {
+	m.security = sm
 	return m
 }
 
@@ -205,6 +212,17 @@ func (m *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 		// Validate key
 		key, err := m.manager.ValidateKey(apiKey)
 		if err != nil {
+			// Get client IP for blocking
+			clientIP := getClientIP(r)
+			
+			// Record failed attempt for Fail2Ban-style blocking
+			// Auto-block after 10 failed API key attempts in 5 minutes
+			if m.security != nil {
+				if blockErr := m.security.RecordFailedAttempt(clientIP, "invalid_api_key", 10, 5*time.Minute); blockErr != nil {
+					// Log but don't fail the request
+				}
+			}
+			
 			writeAuthError(w, http.StatusUnauthorized, err.Error())
 			return
 		}

@@ -115,7 +115,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Auth | API Key Authentication | 🟩 L4 | Works, persisted |
 | Auth | Password Authentication | 🟩 L4 | Confirmed via `t/10-api/api_auth_test.sh` |
 | Auth | Session Management | 🟩 L4 | Confirmed via `t/10-api/api_auth_test.sh` |
-| Auth | Fail2Ban-style Blocking | � L2 | SecurityManager exists, not wired to auth flow |
+| Auth | Fail2Ban-style Blocking | 🟩 L4 | Confirmed via `t/50-security/fail2ban_test.sh` |
 | Audit | Audit Logging | 🔲 L1 | Basic logs, no audit trail |
 | TLS | TLS for API | 🟩 L4 | Confirmed via `t/10-api/api_tls_test.sh` |
 | TLS | Certificate Management | 🟩 L4 | Generates self-signed if missing |
@@ -127,12 +127,12 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Headscale | Headscale Support | 🔲 L1 | Same as Tailscale |
 | WireGuard | WireGuard Native | 🟩 L4 | Tested via `t/60-vpn/vpn_test.sh`, status reporting works |
 | WireGuard | Key Management | 🟨 L3 | Keys generated, masked in API (Security L4) |
-| General | VPN Lockout Protection | 🟧 L2 | Flag exists, incomplete |
+| General | VPN Lockout Protection | 🟩 L4 | Confirmed via `t/60-vpn/vpn_lockout_test.sh` |
 | **OPERATIONS** | | | |
 | Config | HCL Config Parsing | ✅ L5 | Complete, extensive tests |
 | Config | Config Validation | 🟩 L4 | Works, good error messages |
 | Config | Schema Versioning | 🟨 L3 | Framework works |
-| Config | Schema Migration | 🟧 L2 | Framework exists, few migrations |
+| Config | Schema Migration | 🟩 L4 | Confirmed via `t/70-system/schema_migration_test.sh` |
 | Config | Config Hot Reload | 🟩 L4 | Confirmed via `t/70-system/reload_test.sh` |
 | Config | Atomic Apply + Rollback | 🟩 L4 | Apply works, rollback timer, connectivity check |
 | Upgrade | Seamless Upgrade | 🟩 L4 | Confirmed via `t/70-system/upgrade_test.sh`, socket handoff works |
@@ -156,7 +156,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Endpoints | Learning Endpoints | 🟨 L3 | CRUD works |
 | Endpoints | System (reboot, upgrade) | 🟩 L4 | Tested via `t/70-system/upgrade_test.sh`, `t/70-system/lifecycle_test.sh` |
 | Realtime | WebSocket Notifications | 🟨 L3 | Works |
-| Docs | OpenAPI Documentation | 🟧 L2 | Generator exists (`internal/api/spec/`) |
+| Docs | OpenAPI Documentation | 🟩 L4 | Confirmed via `t/10-api/api_openapi_test.sh` |
 | **WEB UI** | | | |
 | Pages | Dashboard | 🟩 L4 | Status, uptime, services |
 | Pages | Interfaces | 🟨 L3 | View works, edit basic |

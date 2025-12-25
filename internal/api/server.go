@@ -149,12 +149,11 @@ func NewServer(opts ServerOptions) (*Server, error) {
 
 	if opts.Client != nil {
 		s.wsManager = NewWSManager(opts.Client)
-	} else {
-		// Standalone mode: Injected dependencies are used directly (StateStore, LearningService)
-		// We no longer automatically create a "firewall.db" here to avoid side effects.
-		// If StateStore is nil, some standalone features might be disabled.
-		s.security = NewSecurityManager(nil, logger)
 	}
+	
+	// Initialize Security Manager for fail2ban-style blocking
+	// Note: IPSetService integration via RPC will be added when client is available
+	s.security = NewSecurityManager(nil, logger)
 
 
 
