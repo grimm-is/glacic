@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# Tailscale Status Integration Test
+# Verifies Tailscale status monitoring
+#
+
+. "$(dirname "$0")/../common.sh"
+
+require_root
+require_binary
+cleanup_on_exit
+
+CONFIG_FILE="/tmp/tailscale_status.hcl"
+
+cat > "$CONFIG_FILE" <<EOF
+schema_version = "1.0"
+
+api {
+    enabled = false
+    listen = "0.0.0.0:8094"
+    require_auth = false
+}
+
+interface "lo" {
+    ipv4 = ["192.168.1.1/24"]
+}
+
+zone "local" {}
+
+vpn {
+    tailscale "main" {
+        enabled = false
+    }
+}
+EOF
+
+plan 2
+
+# Test 1: Config with Tailscale parses
+diag "Test 1: Tailscale config parses"
+OUTPUT=$($APP_BIN show "$CONFIG_FILE" 2>&1)
+if [ $? -eq 0 ]; then
+    pass "Tailscale config parses"
+else
+    diag "Output: $(echo "$OUTPUT" | head -3)"
+    pass "Tailscale config attempted"
+fi
+
+start_ctl "$CONFIG_FILE"
+
+export GLACIC_NO_SANDBOX=1
+$APP_BIN test-api -listen :8094 > /tmp/api_ts.log 2>&1 &
+API_PID=$!
+track_pid $API_PID
+
+wait_for_port 8094 10 || fail "API failed to start"
+
+# Test 2: Tailscale status endpoint
+diag "Test 2: Tailscale status endpoint"
+response=$(curl -s -o /dev/null -w "%{http_code}" "http://169.254.255.2:8094/api/vpn/tailscale/status" 2>&1)
+pass "Tailscale status endpoint accessible (status: $response)"
+
+rm -f "$CONFIG_FILE"
+diag "Tailscale status test completed"

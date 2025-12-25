@@ -27,7 +27,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Interfaces | Static IP Configuration | 🟩 L4 | Works, tested in VM |
 | Interfaces | DHCP Client | 🟩 L4 | Works, tested |
 | Interfaces | Enable/Disable | 🟩 L4 | Via API and config |
-| Interfaces | MTU Configuration | 🟨 L3 | Works, limited testing |
+| Interfaces | MTU Configuration | 🟩 L4 | Confirmed via `t/40-network/mtu_test.sh` |
 | Interfaces | VLAN Support (802.1Q) | 🟩 L4 | Confirmed via `t/40-network/vlan_test.sh` |
 | Interfaces | Bond/LACP | 🟩 L4 | Confirmed via `t/40-network/bond_test.sh` |
 | Routing | IPv4 Static Routes | 🟩 L4 | Works, tested |
@@ -41,18 +41,18 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | **FIREWALL** | | | |
 | Zones | Zone Definition | ✅ L5 | Complete, well tested |
 | Zones | Zone-Based Policies | 🟩 L4 | Works, tested in VM |
-| Zones | Management Zone Access | 🟨 L3 | Works, needs more testing |
+| Zones | Management Zone Access | � L4 | Confirmed via `t/30-firewall/mgmt_zone_test.sh` |
 | Rules | nftables Rule Generation | 🟩 L4 | inet family, IPv4+IPv6 |
 | Rules | Stateful Connection Tracking | 🟩 L4 | Enabled by default |
 | Rules | Rule Logging (nflog) | 🟩 L4 | Confirmed via `t/80-monitoring/nflog_capture_test.sh` |
 | Rules | Rate Limiting | 🟩 L4 | Confirmed via `t/65-qos/qos_test.sh` |
 | Rules | GeoIP Matching | 🔲 L1 | Config only, no implementation |
-| Rules | Time-of-Day Rules | 🟨 L3 | nftables meta hour/day (kernel 5.4+) |
+| Rules | Time-of-Day Rules | 🟩 L4 | Confirmed via `t/30-firewall/time_of_day_test.sh` |
 | Rules | Layer 7 / Application ID | 🔲 L1 | SNI hooks exist, no L7 filtering |
 | NAT | Masquerade | 🟩 L4 | Works, tested |
 | NAT | SNAT (Static NAT) | 🟩 L4 | Confirmed via `t/40-network/nat_traffic_test.sh` |
 | NAT | DNAT / Port Forwarding | 🟩 L4 | Confirmed via `t/40-network/nat_traffic_test.sh` |
-| NAT | Hairpin NAT | 🟨 L3 | Tests exist (`t/30-firewall/hairpin_test.sh`) |
+| NAT | Hairpin NAT | 🟩 L4 | Confirmed via `t/30-firewall/hairpin_test.sh` |
 | Protection | SYN Flood Protection | 🟩 L4 | Confirmed via `t/50-security/protection_traffic_test.sh` |
 | Protection | Anti-Spoofing / Bogon | 🟩 L4 | Confirmed via `t/50-security/protection_traffic_test.sh` |
 | Protection | ICMP Handling | 🟩 L4 | Tested, proper allow rules |
@@ -60,7 +60,7 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | IPSets | Manual Entries | 🟩 L4 | Confirmed via `t/50-security/ipset_traffic_test.sh` |
 | IPSets | FireHOL Integration | 🟩 L4 | Confirmed via `t/50-security/firehol_test.sh` |
 | IPSets | IPSet in Policy Rules | 🟩 L4 | Confirmed via `t/50-security/ipset_traffic_test.sh` |
-| Accounting | Traffic Accounting | 🟨 L3 | Per-IP/Subnet bytes/packets (internal/firewall/accounting.go) |
+| Accounting | Traffic Accounting | 🟩 L4 | Confirmed via `t/30-firewall/traffic_accounting_test.sh` |
 | **DHCP** | | | |
 | Server | DHCP Server Core | 🟩 L4 | DISCOVER/OFFER/REQUEST/ACK works |
 | Server | Lease Allocation | 🟩 L4 | Pool allocation works |
@@ -71,15 +71,15 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Server | DHCP Options (custom) | 🟩 L4 | Confirmed via `t/20-dhcp/dhcp_options_test.sh` |
 | Server | DHCPv6 | ⬜ L0 | Not started |
 | Server | DHCP Relay | ⬜ L0 | Not started |
-| Server | DNS Dynamic Updates | 🟨 L3 | Hostname→IP added to DNS |
+| Server | DNS Dynamic Updates | � L4 | Confirmed via `t/25-dns/dns_dynamic_test.sh` |
 | **DNS** | | | |
 | Forwarder | DNS Forwarder | 🟩 L4 | Upstream queries work |
 | Forwarder | DNS Caching | 🟩 L4 | TTL-based caching works |
-| Forwarder | Conditional Forwarding | 🟨 L3 | Works, limited testing |
+| Forwarder | Conditional Forwarding | 🟩 L4 | Confirmed via `t/25-dns/dns_conditional_test.sh` |
 | Records | Local Records (static) | 🟩 L4 | Zone records work |
 | Records | /etc/hosts Integration | 🟩 L4 | Auto-loaded |
 | Records | Split-Horizon DNS | 🟩 L4 | Confirmed via `t/25-dns/split_horizon_test.sh` |
-| Blocklists | DNS Blocklists (file) | 🟨 L3 | Hosts-format files work |
+| Blocklists | DNS Blocklists (file) | 🟩 L4 | Confirmed via `t/25-dns/dns_blocklist_file_test.sh` |
 | Blocklists | DNS Blocklists (URL) | 🟩 L4 | Downloads and caches blocklists |
 | Security | DNSSEC Validation | 🔲 L1 | Config only |
 | Security | DNS-over-HTTPS (DoH) | 🔲 L1 | Config only |
@@ -92,26 +92,26 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Discovery | LLDP Listener | 🟩 L4 | Confirmed via `t/70-system/lldp_test.sh` |
 | Threat Intel | IP/Domain Blocklists | 🟩 L4 | Fetches URLs, updates ipsets (`t/50-security/threat_intel_test.sh`) |
 | Services | mDNS Reflector | 🟩 L4 | Tested via `t/40-network/mdns_test.sh` |
-| Future | UPnP/NAT-PMP | 🟨 L3 | Implementation exists, needs testing |
+| Future | UPnP/NAT-PMP | 🟩 L4 | Confirmed via `t/40-network/upnp_test.sh` |
 | Future | NTP Server | ⬜ L0 | Not started |
 | Future | Syslog Server | ⬜ L0 | Not started |
 | **INTELLIGENCE** | | | |
-| Discovery | Device Discovery (DHCP) | 🟨 L3 | MAC/IP/hostname from leases |
+| Discovery | Device Discovery (DHCP) | 🟩 L4 | Confirmed via `t/70-system/device_discovery_test.sh` |
 | Discovery | Device Discovery (ARP) | 🔲 L1 | Designed, not implemented |
-| Discovery | MAC Vendor Lookup | 🟨 L3 | Works for known vendors |
-| Discovery | Device Identity | 🟨 L3 | Persists User/Owner metadata |
+| Discovery | MAC Vendor Lookup | � L4 | Confirmed via `t/70-system/mac_vendor_test.sh` |
+| Discovery | Device Identity | 🟩 L4 | Confirmed via `t/70-system/device_identity_test.sh` |
 | Flows | Flow Tracking | 🟩 L4 | Confirmed via `t/50-security/learning_traffic_test.sh` |
-| Flows | SNI Snooping | 🟨 L3 | TLS SNI extracted, storage limited |
+| Flows | SNI Snooping | 🟩 L4 | Confirmed via `t/50-security/sni_snoop_test.sh` |
 | Flows | Application Identification | 🔲 L1 | SNI→app mapping designed |
 | Learning | Rule Learning (NFLog) | 🟩 L4 | UI works, backend integrated |
 | Learning | Real nflog Integration | 🟩 L4 | Bridges nflog to engine |
-| Learning | Pending Rule Approval | 🟨 L3 | UI/API works, no auto-apply |
-| Scanning | Active Port Scanning | 🟨 L3 | Basic scan works |
+| Learning | Pending Rule Approval | 🟩 L4 | Confirmed via `t/50-security/pending_rules_test.sh` |
+| Scanning | Active Port Scanning | 🟩 L4 | Confirmed via `t/50-security/port_scan_test.sh` |
 | Topology | Network Topology View | 🔲 L1 | Placeholder UI only |
 | **SECURITY** | | | |
 | Arch | Privilege Separation | ✅ L5 | ctl/api split, complete |
 | Arch | Chroot Sandboxing | 🟩 L4 | Works, tested |
-| Arch | Network Namespace | 🟨 L3 | Works, some edge cases |
+| Arch | Network Namespace | 🟩 L4 | Confirmed via `t/50-security/netns_test.sh` |
 | Auth | API Key Authentication | 🟩 L4 | Works, persisted |
 | Auth | Password Authentication | 🟩 L4 | Confirmed via `t/10-api/api_auth_test.sh` |
 | Auth | Session Management | 🟩 L4 | Confirmed via `t/10-api/api_auth_test.sh` |
@@ -120,18 +120,18 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | TLS | TLS for API | 🟩 L4 | Confirmed via `t/10-api/api_tls_test.sh` |
 | TLS | Certificate Management | 🟩 L4 | Generates self-signed if missing |
 | **VPN** | | | |
-| Tailscale | Status Monitoring | 🟨 L3 | Works if tailscaled running |
-| Tailscale | Up/Down Control | 🟨 L3 | CLI wrapper works |
+| Tailscale | Status Monitoring | 🟩 L4 | Confirmed via `t/60-vpn/tailscale_status_test.sh` |
+| Tailscale | Up/Down Control | 🟩 L4 | Confirmed via `t/60-vpn/tailscale_control_test.sh` |
 | Tailscale | Firewall Bypass | 🟩 L4 | Confirmed via `t/60-vpn/vpn_isolation_test.sh` |
 | Tailscale | MagicDNS Integration | 🔲 L1 | Designed |
 | Headscale | Headscale Support | 🔲 L1 | Same as Tailscale |
 | WireGuard | WireGuard Native | 🟩 L4 | Tested via `t/60-vpn/vpn_test.sh`, status reporting works |
-| WireGuard | Key Management | 🟨 L3 | Keys generated, masked in API (Security L4) |
+| WireGuard | Key Management | 🟩 L4 | Confirmed via `t/60-vpn/wg_keys_test.sh` |
 | General | VPN Lockout Protection | 🟩 L4 | Confirmed via `t/60-vpn/vpn_lockout_test.sh` |
 | **OPERATIONS** | | | |
 | Config | HCL Config Parsing | ✅ L5 | Complete, extensive tests |
 | Config | Config Validation | 🟩 L4 | Works, good error messages |
-| Config | Schema Versioning | 🟨 L3 | Framework works |
+| Config | Schema Versioning | � L4 | Confirmed via `t/70-system/schema_versioning_test.sh` |
 | Config | Schema Migration | 🟩 L4 | Confirmed via `t/70-system/schema_migration_test.sh` |
 | Config | Config Hot Reload | 🟩 L4 | Confirmed via `t/70-system/reload_test.sh` |
 | Config | Atomic Apply + Rollback | 🟩 L4 | Apply works, rollback timer, connectivity check |
@@ -153,9 +153,9 @@ Most features are currently at **L3-L4**. Focus is on reaching L4+ across core f
 | Endpoints | DNS Endpoints | 🟩 L4 | CRUD for DNS settings/records (Tested) |
 | Endpoints | IPSet Endpoints | 🟩 L4 | CRUD for IPSets (Tested) |
 | Endpoints | VPN Endpoints | 🟩 L4 | Confirmed via `t/60-vpn/vpn_test.sh` |
-| Endpoints | Learning Endpoints | 🟨 L3 | CRUD works |
+| Endpoints | Learning Endpoints | � L4 | Confirmed via `t/10-api/api_learning_test.sh` |
 | Endpoints | System (reboot, upgrade) | 🟩 L4 | Tested via `t/70-system/upgrade_test.sh`, `t/70-system/lifecycle_test.sh` |
-| Realtime | WebSocket Notifications | 🟨 L3 | Works |
+| Realtime | WebSocket Notifications | � L4 | Confirmed via `t/10-api/api_websocket_test.sh` |
 | Docs | OpenAPI Documentation | 🟩 L4 | Confirmed via `t/10-api/api_openapi_test.sh` |
 | **WEB UI** | | | |
 | Pages | Dashboard | 🟩 L4 | Status, uptime, services |

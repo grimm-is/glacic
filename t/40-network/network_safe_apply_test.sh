@@ -23,6 +23,7 @@ interface "eth0" {
 
 api {
   enabled = true
+  listen  = "0.0.0.0:8443"
   require_auth = true
   
   key "test-key" {
@@ -41,18 +42,18 @@ start_ctl "$CONFIG_FILE"
 start_api
 
 # Wait for API to be ready
-wait_for_port 8080 10
+wait_for_port 8443 10
 
 echo "1. Get current config"
 sleep 2
-ORIG_CONFIG=$(curl -k -s -H "X-API-Key: secret123" https://localhost:8443/api/config)
+ORIG_CONFIG=$(curl -k -s -H "X-API-Key: secret123" https://169.254.255.2:8443/api/config)
 echo "Original config captured"
 
 echo "2. Attempt Safe Apply with unreachable ping target (should fail and rollback)"
 echo "Debug: Calling API..."
 # The new API expects a 'config' object and 'ping_targets' array
 # 192.0.2.1 is a TEST-NET-1 address that should never be routable
-RESPONSE=$(curl -k -v -s -X POST https://localhost:8443/api/config/safe-apply \
+RESPONSE=$(curl -k -v -s -X POST https://169.254.255.2:8443/api/config/safe-apply \
     -H "Content-Type: application/json" \
     -H "X-API-Key: secret123" \
     -d '{
@@ -104,8 +105,8 @@ fi
 echo "3. Verify config was restored (no 'bad-config' in current config)"
 # Retry loop for API availability after potential restart
 for i in $(seq 1 5); do
-    wait_for_port 8080 10
-    NEW_CONFIG=$(curl -k -s -H "X-API-Key: secret123" https://localhost:8443/api/interfaces || true)
+    wait_for_port 8443 10
+    NEW_CONFIG=$(curl -k -s -H "X-API-Key: secret123" https://169.254.255.2:8443/api/interfaces || true)
     if [ $? -eq 0 ] && [ -n "$NEW_CONFIG" ]; then
         break
     fi

@@ -23,7 +23,7 @@ schema_version = "1.0"
 
 api {
   enabled = false
-  listen  = "127.0.0.1:8081"
+  listen  = "127.0.0.1:8083"
   require_auth = true
   key_store_path = "$KEY_STORE"
 
@@ -33,8 +33,13 @@ api {
   }
 }
 
+
+zone "lan" {}
+zone "wan" {}
+
 interface "eth0" {
     ipv4 = ["10.0.0.1/24"]
+    zone = "lan"
 }
 EOF
 
@@ -50,13 +55,13 @@ wait_for_file $CTL_SOCKET 5 || fail "Control plane socket not created"
 # Start API Server (disable sandbox)
 log "Starting API Server..."
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8081 > /tmp/api_crud.log 2>&1 &
+$APP_BIN test-api -listen :8083 > /tmp/api_crud.log 2>&1 &
 API_PID=$!
 track_pid $API_PID
 
-wait_for_port 8081 10 || fail "API server failed to start"
+wait_for_port 8083 10 || fail "API server failed to start"
 
-API_URL="http://127.0.0.1:8081/api"
+API_URL="http://127.0.0.1:8083/api"
 AUTH_HEADER="X-API-Key: gfw_admin123"
 
 # Helper for curl requests
@@ -120,8 +125,8 @@ log "Testing UpdatePolicies..."
 DATA='[
   {
     "name": "lan_to_wan",
-    "from_zone": "lan",
-    "to_zone": "wan",
+    "from": "lan",
+    "to": "wan",
     "action": "accept"
   }
 ]'

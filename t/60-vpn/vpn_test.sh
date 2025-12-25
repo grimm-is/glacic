@@ -1,122 +1,151 @@
 #!/bin/sh
-# VPN Integration Test
-# Verifies WireGuard and Tailscale (stub/config) integration
+#
+# VPN Integration Test (WireGuard)
+# Verifies full data plane with handshake using a simulated peer.
+#
+# Topology:
+#   [ HOST (Glacic) ] <--(veth-pair)--> [ ns:peer ]
+#      wg0: 10.200.0.1                   wg0: 10.200.0.2
+#
 
-source "$(dirname "$0")/../common.sh"
+# Source common functions
+. "$(dirname "$0")/../common.sh"
 
-if ! ip link add dev wgtest type wireguard >/dev/null 2>&1; then
-    echo "1..0 # SKIP WireGuard not supported by kernel"
+require_root
+require_binary
+
+if ! command -v wg >/dev/null 2>&1; then
+    echo "1..0 # SKIP wg tool not found"
     exit 0
 fi
-ip link del dev wgtest 2>/dev/null
 
-# 1. Setup
-cleanup_on_exit
-CONFIG_FILE="/tmp/test_vpn_$(date +%s).hcl"
-cat > "$CONFIG_FILE" <<EOF
-vpn {
-  wireguard "wg_primary" {
-    enabled = true
-    interface = "wg100"
-    management_access = true
-    listen_port = 51820
-    private_key = "mMQ/aJ/..."  # Invalid key, but format check might pass or fail. 
-                                # We need a valid key for real wg.
-                                # Let's use a generated one or hope the manager generates one if missing?
-                                # Manager expects private_key or private_key_file.
-                                # Let's generate one.
-  }
+if ! modprobe wireguard 2>/dev/null; then
+    # Usually modules are loaded, but if not we might fail.
+    # Check if module is loaded or built-in.
+    if [ ! -d /sys/module/wireguard ]; then
+         echo "1..0 # SKIP wireguard module not available"
+         exit 0
+    fi
+fi
+
+# Cleanup
+cleanup_vpn() {
+    ip netns del peer 2>/dev/null || true
+    ip link del veth-vpn 2>/dev/null || true
+    ip link del wg0 2>/dev/null || true
+    stop_ctl
+    rm -f priv.key pub.key peer_priv.key peer_pub.key vpn.hcl
 }
 
-api {
-    enabled = true
-    listen = "0.0.0.0:8443"
+trap cleanup_vpn EXIT INT TERM
+
+# 1. Setup Network Topology (Simulate Internet connection between Host and Peer)
+diag "Setting up VPN topology..."
+
+ip netns add peer
+ip link add veth-vpn type veth peer name veth-peer
+ip link set veth-peer netns peer
+
+# Host side of physical link (WAN simulation)
+ip addr add 172.16.0.1/24 dev veth-vpn
+ip link set veth-vpn up
+
+# Peer side of physical link
+ip netns exec peer ip addr add 172.16.0.2/24 dev veth-peer
+ip netns exec peer ip link set veth-peer up
+ip netns exec peer ip link set lo up
+
+# 2. Generate Keys
+diag "Generating keys..."
+wg genkey | tee priv.key | wg pubkey > pub.key
+wg genkey | tee peer_priv.key | wg pubkey > peer_pub.key
+
+HOST_PRIV=$(cat priv.key)
+HOST_PUB=$(cat pub.key)
+PEER_PRIV=$(cat peer_priv.key)
+PEER_PUB=$(cat peer_pub.key)
+
+# 3. Configure Glacic (Host)
+cat > vpn.hcl <<EOF
+interface "veth-vpn" {
+  ipv4 = ["172.16.0.1/24"]
+  zone = "wan"
+}
+
+zone "wan" {
+}
+
+zone "vpn" {
+  accept_from = ["vpn"] # Allow VPN to VPN ?
+}
+
+vpn {
+    wireguard "wg0" {
+        private_key = "$HOST_PRIV"
+        listen_port = 51820
+        
+        peer {
+            public_key = "$PEER_PUB"
+            allowed_ips = ["10.200.0.2/32"]
+        }
+    }
+}
+
+# Interface config for the wg interface itself must be defined to assign IP/Zone
+interface "wg0" {
+    ipv4 = ["10.200.0.1/24"]
+    zone = "vpn"
 }
 EOF
 
-# Update config with valid key if possible, or let's see if we can generate one.
-# For this test, we might need a valid key string.
-# A random base64 string might work for parsing?
-# WG keys are 32 bytes base64 encoded.
-# "aPMj/2f..." = 44 chars
-VALID_KEY="aPMj/2faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa="
-sed -i "s|mMQ/aJ/...|$VALID_KEY|" "$CONFIG_FILE"
+# 4. Start Glacic
+plan 2
 
-TEST_TIMEOUT=30
+start_ctl vpn.hcl
 
-start_ctl "$CONFIG_FILE"
+# Wait for startup
+sleep 5
 
-# Start API manually because ctl doesn't auto-spawn it in this test env
-API_LOG=$(mktemp_compatible api.log)
-diag "Starting API server on :8443..."
-$APP_BIN test-api -listen 0.0.0.0:8443 > "$API_LOG" 2>&1 &
-API_PID=$!
-track_pid $API_PID
+# 5. Configure Peer (Manual WireGuard setup)
+diag "Configuring Peer WireGuard..."
 
-# 2. Verify WireGuard Interface Created
-diag "Verifying WireGuard interface 'wg100'..."
-verify_interface() {
-    ip link show wg100 >/dev/null 2>&1
-}
+ip netns exec peer ip link add wg0 type wireguard
+ip netns exec peer wg set wg0 \
+    private-key peer_priv.key \
+    listen-port 51820 \
+    peer "$HOST_PUB" \
+    allowed-ips "10.200.0.1/32" \
+    endpoint "172.16.0.1:51820"
 
-if wait_for_condition verify_interface 10; then
-    ok 0 "WireGuard interface 'wg100' created"
+ip netns exec peer ip addr add 10.200.0.2/24 dev wg0
+ip netns exec peer ip link set wg0 up
+
+# 6. Verify Handshake
+diag "Verifying handshake..."
+
+# Send a ping to trigger handshake
+ip netns exec peer ping -c 3 -W 1 10.200.0.1 >/dev/null 2>&1
+
+# Check handshake status on Host
+if wg show wg0 latest-handshakes | grep -q "$PEER_PUB"; then
+    pass "Handshake successful (verified on host)"
 else
-    ok 1 "WireGuard interface 'wg100' NOT created"
-    diag "IP Link Output:"
-    ip link show
-    diag "Control Plane Log:"
-    cat "$CTL_LOG"
-fi
-
-# 3. Verify API Status reports it
-diag "Verifying API status..."
-# Wait for API to start on 8443
-if ! wait_for_port 8443 15; then
-    ok 1 "API server failed to start on 8443"
-    cat "$API_LOG"
-else
-    # Give it a moment for the handler to actually be ready
-    sleep 2
-fi
-
-# Auth not configured in this test, so API is open (Dev mode)
-# Just query interfaces directly
-RESPONSE=$(curl -k -s https://127.0.0.1:8443/api/interfaces)
-
-# use jq to extract wireguard interfaces from API
-API_WG_IFACES=$(echo "$RESPONSE" | jq -r '.[] | select(.type=="wireguard") | .name' | sort | tr '\n' ' ' | sed 's/ $//')
-
-# Get system wireguard interfaces (assuming names start with wg for this test)
-# In a real scenario, we might check /sys/class/net/*/kind but busybox might lack it.
-# We'll trust ip link and our naming convention for this integration test.
-SYS_WG_IFACES=$(ip link show | grep -o "wg[0-9]*" | sort | uniq | tr '\n' ' ' | sed 's/ $//')
-
-diag "System WG: [$SYS_WG_IFACES]"
-diag "API WG:    [$API_WG_IFACES]"
-
-if [ "$API_WG_IFACES" = "$SYS_WG_IFACES" ]; then
-    ok 0 "API matches System WireGuard interfaces"
-    if echo "$API_WG_IFACES" | grep -q "wg100"; then
-        ok 0 "Confirmed wg100 is present"
+    # Check if handshake > 0
+    LATEST=$(wg show wg0 latest-handshakes | awk '{print $2}')
+    if [ "$LATEST" -gt 0 ]; then
+        pass "Handshake successful (verified on host, time=$LATEST)"
     else
-        ok 1 "Mismatch: Expected wg100 to be present"
+        diag "Peer output:"
+        ip netns exec peer wg show
+        diag "Host output:"
+        wg show
+        fail "Handshake failed"
     fi
-else
-    # It's possible system has extra interfaces if we didn't clean up, or API has fewer if filtering
-    # But for this isolated test, they should match exactly.
-    ok 1 "Mismatch between System and API interfaces"
-    diag "Diff: System=[$SYS_WG_IFACES] API=[$API_WG_IFACES]"
-fi 
-
-# Verify details of wg100 from API
-WG100_DETAILS=$(echo "$RESPONSE" | jq '.[] | select(.name=="wg100")')
-if echo "$WG100_DETAILS" | grep -q '"state":.*"up"'; then
-   ok 0 "API reports wg100 state as UP (or admin up)"
-else
-   ok 0 "API reports wg100 state (informational only): $(echo "$WG100_DETAILS" | jq -r .state)"
 fi
 
-stop_ctl
-rm -f "$CONFIG_FILE"
-exit 0
+# 7. Verify Data Plane
+if ip netns exec peer ping -c 1 -W 1 10.200.0.1 >/dev/null 2>&1; then
+    pass "Data plane working (Ping succeeded)"
+else
+    fail "Ping through tunnel failed"
+fi

@@ -379,7 +379,8 @@ wait_for_condition() {
 start_ctl() {
     _config="$1"
     shift
-    CTL_LOG=$(mktemp_compatible ctl.log)
+    export CTL_LOG=$(mktemp_compatible ctl.log)
+    echo "# DEBUG: CTL_LOG path is: $CTL_LOG"
 
     diag "Starting control plane with config: $_config"
     
@@ -441,7 +442,7 @@ stop_ctl() {
 # Sets: API_PID, API_LOG
 # Uses 'test-api' command which runs API without sandbox isolation
 start_api() {
-    API_LOG=$(mktemp_compatible api.log)
+    export API_LOG=$(mktemp_compatible api.log)
 
     $APP_BIN test-api "$@" > "$API_LOG" 2>&1 &
     API_PID=$!
