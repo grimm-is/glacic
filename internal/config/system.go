@@ -107,3 +107,14 @@ type ScheduledRule struct {
 	EndSchedule string     `hcl:"end_schedule,optional" json:"end_schedule,omitempty"` // Cron expression for when to disable
 	Enabled     bool       `hcl:"enabled,optional" json:"enabled"`
 }
+
+// SystemConfig contains system-level tuning and preferences.
+type SystemConfig struct {
+	// SysctlProfile selects a preset sysctl tuning profile
+	// Options: "default", "performance", "low-memory", "security"
+	SysctlProfile string `hcl:"sysctl_profile,optional" json:"sysctl_profile,omitempty"`
+
+	// Sysctl allows manual override of sysctl parameters
+	// Applied after profile tuning
+	Sysctl map[string]string `hcl:"sysctl,optional" json:"sysctl,omitempty"`
+}

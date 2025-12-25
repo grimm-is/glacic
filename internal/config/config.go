@@ -66,6 +66,9 @@ type Config struct {
 	// Dynamic DNS
 	DDNS *DDNSConfig `hcl:"ddns,block" json:"ddns,omitempty"`
 
+	// System tuning and settings
+	System *SystemConfig `hcl:"system,block" json:"system,omitempty"`
+
 	// State Directory (overrides default /var/lib/glacic)
 	StateDir string `hcl:"state_dir,optional" json:"state_dir,omitempty"`
 }

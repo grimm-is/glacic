@@ -329,6 +329,9 @@ func initializeNetworkStack(cfg *config.Config) (*network.Manager, error) {
 		}
 	}
 
+	// Apply sysctl tuning (router optimizations)
+	applySysctlTuning(cfg)
+
 	return netMgr, nil
 }
 
@@ -821,6 +824,37 @@ func startControlPlaneServer(cfg *config.Config, configFile string, netMgr *netw
 	services.dhcpSvc.SetLeaseListener(services.ctlServer)
 
 	return nil
+}
+
+// applySysctlTuning applies system-level sysctl tuning for router workloads.
+func applySysctlTuning(cfg *config.Config) {
+	// Skip if no system config
+	if cfg.System == nil {
+		logging.Info("No system config - using default sysctl profile")
+		cfg.System = &config.SystemConfig{
+			SysctlProfile: "default",
+		}
+	}
+
+	// Default to "default" profile if not specified
+	profile := cfg.System.SysctlProfile
+	if profile == "" {
+		profile = "default"
+	}
+
+	// Create tuner with hardware detection
+	tuner := network.NewSysctlTuner(
+		network.SysctlProfile(profile),
+		cfg.System.Sysctl,
+		logging.WithComponent("sysctl"),
+	)
+
+	// Apply tuning
+	if err := tuner.Apply(); err != nil {
+		logging.Error(fmt.Sprintf("Error applying sysctl tuning: %v", err))
+	} else {
+		logging.Info(fmt.Sprintf("Applied sysctl tuning (profile: %s)", profile))
+	}
 }
 
 // runMainEventLoop handles signals and runs the main event loop.
