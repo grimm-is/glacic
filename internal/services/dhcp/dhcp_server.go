@@ -690,3 +690,43 @@ func handleRequest(m *dhcpv4.DHCPv4, store *LeaseStore, scope config.DHCPScope, 
 
 	return dhcpv4.NewReplyFromRequest(m, opts...)
 }
+
+// Lease represents a DHCP lease for external consumption
+type Lease struct {
+	MAC        string
+	IP         net.IP
+	Hostname   string
+	Expiration time.Time
+}
+
+// GetLeases returns all active leases across all scopes
+func (s *Service) GetLeases() []Lease {
+	s.mu.RLock()
+	stores := s.leaseStores
+	s.mu.RUnlock()
+
+	var leases []Lease
+
+	for _, store := range stores {
+		store.Lock()
+		for mac, ip := range store.Leases {
+			l := Lease{
+				MAC: mac,
+				IP:  ip,
+			}
+			if store.leaseExpiry != nil {
+				if expiry, ok := store.leaseExpiry[mac]; ok {
+					l.Expiration = expiry
+				}
+			}
+			if store.hostnames != nil {
+				if hostname, ok := store.hostnames[mac]; ok {
+					l.Hostname = hostname
+				}
+			}
+			leases = append(leases, l)
+		}
+		store.Unlock()
+	}
+	return leases
+}

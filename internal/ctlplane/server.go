@@ -28,6 +28,7 @@ import (
 	"grimm.is/glacic/internal/network"
 	"grimm.is/glacic/internal/scheduler"
 	"grimm.is/glacic/internal/services"
+	"grimm.is/glacic/internal/services/dhcp"
 	"grimm.is/glacic/internal/services/discovery"
 	"grimm.is/glacic/internal/services/lldp"
 	"grimm.is/glacic/internal/services/scanner"
@@ -59,6 +60,7 @@ type Server struct {
 	firewallManager     *firewall.Manager // Injected firewall manager
 	ipsetService        *firewall.IPSetService
 	learningService     *learning.Service
+	dhcpService         *dhcp.Service
 	lldpService         *lldp.Service
 	learningEngine      *learning.Engine
 	policyRouting       *network.PolicyRoutingManager
@@ -172,6 +174,16 @@ func (s *Server) SetUpgradeManager(mgr *upgrade.Manager) {
 // SetIPSetService injects the IPSet service
 func (s *Server) SetIPSetService(svc *firewall.IPSetService) {
 	s.ipsetService = svc
+}
+
+// SetDHCPService injects the DHCP service
+func (s *Server) SetDHCPService(svc *dhcp.Service) {
+	s.dhcpService = svc
+}
+
+// SetUplinkManager injects the Uplink manager
+func (s *Server) SetUplinkManager(mgr *network.UplinkManager) {
+	s.uplinkManager = mgr
 }
 
 // SetLogReader injects a custom log reader (for testing)
@@ -520,9 +532,30 @@ func (s *Server) GetServices(args *Empty, reply *GetServicesReply) error {
 	return nil
 }
 
-// GetDHCPLeases returns active DHCP client leases
 func (s *Server) GetDHCPLeases(args *Empty, reply *GetDHCPLeasesReply) error {
 	reply.Leases = []DHCPLease{}
+	if s.dhcpService == nil {
+		return nil
+	}
+
+	leases := s.dhcpService.GetLeases()
+	for _, lease := range leases {
+		reply.Leases = append(reply.Leases, DHCPLease{
+			// Interface:  "", // Not stored in lease currently, could infer from subnet?
+			IPAddress:  lease.IP.String(),
+			MAC:        lease.MAC,
+			// SubnetMask: "", 
+			// Router:     "",
+			// DNSServers: nil, 
+			// LeaseTime:  "", 
+			// ObtainedAt: lease.LeaseStart, // Need to add LeaseStart to Lease struct?
+			ExpiresAt:  lease.Expiration,
+			Hostname:   lease.Hostname,
+		})
+	}
+	return nil
+
+	/* Legacy Logic Removed
 	leases := s.netLib.GetDHCPLeases()
 	if leases == nil {
 		return nil
@@ -547,6 +580,7 @@ func (s *Server) GetDHCPLeases(args *Empty, reply *GetDHCPLeasesReply) error {
 			Hostname:   lease.Hostname,
 		})
 	}
+	*/
 
 	// Enrich with Device Info
 	// Use index to modify slice inplace
@@ -792,6 +826,33 @@ func (s *Server) reloadConfigInternal(newCfg *config.Config) error {
 		log.Printf("[CTL] Error applying policy routing: %v", err)
 		s.Notify(NotifyWarning, "Policy Routing Error", fmt.Sprintf("Failed to apply: %v", err))
 		criticalErrors = append(criticalErrors, fmt.Sprintf("policy routing: %v", err))
+	}
+
+	// Apply Multi-WAN Policy Rules (if enabled)
+	if newCfg.MultiWAN != nil && newCfg.MultiWAN.Enabled {
+		var wanConfigs []network.WANConfig
+		for _, link := range newCfg.MultiWAN.Connections {
+			if !link.Enabled {
+				continue
+			}
+			wanConfigs = append(wanConfigs, network.WANConfig{
+				Name:      link.Name,
+				Interface: link.Interface,
+				Gateway:   link.Gateway,
+				Weight:    link.Weight,
+				Priority:  link.Priority,
+				Enabled:   true,
+			})
+		}
+		if len(wanConfigs) > 0 {
+			if err := s.policyRouting.SetupMultiWAN(wanConfigs); err != nil {
+				log.Printf("[CTL] Error applying Multi-WAN routing: %v", err)
+				s.Notify(NotifyWarning, "Multi-WAN Error", fmt.Sprintf("Failed to apply: %v", err))
+				criticalErrors = append(criticalErrors, fmt.Sprintf("multi-wan: %v", err))
+			} else {
+				log.Printf("[CTL] Applied Multi-WAN routing for %d uplinks", len(wanConfigs))
+			}
+		}
 	}
 
 	// Apply Uplink Groups (Multi-WAN & Health Checking)

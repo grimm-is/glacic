@@ -56,6 +56,7 @@ type ctlServices struct {
 	ctlServer       *ctlplane.Server
 	upgradeMgr      *upgrade.Manager
 	dispatcher      *notification.Dispatcher
+	uplinkManager   *network.UplinkManager
 
 	// Cleanup functions to call on shutdown
 	cleanupFuncs []func()
@@ -442,6 +443,9 @@ func initializeCoreServices(ctx context.Context, cfg *config.Config, netMgr *net
 		logging.Info("Policy routes applied.")
 	}
 
+	// Firewall setup complete
+
+
 	// Firewall
 	fwLogger := logging.WithComponent("firewall")
 	fwMgr, err := fw.NewManager(fwLogger, "")
@@ -469,6 +473,85 @@ func initializeCoreServices(ctx context.Context, cfg *config.Config, netMgr *net
 		} else {
 			logging.Info("Firewall rules applied.")
 		}
+	}
+
+	// Apply Multi-WAN Policy Rules (via UplinkManager)
+	// Must be done AFTER firewall is initialized because it uses nftables chains
+	services.uplinkManager = network.NewUplinkManager()
+
+	// Ensure required nftables chains exist (UplinkManager fallback mode expects them)
+	// mark_prerouting: for connection marking
+	// nat_postrouting: for SNAT
+	exec.Command("nft", "add", "table", "inet", "firewall").Run()
+	exec.Command("nft", "add", "chain", "inet", "firewall", "mark_prerouting", "{ type filter hook prerouting priority -150; policy accept; }").Run()
+	exec.Command("nft", "add", "chain", "inet", "firewall", "nat_postrouting", "{ type nat hook postrouting priority 100; policy accept; }").Run()
+	
+	// Convert MultiWAN config to UplinkGroups
+	var uplinkGroups []config.UplinkGroup
+	
+	if cfg.MultiWAN != nil && cfg.MultiWAN.Enabled {
+		// Create a synthetic UplinkGroup for MultiWAN
+		groupName := "wan_group"
+		group := config.UplinkGroup{
+			Name:             groupName,
+			Enabled:          true,
+			SourceNetworks:   []string{"0.0.0.0/0"}, // Match all traffic by default for MultiWAN
+			FailoverMode:     "graceful",
+			LoadBalanceMode:  "none",
+		}
+
+		if cfg.MultiWAN.Mode == "loadbalance" {
+			group.LoadBalanceMode = "weighted"
+		} else if cfg.MultiWAN.Mode == "both" {
+			group.LoadBalanceMode = "weighted"
+			group.FailoverMode = "graceful"
+		}
+
+		// Health Check
+		if cfg.MultiWAN.HealthCheck != nil {
+			group.HealthCheck = cfg.MultiWAN.HealthCheck
+		}
+
+		// Uplinks
+		for _, link := range cfg.MultiWAN.Connections {
+			if !link.Enabled {
+				continue
+			}
+			uplink := config.UplinkDef{
+				Name:      link.Name,
+				Interface: link.Interface,
+				Gateway:   link.Gateway,
+				Weight:    link.Weight,
+				Type:      "wan",
+				Enabled:   true,
+			}
+			group.Uplinks = append(group.Uplinks, uplink)
+		}
+		
+		uplinkGroups = append(uplinkGroups, group)
+	}
+	
+	// Also include native UplinkGroups if any
+	if len(cfg.UplinkGroups) > 0 {
+		uplinkGroups = append(uplinkGroups, cfg.UplinkGroups...)
+	}
+
+	if err := services.uplinkManager.Reload(uplinkGroups); err != nil {
+		logging.Error(fmt.Sprintf("Error initializing UplinkManager: %v", err))
+	} else {
+		// Set notification callback
+		services.uplinkManager.SetHealthCallback(func(uplink *network.Uplink, healthy bool) {
+			status := "UP"
+			if !healthy {
+				status = "DOWN"
+			}
+			logging.Info(fmt.Sprintf("[Uplink] %s is now %s", uplink.Name, status))
+		})
+		
+		// Start health checking
+		// Use fast interval for responsiveness (critical for tests)
+		services.uplinkManager.StartHealthChecking(1*time.Second, []string{"8.8.8.8"}) // Default backup targets
+		logging.Info("UplinkManager initialized.")
 	}
 
 	// QoS
@@ -731,7 +814,10 @@ func startControlPlaneServer(cfg *config.Config, configFile string, netMgr *netw
 	}
 	services.ctlServer.RegisterService(services.dnsSvc)
 	services.ctlServer.RegisterService(services.dhcpSvc)
+	services.ctlServer.RegisterService(services.dhcpSvc)
 	services.ctlServer.SetStateStore(services.stateStore)
+	services.ctlServer.SetDHCPService(services.dhcpSvc)
+	services.ctlServer.SetUplinkManager(services.uplinkManager)
 	services.dhcpSvc.SetLeaseListener(services.ctlServer)
 
 	return nil

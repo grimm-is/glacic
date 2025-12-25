@@ -1246,10 +1246,9 @@ func (h *UplinkHealthChecker) checkGroup(group *UplinkGroup) {
 	}
 
 	if needsSwitch || tierChanged {
-		// Check if any healthy uplinks remain in current tier
-		healthy := group.GetHealthyUplinksInTier(currentTier)
-		if len(healthy) == 0 || tierChanged {
-			group.SwitchToBest()
+		// Always try to switch if needed. SwitchToBest handles "no change" efficiently.
+		if err := group.SwitchToBest(); err != nil {
+			logging.Error(fmt.Sprintf("[Uplink] Failed to switch to best uplink: %v", err))
 		}
 	}
 }
