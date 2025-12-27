@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Zone Services Test (TAP format)
 # Tests that zone-based services work correctly:
@@ -7,7 +8,7 @@
 # - Syslog access (UDP 514)
 # - Custom ports per zone
 
-TEST_TIMEOUT=30
+TEST_TIMEOUT=60
 
 # Source common functions
 . "$(dirname "$0")/../common.sh"

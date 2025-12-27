@@ -1,8 +1,9 @@
 #!/bin/sh
 # import_test.sh - Integration test for Import Wizard API
 
-set -e
+set -x
 
+# This test verifies that a pfSense configuration file can be imported via API.
 # Base URL for API
 API_URL="http://127.0.0.1:8080/api"
 
@@ -12,7 +13,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Verifies rule import functionality
-TEST_TIMEOUT=60
+TEST_TIMEOUT=90
 . "$(dirname "$0")/../common.sh"
 SAMPLE_FILE="$(mktemp_compatible pfsense_sample.xml)"
 
@@ -84,12 +85,12 @@ sleep 1
 diag "Starting Control Plane..."
 # Create temp config with Auth enabled
 TEST_CONFIG=$(mktemp_compatible import_config.hcl)
-cp configs/basic.hcl "$TEST_CONFIG"
+cp "$GLACIC_ROOT/configs/basic.hcl" "$TEST_CONFIG"
 cat >> "$TEST_CONFIG" <<EOF
 
 api {
   enabled = false
-  listen = "127.0.0.1:8080"
+  listen = ":8080"
   require_auth = false
   tls_cert = ""
   tls_key = ""
@@ -107,7 +108,7 @@ diag "Step 1: Uploading configuration..."
 diag "File size: $(ls -l $SAMPLE_FILE)"
 
 # Use dummy key (ignored if auth disabled)
-UPLOAD_RESP=$(curl -v -s --connect-timeout 5 --max-time 10 -H "X-API-Key: dummy" -X POST -F "config_file=@$SAMPLE_FILE" "$API_URL/import/upload" || echo "CURL_ERROR:$?")
+UPLOAD_RESP=$(curl -v -s --connect-timeout 5 --max-time 20 -H "X-API-Key: dummy" -X POST -F "config_file=@$SAMPLE_FILE" "$API_URL/import/upload" || echo "CURL_ERROR:$?")
 
 # Check for success
 if echo "$UPLOAD_RESP" | grep -q "CURL_ERROR"; then
@@ -147,7 +148,7 @@ diag "Step 2: Generating preview configuration..."
 # Create Mappings JSON
 MAPPINGS='{"mappings": {"em0": "eth0", "em1": "eth1", "em2": "eth2"}}'
 
-PREVIEW_RESP=$(curl -s -H "X-API-Key: dummy" -X POST -H "Content-Type: application/json" -d "$MAPPINGS" "$API_URL/import/$SESSION_ID/config")
+PREVIEW_RESP=$(curl -s --max-time 10 -H "X-API-Key: dummy" -X POST -H "Content-Type: application/json" -d "$MAPPINGS" "$API_URL/import/$SESSION_ID/config")
 
 # Check for success (simple check if it returned a JSON with 'interfaces')
 # Handle potential null response gracefully

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Traffic Accounting Integration Test
 # Verifies per-IP traffic accounting rules are generated

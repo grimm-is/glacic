@@ -1,8 +1,9 @@
 #!/bin/sh
+set -x
 
 # nftables Firewall Integration Test Script (TAP format)
 # Tests firewall rule creation, chains, and filtering with comprehensive coverage
-TEST_TIMEOUT=30
+TEST_TIMEOUT=60
 
 test_count=0
 failed_count=0

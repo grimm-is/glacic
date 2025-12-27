@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # Prometheus Metrics Endpoint Integration Test
 # Verifies the /metrics endpoint serves Prometheus format metrics.
 #
@@ -38,14 +39,7 @@ api {
   listen = "127.0.0.1:8080"
 }
 
-interface "lo" {
-  zone = "lan"
-  ipv4 = ["127.0.0.1/8"]
-}
-
-zone "lan" {
-  interfaces = ["lo"]
-}
+# Removed managed 'lo' to avoid locking out API
 EOF
 
 # 1. Start Control Plane

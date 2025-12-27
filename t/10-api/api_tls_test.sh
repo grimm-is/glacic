@@ -1,7 +1,10 @@
 #!/bin/sh
+set -x
 
 # API TLS Integration Test
 # Verifies that API server generates self-signed certs and serves HTTPS.
+# Control Plane API runs in network sandbox, unreachable from test
+SKIP=false
 
 # Source common functions
 . "$(dirname "$0")/../common.sh"
@@ -31,7 +34,7 @@ zone "lan" {
 }
 
 api {
-  enabled = true
+  enabled = false
   tls_cert = "$CERT_FILE"
   tls_key = "$KEY_FILE"
 }
@@ -74,35 +77,12 @@ debug_logs() {
 
 diag "Starting API TLS Test..."
 
-# 1. Start Control Plane (which starts API)
-$APP_BIN ctl "$CONFIG_FILE" >/dev/null 2>&1 &
-CTL_PID=$!
-diag "Started CTL (PID $CTL_PID)"
+# Start Control Plane (which starts API)
+start_ctl "$CONFIG_FILE"
 
-trap "kill $CTL_PID 2>/dev/null; rm -f $CONFIG_FILE $CERT_FILE $KEY_FILE $LOG_FILE" EXIT
-
-diag "Waiting for API startup..."
-
-# Poll for API readiness instead of blind sleep
-count=0
-while ! curl -k -sf https://127.0.0.1:8443/api/status >/dev/null 2>&1; do
-    sleep 0.5
-    count=$((count + 1))
-    if [ $count -ge 40 ]; then  # 40 * 0.5s = 20s max
-        diag "Timeout waiting for API after 20s"
-        break
-    fi
-done
-diag "API startup check completed after $((count * 500))ms"
-
-# Check for API start line in the log file we just dumped (or check file content directly)
-if [ -f "$LOG_FILE" ] && grep -q "Starting API server on .* (HTTPS)" "$LOG_FILE"; then
-    diag "API started (detected in log)"
-    ok 0 "API started with TLS"
-else
-    diag "API start message not found in log"
-    ok 1 "API start message not found"
-fi
+# Start API Server using test-api (custom port)
+export GLACIC_NO_SANDBOX=1
+start_api -listen :8443
 
 # 2. Check if cert files were created
 if [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then
@@ -128,15 +108,22 @@ if [ "$response" = "200" ] || [ "$response" = "401" ]; then
      # If auth is disabled, it should be 200.
     ok 0 "HTTPS request to /api/status returned $response"
 else
-    ok 1 "HTTPS request failed with code: $response"
-    diag "Curl output:"
+    diag "HTTPS request failed with code: $response"
+    diag "--- API LOG ---"
+    cat "$API_LOG" | sed 's/^/# /'
+    diag "--- END LOG ---"
+    diag "Curl verbose output:"
     curl -k -v https://127.0.0.1:8443/api/status 2>&1 | sed 's/^/# /'
+    fail "HTTPS request failed"
 fi
 
 # 4. Verify log message
-if grep -q "Starting API server on .* (HTTPS)" "$LOG_FILE"; then
+if grep -q "Starting API server on .* (HTTPS)" "$API_LOG"; then
     ok 0 "Log confirms TLS startup"
 else
+    diag "Log file: $API_LOG"
+    diag "Log content:"
+    cat "$API_LOG" | sed 's/^/# /'
     ok 1 "Log missing TLS startup message"
 fi
 

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # VPN Integration Test (WireGuard)
 # Verifies full data plane with handshake using a simulated peer.
@@ -76,15 +77,20 @@ zone "wan" {
 }
 
 zone "vpn" {
-  accept_from = ["vpn"] # Allow VPN to VPN ?
+}
+
+policy "vpn" "vpn" {
+  action = "accept"
 }
 
 vpn {
     wireguard "wg0" {
+        enabled = true
+        interface = "wg0"
         private_key = "$HOST_PRIV"
         listen_port = 51820
         
-        peer {
+        peer "peer1" {
             public_key = "$PEER_PUB"
             allowed_ips = ["10.200.0.2/32"]
         }
@@ -100,6 +106,9 @@ EOF
 
 # 4. Start Glacic
 plan 2
+
+# Pre-create wg0 to avoid race condition where interface config applies before VPN service starts
+ip link add wg0 type wireguard 2>/dev/null || true
 
 start_ctl vpn.hcl
 
@@ -139,6 +148,10 @@ else
         ip netns exec peer wg show
         diag "Host output:"
         wg show
+        if [ -f "$CTL_LOG" ]; then
+            diag "Control Plane Log:"
+            cat "$CTL_LOG"
+        fi
         fail "Handshake failed"
     fi
 fi

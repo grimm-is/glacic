@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Time-of-Day Rule Test
 # Verifies: Time-based firewall rules using nftables meta hour/day

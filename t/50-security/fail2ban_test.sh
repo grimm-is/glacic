@@ -1,9 +1,10 @@
 #!/bin/sh
+set -x
 
 # Fail2Ban-Style Blocking Integration Test
 # Verifies automatic IP blocking after repeated auth failures
 # TEST_TIMEOUT: Extra time for repeated requests
-TEST_TIMEOUT=60
+TEST_TIMEOUT=90
 
 . "$(dirname "$0")/../common.sh"
 

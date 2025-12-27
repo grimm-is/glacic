@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Management Zone Access Integration Test
 # Verifies management zone allows access to control plane

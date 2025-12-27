@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # TEST_TIMEOUT=60
 # Test NFLOG capture functionalityion Test
 # Verifies that:
@@ -23,14 +24,7 @@ trap cleanup EXIT
 cat > /tmp/nflog.hcl <<EOF
 schema_version = "1.1"
 
-interface "lo" {
-    ipv4 = ["127.0.0.1/8"]
-    zone = "local"
-}
 
-zone "local" {
-    description = "Loopback"
-}
 
 rule_learning {
     enabled = true
@@ -39,8 +33,8 @@ rule_learning {
 }
 
 api {
-    enabled = true
-    listen = "127.0.0.1:8080"
+    enabled = false
+    listen = "0.0.0.0:8080"
 }
 
 features {

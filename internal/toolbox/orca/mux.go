@@ -143,15 +143,26 @@ func (m *Multiplexer) forwardRequest(request string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	cmd := strings.ToUpper(strings.Fields(request)[0])
+
+	// Set deadline based on command type
+	// TEST and EXEC commands can run for minutes, so use a long timeout
+	var deadline time.Duration
+	switch cmd {
+	case "TEST", "EXEC":
+		deadline = 10 * time.Minute // Tests can run for several minutes
+	default:
+		deadline = 30 * time.Second // Quick commands
+	}
+	m.serialConn.SetDeadline(time.Now().Add(deadline))
+
 	// Send request
-	m.serialConn.SetDeadline(time.Now().Add(30 * time.Second))
 	_, err := fmt.Fprintf(m.serialConn, "%s\n", request)
 	if err != nil {
 		return "", fmt.Errorf("write error: %w", err)
 	}
 
 	reader := bufio.NewReader(m.serialConn)
-	cmd := strings.ToUpper(strings.Fields(request)[0])
 
 	switch cmd {
 	case "PING":

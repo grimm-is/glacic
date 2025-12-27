@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # FireHOL IPSet Integration Test
 # Verifies IPSet creation with URL-based entries and FireHOL list names.
 #

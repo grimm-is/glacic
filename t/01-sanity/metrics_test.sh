@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Prometheus Metrics Integration Test Script (TAP format)
 # Tests metrics collection, formatting, and export

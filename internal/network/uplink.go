@@ -548,7 +548,7 @@ func (g *UplinkGroup) updateNewConnectionMark(srcNet string, newMark RoutingMark
 	}
 
 	// Fallback to shell command if nftMgr not available
-	_, err := g.executor.RunCommand("nft", "add", "rule", "inet", "firewall", "mark_prerouting",
+	_, err := g.executor.RunCommand("nft", "add", "rule", "inet", "glacic", "mark_prerouting",
 		"ip", "saddr", srcNet,
 		"ct", "state", "new",
 		"meta", "mark", "set", fmt.Sprintf("0x%x", newMark),
@@ -580,7 +580,7 @@ func (g *UplinkGroup) Teardown() error {
 			// Ideally we use comments to finding handle, then delete.
 			// For now, simpler approach: Flush chain? No.
 			// We can try to delete by exact match.
-			DefaultCommandExecutor.RunCommand("nft", "delete", "rule", "inet", "firewall", "nat_postrouting",
+			DefaultCommandExecutor.RunCommand("nft", "delete", "rule", "inet", "glacic", "nat_postrouting",
 				"meta", "mark", fmt.Sprintf("0x%x", uplink.Mark),
 				"oifname", uplink.Interface,
 				"snat", "to", uplink.LocalIP)
@@ -703,7 +703,7 @@ func (g *UplinkGroup) setupConnmarkRestore(iface string) error {
 	}
 
 	// Fallback to shell command
-	_, err := g.executor.RunCommand("nft", "insert", "rule", "inet", "firewall", "mark_prerouting",
+	_, err := g.executor.RunCommand("nft", "insert", "rule", "inet", "glacic", "mark_prerouting",
 		"iifname", iface,
 		"ct", "state", "established,related",
 		"meta", "mark", "set", "ct", "mark")
@@ -821,7 +821,7 @@ func (g *UplinkGroup) updateLoadBalancedMark(srcNet string, weights map[*Uplink]
 
 	mapStr := strings.Join(mapElements, ", ")
 
-	_, err := g.executor.RunCommand("nft", "add", "rule", "inet", "firewall", "mark_prerouting",
+	_, err := g.executor.RunCommand("nft", "add", "rule", "inet", "glacic", "mark_prerouting",
 		"ip", "saddr", srcNet,
 		"ct", "state", "new",
 		"meta", "mark", "set", "numgen", "random", "mod", strconv.Itoa(totalWeight), "map", "{", mapStr, "}",
@@ -839,7 +839,7 @@ func (g *UplinkGroup) setupSNAT(uplink *Uplink) error {
 	}
 
 	// Fallback to shell command
-	_, err := g.executor.RunCommand("nft", "add", "rule", "inet", "firewall", "nat_postrouting",
+	_, err := g.executor.RunCommand("nft", "add", "rule", "inet", "glacic", "nat_postrouting",
 		"meta", "mark", fmt.Sprintf("0x%x", uplink.Mark),
 		"oifname", uplink.Interface,
 		"snat", "to", uplink.LocalIP)

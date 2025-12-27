@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Packet Flow Behavior Test (TAP format)
 # Tests ACTUAL traffic flow through firewall rules using network namespaces

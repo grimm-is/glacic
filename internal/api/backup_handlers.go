@@ -29,7 +29,7 @@ func (s *Server) handleReboot(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	// Get current config
 	var cfg *config.Config
-	if c := s.GetConfigSnapshot(w); c != nil {
+	if c := s.GetConfigSnapshot(w, r); c != nil {
 		cfg = c
 	} else {
 		return

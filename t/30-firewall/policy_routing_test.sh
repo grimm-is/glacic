@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Policy Routing Test (TAP format)
 # Tests that policy routing marks work correctly:

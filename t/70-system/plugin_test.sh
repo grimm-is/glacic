@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Feature Test: Plugin Architecture (Wizards)
 #

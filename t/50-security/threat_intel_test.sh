@@ -3,6 +3,7 @@
 # Verifies: IPSet with external URL loads correctly and blocks traffic
 
 set -e
+set -x
 . "$(dirname "$0")/../common.sh"
 
 TEST_TIMEOUT=30

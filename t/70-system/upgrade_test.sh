@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # Hot Binary Upgrade Test
 # Verifies that:
 # 1. New binary can be built.

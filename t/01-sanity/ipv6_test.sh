@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # IPv6 Integration Test Script (TAP format)
 # Tests IPv6 networking, nftables rules, and routing

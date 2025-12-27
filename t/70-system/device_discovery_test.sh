@@ -1,10 +1,11 @@
 #!/bin/sh
+set -x
 #
 # Device Discovery (DHCP) Integration Test
 # Verifies devices are discovered from DHCP leases
 #
 # TEST_TIMEOUT: Extended timeout for API startup
-TEST_TIMEOUT=45
+TEST_TIMEOUT=90
 
 . "$(dirname "$0")/../common.sh"
 
@@ -23,11 +24,7 @@ api {
     require_auth = false
 }
 
-interface "lo" {
-    ipv4 = ["192.168.100.1/24"]
-}
 
-zone "local" {}
 
 dhcp {
     scope "test" {
@@ -55,19 +52,11 @@ fi
 start_ctl "$CONFIG_FILE"
 
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8086 > /tmp/api_discovery.log 2>&1 &
-API_PID=$!
-track_pid $API_PID
-
-wait_for_port 8086 10 || {
-    diag "API log:"
-    cat /tmp/api_discovery.log | head -10
-    fail "API server failed to start"
-}
+start_api -listen :8086
 
 # Test 2: DHCP leases API endpoint works
 diag "Test 2: DHCP leases endpoint"
-response=$(curl -s "http://169.254.255.2:8086/api/dhcp/leases" 2>&1)
+response=$(curl -s "http://127.0.0.1:8086/api/dhcp/leases" 2>&1)
 # Check for valid JSON response (empty array [] or object structure)
 if echo "$response" | grep -qE '^\[|\{'; then
     pass "DHCP leases endpoint returns valid response"

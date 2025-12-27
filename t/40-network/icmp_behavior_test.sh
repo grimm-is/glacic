@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # ICMP Behavior Test (TAP format)
 # Tests that ICMP rules work correctly:

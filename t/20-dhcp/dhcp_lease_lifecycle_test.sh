@@ -1,8 +1,10 @@
 #!/bin/sh
 # DHCP Lease Lifecycle Integration Test
 # Verifies lease allocation, expiration, and IP reclamation
+# DHCP server works with entries table and bucket=dhcp_leases
 
 set -e
+set -x
 
 TEST_TIMEOUT=60
 
@@ -95,40 +97,26 @@ fi
 diag "=== Test 2: Verify lease persistence ==="
 sleep 2
 if [ -f "$STATE_DIR/state.db" ]; then
-    # Check if table exists with retry
+    # Check if entry exists in entries table with bucket=dhcp_leases
     MAX_RETRIES=10
     COUNT=0
     while [ $COUNT -lt $MAX_RETRIES ]; do
-        TABLE_EXISTS=$(sqlite3 "$STATE_DIR/state.db" "SELECT name FROM sqlite_master WHERE type='table' AND name='dhcp_leases'" 2>/dev/null || echo "")
-        if [ -n "$TABLE_EXISTS" ]; then
+        LEASE_JSON=$(sqlite3 "$STATE_DIR/state.db" "SELECT value FROM entries WHERE bucket = 'dhcp_leases' AND value LIKE '%\"ip\":\"$LEASE1_IP\"%'" 2>/dev/null || echo "")
+        if [ -n "$LEASE_JSON" ]; then
             break
         fi
         sleep 1
         COUNT=$((COUNT+1))
     done
     
-    if [ -n "$TABLE_EXISTS" ]; then
-        diag "Table dhcp_leases exists"
-        
-        # Show all leases for debugging
-        diag "All leases in database:"
-        sqlite3 "$STATE_DIR/state.db" "SELECT * FROM dhcp_leases" 2>/dev/null | head -10 || true
-        
-        # Check if lease exists in database
-        LEASE_COUNT=$(sqlite3 "$STATE_DIR/state.db" "SELECT COUNT(*) FROM dhcp_leases WHERE ip = '$LEASE1_IP'" 2>/dev/null || echo "0")
-        if [ "$LEASE_COUNT" -gt 0 ]; then
-            ok 0 "Lease persisted to SQLite database"
-            diag "Found lease in database for IP: $LEASE1_IP"
-        else
-            ok 1 "Lease NOT found in database"
-            diag "Database query returned: $LEASE_COUNT"
-            diag "Looking for IP: $LEASE1_IP"
-        fi
+    if [ -n "$LEASE_JSON" ]; then
+        ok 0 "Lease persisted to SQLite database"
+        diag "Found lease in database for IP: $LEASE1_IP"
+        diag "Lease JSON: $LEASE_JSON"
     else
-        ok 1 "Table dhcp_leases does not exist"
-        diag "Database tables:"
-        ls -l "$STATE_DIR/state.db"
-        sqlite3 "$STATE_DIR/state.db" ".tables"
+        ok 1 "Lease NOT found in database"
+        diag "Looked for IP: $LEASE1_IP in bucket 'dhcp_leases'"
+        sqlite3 "$STATE_DIR/state.db" "SELECT bucket, length(value) FROM entries"
     fi
 else
     ok 1 "State database not found at $STATE_DIR/state.db"
@@ -140,7 +128,7 @@ diag "Waiting 20 seconds for 15s lease to expire..."
 sleep 20
 
 # Check if lease is marked as expired or removed
-LEASE_COUNT_AFTER=$(sqlite3 "$STATE_DIR/state.db" "SELECT COUNT(*) FROM dhcp_leases WHERE ip = '$LEASE1_IP'" 2>/dev/null || echo "0")
+LEASE_COUNT_AFTER=$(sqlite3 "$STATE_DIR/state.db" "SELECT COUNT(*) FROM entries WHERE bucket = 'dhcp_leases' AND value LIKE '%\"ip\":\"$LEASE1_IP\"%'" 2>/dev/null || echo "0")
 if [ "$LEASE_COUNT_AFTER" -eq 0 ]; then
     ok 0 "Expired lease removed from database"
 else

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Network Namespace Integration Test
 # Verifies network namespace handling in API sandbox
@@ -50,7 +51,7 @@ fi
 # Test 2: Network namespace isolation works (if enabled)
 diag "Test 2: Namespace isolation check"
 # The API should be accessible from the host
-response=$(curl -s -o /dev/null -w "%{http_code}" "http://169.254.255.2:8097/api/status" 2>&1)
+response=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8097/api/status" 2>&1)
 if [ -n "$response" ]; then
     pass "Network accessible across sandbox (status: $response)"
 else

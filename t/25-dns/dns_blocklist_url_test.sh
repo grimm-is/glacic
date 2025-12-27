@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # DNS Blocklist URL Integration Test
 # Verifies that DNS blocklists can be downloaded from a URL and enforced.

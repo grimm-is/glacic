@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Connection Tracking Helpers Integration Test Script (TAP format)
 # Tests loading/unloading of conntrack helper modules

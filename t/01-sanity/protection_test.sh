@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Protection Features Integration Test Script (TAP format)
 # Tests anti-spoofing, bogon filtering, rate limiting, etc.

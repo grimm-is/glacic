@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Monitoring Integration Test
 # Verifies Prometheus metrics endpoint
@@ -27,7 +28,7 @@ EOF
 start_ctl "$CONFIG_FILE"
 
 # Use common start_api (handles waiting for port)
-start_api "$CONFIG_FILE"
+start_api
 
 # Check HTTP Client
 if command -v curl >/dev/null 2>&1; then
@@ -41,8 +42,15 @@ else
 fi
 
 # Functional verification: metrics endpoint
-diag "Fetching metrics..."
-METRICS=$($HTTP_CMD http://127.0.0.1:8080/metrics)
+diag "Fetching metrics (with retry)..."
+METRICS=""
+for i in $(seq 1 60); do
+    METRICS=$($HTTP_CMD http://127.0.0.1:8080/metrics)
+    if [ -n "$METRICS" ] && echo "$METRICS" | grep -q "# HELP"; then
+        break
+    fi
+    sleep 0.5
+done
 
 # Check for generic prometheus header
 echo "$METRICS" | grep -q "# HELP"

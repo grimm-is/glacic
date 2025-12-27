@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # IPSet Integration Tests (TAP format)
 # Tests nftables set operations and FireHOL list parsing

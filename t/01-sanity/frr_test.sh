@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # FRR (Free Range Routing) Integration Test Script (TAP format)
 # Tests OSPF, BGP, and dynamic routing configuration

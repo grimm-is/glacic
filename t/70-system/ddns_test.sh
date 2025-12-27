@@ -4,6 +4,7 @@
 # Verifies: Dynamic DNS configuration and update triggering.
 
 set -e
+set -x
 source "$(dirname "$0")/../common.sh"
 
 TEST_TIMEOUT=30

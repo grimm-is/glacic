@@ -1,6 +1,7 @@
 #!/bin/sh
-TEST_TIMEOUT=180
+TEST_TIMEOUT=60
 set -e
+set -x
 
 # Setup test environment
 source "$(dirname "$0")/../common.sh"
@@ -22,13 +23,13 @@ interface "eth0" {
 }
 
 api {
-  enabled = true
-  listen  = "0.0.0.0:8443"
+  enabled = false
+  tls_listen  = "0.0.0.0:8443"
   require_auth = true
   
   key "test-key" {
     key = "secret123"
-    permissions = ["config:write", "config:read"]
+    permissions = ["config:write", "config:read", "admin:system"]
   }
 }
 EOF
@@ -39,21 +40,27 @@ rm -f "$CTL_SOCKET"
 start_ctl "$CONFIG_FILE"
 
 # Start API (no args needed, connects to ctl)
-start_api
+# start_api (redundant, we start specific listener below)
+# Manual start to track PID and wait for correct port 8443
+export API_LOG=$(mktemp_compatible api.log)
+# We must use -listen to bind to 8443 because test-api defaults to 8080
+$APP_BIN test-api -listen :8443 > "$API_LOG" 2>&1 &
+API_PID=$!
+track_pid $API_PID
 
-# Wait for API to be ready
+# Wait for API to be ready on 8443
 wait_for_port 8443 10
 
 echo "1. Get current config"
 sleep 2
-ORIG_CONFIG=$(curl -k -s -H "X-API-Key: secret123" https://169.254.255.2:8443/api/config)
+ORIG_CONFIG=$(curl -k -s -H "X-API-Key: secret123" https://127.0.0.1:8443/api/config)
 echo "Original config captured"
 
 echo "2. Attempt Safe Apply with unreachable ping target (should fail and rollback)"
 echo "Debug: Calling API..."
 # The new API expects a 'config' object and 'ping_targets' array
 # 192.0.2.1 is a TEST-NET-1 address that should never be routable
-RESPONSE=$(curl -k -v -s -X POST https://169.254.255.2:8443/api/config/safe-apply \
+RESPONSE=$(curl -k -v -s -X POST https://127.0.0.1:8443/api/config/safe-apply \
     -H "Content-Type: application/json" \
     -H "X-API-Key: secret123" \
     -d '{
@@ -64,6 +71,10 @@ RESPONSE=$(curl -k -v -s -X POST https://169.254.255.2:8443/api/config/safe-appl
             "zone": "lan",
             "description": "bad-config",
             "ipv4": ["192.168.1.1/24"]
+        }, {
+            "name": "lo",
+            "zone": "lan",
+            "ipv4": ["127.0.0.1/8"]
         }]
     },
     "ping_targets": ["192.0.2.1"],
@@ -105,8 +116,9 @@ fi
 echo "3. Verify config was restored (no 'bad-config' in current config)"
 # Retry loop for API availability after potential restart
 for i in $(seq 1 5); do
-    wait_for_port 8443 10
-    NEW_CONFIG=$(curl -k -s -H "X-API-Key: secret123" https://169.254.255.2:8443/api/interfaces || true)
+    wait_for_port 8443 10 || true
+    # Use /api/config/hcl to verify LIVE on-disk/runtime config, not Staged config
+    NEW_CONFIG=$(curl -k -s -H "X-API-Key: secret123" https://127.0.0.1:8443/api/config/hcl || true)
     if [ $? -eq 0 ] && [ -n "$NEW_CONFIG" ]; then
         break
     fi
@@ -116,7 +128,7 @@ done
 echo "New config: $NEW_CONFIG"
 
 if echo "$NEW_CONFIG" | grep -q "bad-config"; then
-    echo "FAILURE: Interface description is 'bad-config', rollback failed!"
+    echo "FAILURE: HCL config contains 'bad-config', rollback failed!"
     exit 1
 else
     echo "SUCCESS: Interface description does not contain 'bad-config', rollback succeeded."

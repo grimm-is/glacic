@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # VPN Isolation Test (TAP format)
 # Tests VPN-specific rules:

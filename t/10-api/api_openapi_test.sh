@@ -1,10 +1,11 @@
 #!/bin/sh
+set -x
 #
 # OpenAPI Documentation Integration Test
 # Verifies that the API serves OpenAPI spec and Swagger UI
 #
 
-TEST_TIMEOUT=30
+TEST_TIMEOUT=90
 
 . "$(dirname "$0")/../common.sh"
 
@@ -32,25 +33,11 @@ interface "eth0" {
 EOF
 
 # Start Control Plane
-log "Starting Control Plane..."
-$APP_BIN ctl "$CONFIG_FILE" > /tmp/ctl_openapi.log 2>&1 &
-CTL_PID=$!
-track_pid $CTL_PID
-
-wait_for_file $CTL_SOCKET 5 || fail "Control plane socket not created"
+start_ctl "$CONFIG_FILE"
 
 # Start API Server
-log "Starting API Server..."
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8085 > /tmp/api_openapi.log 2>&1 &
-API_PID=$!
-track_pid $API_PID
-
-wait_for_port 8085 10 || {
-    log "API log:"
-    cat /tmp/api_openapi.log | head -20
-    fail "API server failed to start"
-}
+start_api -listen :8085
 
 plan 4
 

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Syslog Forwarding Test
 # Verifies: Logs are forwarded to remote syslog server

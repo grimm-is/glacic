@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Hairpin NAT Integration Test  
 # Verifies hairpin NAT rules are correctly generated
@@ -8,7 +9,7 @@
 
 require_binary
 
-CONFIG_FILE="t/configs/hairpin.hcl"
+CONFIG_FILE="$PROJECT_ROOT/configs/hairpin.hcl"
 
 plan 2
 

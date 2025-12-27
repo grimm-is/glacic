@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"grimm.is/glacic/internal/config"
-	"grimm.is/glacic/internal/logging"
+
 )
 
 // --- Config CRUD Handlers ---
@@ -46,20 +46,11 @@ func (s *Server) applyConfigUpdate(w http.ResponseWriter, updateFn func(cfg *con
 		return false
 	}
 
-	// Apply to control plane (if available)
-	if s.client != nil {
-		if err := s.client.ApplyConfig(&cloned); err != nil {
-			WriteError(w, http.StatusInternalServerError, "Failed to apply config: "+err.Error())
-			return false
-		}
-		// Save config to disk
-		if _, err := s.client.SaveConfig(); err != nil {
-			// Log warning but don't fail - config is applied
-			logging.Warn("Failed to persist config: " + err.Error())
-		}
-	}
+	// Staging Logic:
+	// We do NOT call s.client.ApplyConfig here. We only update the local s.Config (Staged).
+	// The user must explicitly hit POST /config/apply to commit changes to the Control Plane.
 
-	// Only update local config after successful RPC
+	// Update local config (Staged)
 	s.configMu.Lock()
 	updateFn(s.Config)
 	s.configMu.Unlock()
@@ -70,7 +61,7 @@ func (s *Server) applyConfigUpdate(w http.ResponseWriter, updateFn func(cfg *con
 // handleGetPolicies returns firewall policies
 // handleGetPolicies returns firewall policies
 func (s *Server) handleGetPolicies(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.Policies)
 	}
 }
@@ -91,7 +82,7 @@ func (s *Server) handleUpdatePolicies(w http.ResponseWriter, r *http.Request) {
 // handleGetNAT returns NAT configuration
 // handleGetNAT returns NAT configuration
 func (s *Server) handleGetNAT(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.NAT)
 	}
 }
@@ -112,7 +103,7 @@ func (s *Server) handleUpdateNAT(w http.ResponseWriter, r *http.Request) {
 // handleGetMarkRules returns mark rules
 // handleGetMarkRules returns mark rules
 func (s *Server) handleGetMarkRules(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.MarkRules)
 	}
 }
@@ -133,7 +124,7 @@ func (s *Server) handleUpdateMarkRules(w http.ResponseWriter, r *http.Request) {
 // handleGetUIDRouting returns UID routing rules
 // handleGetUIDRouting returns UID routing rules
 func (s *Server) handleGetUIDRouting(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.UIDRouting)
 	}
 }
@@ -153,7 +144,7 @@ func (s *Server) handleUpdateUIDRouting(w http.ResponseWriter, r *http.Request) 
 
 // handleGetPolicyRoutes returns policy routing rules
 func (s *Server) handleGetPolicyRoutes(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.PolicyRoutes)
 	}
 }
@@ -174,7 +165,7 @@ func (s *Server) handleUpdatePolicyRoutes(w http.ResponseWriter, r *http.Request
 // handleGetIPSets returns IPSet configuration
 // handleGetIPSets returns IPSet configuration
 func (s *Server) handleGetIPSets(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.IPSets)
 	}
 }
@@ -195,7 +186,7 @@ func (s *Server) handleUpdateIPSets(w http.ResponseWriter, r *http.Request) {
 // handleGetDHCP returns DHCP server configuration
 // handleGetDHCP returns DHCP server configuration
 func (s *Server) handleGetDHCP(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.DHCP)
 	}
 }
@@ -215,7 +206,7 @@ func (s *Server) handleUpdateDHCP(w http.ResponseWriter, r *http.Request) {
 
 // handleGetDNS returns DNS server configuration
 func (s *Server) handleGetDNS(w http.ResponseWriter, r *http.Request) {
-	cfg := s.GetConfigSnapshot(w)
+	cfg := s.GetConfigSnapshot(w, r)
 	if cfg == nil {
 		return
 	}
@@ -282,7 +273,7 @@ func (s *Server) handleUpdateDNS(w http.ResponseWriter, r *http.Request) {
 // handleGetRoutes returns static route configuration
 // handleGetRoutes returns static route configuration
 func (s *Server) handleGetRoutes(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.Routes)
 	}
 }
@@ -303,7 +294,7 @@ func (s *Server) handleUpdateRoutes(w http.ResponseWriter, r *http.Request) {
 // handleGetZones returns zone configuration
 // handleGetZones returns zone configuration
 func (s *Server) handleGetZones(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.Zones)
 	}
 }
@@ -324,7 +315,7 @@ func (s *Server) handleUpdateZones(w http.ResponseWriter, r *http.Request) {
 // handleGetProtections returns per-interface protection settings
 // handleGetProtections returns per-interface protection settings
 func (s *Server) handleGetProtections(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.Protections)
 	}
 }
@@ -368,7 +359,7 @@ func (s *Server) handleUpdateProtections(w http.ResponseWriter, r *http.Request)
 // handleGetVPN returns the current VPN configuration
 // handleGetVPN returns the current VPN configuration
 func (s *Server) handleGetVPN(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.VPN)
 	}
 }
@@ -389,7 +380,7 @@ func (s *Server) handleUpdateVPN(w http.ResponseWriter, r *http.Request) {
 // handleGetQoS returns QoS policies configuration
 // handleGetQoS returns QoS policies configuration
 func (s *Server) handleGetQoS(w http.ResponseWriter, r *http.Request) {
-	if cfg := s.GetConfigSnapshot(w); cfg != nil {
+	if cfg := s.GetConfigSnapshot(w, r); cfg != nil {
 		HandleGetData(w, cfg.QoSPolicies)
 	}
 }

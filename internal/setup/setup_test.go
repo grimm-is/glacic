@@ -1,8 +1,10 @@
 package setup
 
 import (
+
 	"net"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -115,8 +117,9 @@ func TestWizard_GenerateConfig(t *testing.T) {
 		WANInterface: "eth0",
 		WANMethod:    "dhcp",
 		WANIP:        "1.2.3.4",
-		LANInterface: "eth1",
-		LANIP:        "192.168.1.1",
+		LANInterface:  "eth1",
+		LANInterfaces: []string{"eth1"},
+		LANIP:         "192.168.1.1",
 		LANSubnet:    "192.168.1.0/24",
 	}
 
@@ -132,19 +135,19 @@ func TestWizard_GenerateConfig(t *testing.T) {
 
 	// Quick check for expected content
 	s := string(content)
-	if !contains(s, `zone "WAN"`) {
+	if !strings.Contains(s, `zone "WAN"`) {
 		t.Error("Config missing WAN zone")
 	}
-	if !contains(s, `interface = "eth0"`) {
+	if !strings.Contains(s, `interface = "eth0"`) {
 		t.Error("Config missing WAN interface assignment")
 	}
-	if !contains(s, `dhcp = true`) {
+	if !strings.Contains(s, `dhcp = true`) {
 		t.Error("Config missing DHCP setting")
 	}
-	if !contains(s, `zone "LAN"`) {
-		t.Error("Config missing LAN zone")
+	if !strings.Contains(s, `zone "LAN1"`) {
+		t.Error("Config missing LAN1 zone")
 	}
-	if !contains(s, `ipv4 = ["192.168.1.1/24"]`) {
+	if !strings.Contains(s, `ipv4 = ["192.168.1.1/24"]`) {
 		t.Error("Config missing LAN IP")
 	}
 }
@@ -165,16 +168,4 @@ func TestWizard_NeedsSetup(t *testing.T) {
 	}
 }
 
-// Helper
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && stringContaines(s, substr)
-}
 
-func stringContaines(s, substr string) bool {
-	for i := 0; i < len(s)-len(substr)+1; i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

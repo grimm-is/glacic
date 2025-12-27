@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # Integration test for CLI commands: check, diff, apply --dryrun
 TEST_TIMEOUT=30
 . "$(dirname "$0")/../common.sh"

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # Split-Horizon DNS Integration Test  
 # Verifies that DNS responses work based on zone-based host records.
 #

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Single VM Zone Test using Network Namespaces
 # Creates 3 network namespaces (green, orange, red) connected via veth pairs

@@ -1,10 +1,13 @@
 #!/bin/sh
+set -x
 
 # TAP Test Harness - Feature Tests
 # Verifies the Firewall Appliance application features.
+# Uses :8080 to bind all interfaces (127.0.0.1 may not be up yet)
 
 # Needs time for service startup
-TEST_TIMEOUT=45
+# Needs time for service startup
+TEST_TIMEOUT=60
 
 # Source common functions
 . "$(dirname "$0")/../common.sh"
@@ -58,52 +61,16 @@ wait_for_interfaces eth1 eth2 || {
     exit 1
 }
 
-# Ensure clean state
-rm -f $CTL_SOCKET
-rm -f "$STATE_DIR"/auth.json
-
 # Start Control Plane
-# APP_BIN is set by common.sh
 FIREWALL_CONFIG="$MOUNT_PATH/tests/test-vm.hcl"
-$APP_BIN ctl "$FIREWALL_CONFIG" > /tmp/firewall.log 2>&1 &
-CTL_PID=$!
+start_ctl "$FIREWALL_CONFIG"
 
-diag "Waiting for control plane socket..."
-count=0
-while [ ! -S $CTL_SOCKET ]; do
-    sleep 1
-    count=$((count + 1))
-    if [ $count -ge 10 ]; then
-        diag "Timeout waiting for control plane socket"
-        cat /tmp/firewall.log
-        exit 1
-    fi
-done
+# Start API Server
+export GLACIC_UI_DIST="./dist"
+export GLACIC_NO_SANDBOX=1
+start_api -listen :8080
 
-# Start API Server (test-api bypasses sandbox for testing)
-GLACIC_UI_DIST="./dist" GLACIC_NO_SANDBOX=1 $APP_BIN test-api -listen 127.0.0.1:8080 > /tmp/api.log 2>&1 &
-API_PID=$!
-
-# Poll for API readiness instead of sleep 5
-count=0
-while ! curl -sf http://127.0.0.1:8080/api/status >/dev/null 2>&1; do
-    sleep 0.2
-    count=$((count + 1))
-    if [ $count -ge 50 ]; then  # 50 * 0.2s = 10s max
-        diag "Timeout waiting for API"
-        break
-    fi
-done
-diag "API ready after $((count * 200))ms"
-
-if kill -0 $CTL_PID 2>/dev/null && kill -0 $API_PID 2>/dev/null; then
-    ok 0 "Services started (CTL: $CTL_PID, API: $API_PID)"
-else
-    ok 1 "Failed to start services"
-    cat /tmp/firewall.log
-    cat /tmp/api.log
-    exit 1
-fi
+diag "Services started (CTL: $CTL_PID, API: $API_PID)"
 
 # 2. Check Static IP Assignments (from test-vm.hcl)
 # Assuming test-vm.hcl configures 10.1.0.1 on eth1

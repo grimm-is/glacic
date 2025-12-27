@@ -3,6 +3,7 @@
 TEST_TIMEOUT=120
 
 set -e
+set -x
 
 # Setup test environment
 source "$(dirname "$0")/../common.sh"

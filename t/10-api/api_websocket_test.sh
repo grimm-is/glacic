@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # WebSocket Notifications Integration Test
 # Verifies WebSocket endpoint is accessible

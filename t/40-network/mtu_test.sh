@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # MTU Configuration Integration Test
 # Verifies MTU settings are applied to interfaces

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Health Check Integration Test Script (TAP format)
 # Tests health probes, system checks, and monitoring

@@ -5,17 +5,20 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/mdlayher/vsock"
 )
 
@@ -31,40 +34,180 @@ type Config struct {
 }
 
 func Run(args []string) error {
-	fmt.Println("Glacic Orc(hestr)a(tor) Starting...")
-
 	if len(args) == 0 {
 		return fmt.Errorf("usage: orca [run|test]")
 	}
-
 	switch args[0] {
 	case "run":
-		return runVM()
+		return runVM(args[1:])
 	case "test":
 		return runTests(args[1:])
 	case "status":
-		return runStatus()
+		return runStatus(args[1:])
 	case "shell":
 		return runShell(args[1:])
 	case "exec":
 		return runExec(args[1:])
 	case "stop":
-		return runStop()
+		return runStop(args[1:])
+	case "history":
+		return runHistory(args[1:])
+	case "help", "--help", "-h":
+		helpGlobal()
+		return nil
 	default:
-		return fmt.Errorf("unknown command: %s", args[0])
+		return fmt.Errorf("unknown command: %s (see 'orca help')", args[0])
 	}
 }
 
-func runVM() error {
-	// Defaults based on scripts/vm-dev.sh
+func helpGlobal() {
+	fmt.Println("Glacic Orc(hestr)a(tor) - Integration Test Runner")
+	fmt.Println("\nUsage:")
+	fmt.Println("  orca <command> [arguments]")
+	fmt.Println("\nCommands:")
+	fmt.Println("  test      Run integration tests")
+	fmt.Println("  history   View results history and flaky test reports")
+	fmt.Println("  run       Start a development VM")
+	fmt.Println("  status    Show status of running VMs")
+	fmt.Println("  shell     Open a shell in a running VM")
+	fmt.Println("  exec      Execute a command in a running VM")
+	fmt.Println("  stop      Stop all running VMs")
+	fmt.Println("  help      Show this help message")
+	fmt.Println("\nUse 'orca <command> --help' for more information on a specific command.")
+}
+
+func helpTest() {
+	fmt.Println("Usage: orca test [flags] [test_files...]")
+	fmt.Println("\nFlags:")
+	fmt.Println("  -j N              Run with N transient workers")
+	fmt.Println("  -j W:M            Run with W warm workers and M total (M-W transient)")
+	fmt.Println("  -filter REGEX     Only run tests matching the regular expression")
+	fmt.Println("  -streak-max N     Skip tests with > N consecutive passes (default: 0 = disabled)")
+	fmt.Println("  -v                Verbose output (show more details during run)")
+	fmt.Println("  --run-skipped     Execute tests marked with SKIP=true")
+	fmt.Println("  --only-skipped    Only execute tests marked with SKIP=true")
+	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("\nExamples:")
+	fmt.Println("  orca test t/01-sanity/*.sh")
+	fmt.Println("  orca test -filter dns")
+	fmt.Println("  orca test -j8:8")
+}
+
+func helpHistory() {
+	fmt.Println("Usage: orca history [limit] | [detail <index>]")
+	fmt.Println("\nArguments:")
+	fmt.Println("  limit           Show summary of the last N test runs (default 10)")
+	fmt.Println("  detail <index>  Show detailed results for a specific run index (0 is latest)")
+	fmt.Println("\nExamples:")
+	fmt.Println("  orca history           Show last 10 runs")
+	fmt.Println("  orca history 20        Show last 20 runs")
+	fmt.Println("  orca history detail 0  Show details for the most recent run")
+}
+
+func helpRun() {
+	fmt.Println("Usage: orca run")
+	fmt.Println("\nStarts a development VM with the Glacic environment configured.")
+	fmt.Println("This mode is used for interactive testing and feature development.")
+}
+
+func helpStatus() {
+	fmt.Println("Usage: orca status")
+	fmt.Println("\nScans and displays the status of all currently active VMs managed by Orca.")
+	fmt.Println("In Linux, this uses vsock; in macOS/others, it uses Unix domain sockets.")
+}
+
+func helpShell() {
+	fmt.Println("Usage: orca shell")
+	fmt.Println("\nConnects to an active VM and opens an interactive shell session.")
+	fmt.Println("If no VM is running, it will automatically bootstrap a temporary session.")
+}
+
+func helpExec() {
+	fmt.Println("Usage: orca exec <command>")
+	fmt.Println("\nExecutes a non-interactive command inside a VM.")
+	fmt.Println("If no VM is running, it will automatically bootstrap a temporary session.")
+	fmt.Println("\nArguments:")
+	fmt.Println("  command    The command to execute in the VM")
+	fmt.Println("\nExample:")
+	fmt.Println("  orca exec ip addr show")
+}
+
+func helpStop() {
+	fmt.Println("Usage: orca stop")
+	fmt.Println("\nSends a shutdown signal to the warm worker pool and cleans up active sessions.")
+}
+
+// locateBuildDir returns the project root and the build directory.
+// It handles running from both project root and the build directory itself.
+func locateBuildDir() (string, string) {
 	cwd, _ := os.Getwd()
-	buildDir := filepath.Join(cwd, "build")
+	// If the current directory is named "build", assume we are inside it.
+	if filepath.Base(cwd) == "build" {
+		return filepath.Dir(cwd), cwd
+	}
+	// If a "build" subdirectory exists, assume we are in the project root.
+	if _, err := os.Stat(filepath.Join(cwd, "build")); err == nil {
+		return cwd, filepath.Join(cwd, "build")
+	}
+	// Fallback
+	return cwd, filepath.Join(cwd, "build")
+}
+
+func runHistory(args []string) error {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h" || args[0] == "help") {
+		helpHistory()
+		return nil
+	}
+	_, buildDir := locateBuildDir()
+
+	history, err := LoadHistory(buildDir)
+	if err != nil {
+		return fmt.Errorf("failed to load history: %w", err)
+	}
+
+	if len(args) > 0 && args[0] == "detail" {
+		index := 0
+		if len(args) > 1 {
+			if i, err := strconv.Atoi(args[1]); err == nil {
+				index = i
+			}
+		}
+
+		if index < 0 || index >= len(history.Runs) {
+			return fmt.Errorf("invalid run index: %d (max %d)", index, len(history.Runs)-1)
+		}
+
+		// Runs are stored in chronological order, so index 0 from end is len-1
+		runIndex := len(history.Runs) - 1 - index
+		history.Runs[runIndex].PrintRunDetails()
+		return nil
+	}
+
+	limit := 10
+	if len(args) > 0 {
+		if l, err := strconv.Atoi(args[0]); err == nil {
+			limit = l
+		}
+	}
+
+	history.PrintSummary(limit)
+	return nil
+}
+
+func runVM(args []string) error {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h" || args[0] == "help") {
+		helpRun()
+		return nil
+	}
+	fmt.Println("Glacic Orc(hestr)a(tor) Starting...")
+	// Defaults based on scripts/vm-dev.sh
+	projectRoot, buildDir := locateBuildDir()
 
 	cfg := Config{
 		KernelPath:  filepath.Join(buildDir, "vmlinuz"),
 		InitrdPath:  filepath.Join(buildDir, "initramfs"),
 		RootfsPath:  filepath.Join(buildDir, "rootfs.qcow2"),
-		ProjectRoot: cwd,
+		ProjectRoot: projectRoot,
 		Debug:       true,
 	}
 
@@ -94,52 +237,71 @@ func runVM() error {
 
 func runTests(args []string) error {
 	// Defaults
-	cwd, _ := os.Getwd()
-	buildDir := filepath.Join(cwd, "build")
+	projectRoot, buildDir := locateBuildDir()
+	cwd := projectRoot
 
-	// Parse args
+	// Start resource monitoring
+	go monitorResources(cwd)
+
+
 	// Parse args
 	warmSize := 4   // Default warm pool size
 	maxSize := 0    // 0 means no overflow (maxSize = warmSize)
 	runSkipped := false
+	onlySkipped := false
 	verbose := false
+	streakMax := 0
 	var filter string
 	var tests []TestJob
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
+		if arg == "--help" || arg == "-h" || arg == "help" {
+			helpTest()
+			return nil
+		}
 		if arg == "--run-skipped" {
 			runSkipped = true
 			continue
 		}
-		if arg == "-j" {
-			if i+1 < len(args) {
-				jArg := args[i+1]
-				// Check for warm:max format
-				if strings.Contains(jArg, ":") {
-					parts := strings.Split(jArg, ":")
-					if len(parts) == 2 {
-						w, err1 := strconv.Atoi(parts[0])
-						m, err2 := strconv.Atoi(parts[1])
-						if err1 == nil && err2 == nil && w >= 0 && m > 0 && m >= w {
-							warmSize = w
-							maxSize = m
-							i++
-							continue
-						}
-					}
-					return fmt.Errorf("invalid -j format, use: -j N or -j warm:max")
-				}
-				// Simple number format - all transient
-				val, err := strconv.Atoi(jArg)
-				if err == nil && val > 0 {
-					warmSize = 0    // No warm workers
-					maxSize = val   // All transient
-					i++
-					continue
-				}
+		if arg == "--only-skipped" {
+			onlySkipped = true
+			runSkipped = true // implies running skipped tests
+			continue
+		}
+		if strings.HasPrefix(arg, "-j") {
+			jArg := ""
+			if len(arg) > 2 {
+				jArg = arg[2:]
+			} else if i+1 < len(args) {
+				jArg = args[i+1]
+				i++
+			} else {
+				return fmt.Errorf("missing -j value")
 			}
-			return fmt.Errorf("invalid -j value")
+
+			// Check for warm:max format
+			if strings.Contains(jArg, ":") {
+				parts := strings.Split(jArg, ":")
+				if len(parts) == 2 {
+					w, err1 := strconv.Atoi(parts[0])
+					m, err2 := strconv.Atoi(parts[1])
+					if err1 == nil && err2 == nil && w >= 0 && m > 0 && m >= w {
+						warmSize = w
+						maxSize = m
+						continue
+					}
+				}
+				return fmt.Errorf("invalid -j format, use: -j N or -j warm:max")
+			}
+			// Simple number format - all transient
+			val, err := strconv.Atoi(jArg)
+			if err == nil && val > 0 {
+				warmSize = 0  // No warm workers
+				maxSize = val // All transient
+				continue
+			}
+			return fmt.Errorf("invalid -j value: %s", jArg)
 		}
 
 		if arg == "-filter" {
@@ -157,6 +319,18 @@ func runTests(args []string) error {
 			continue
 		}
 
+		if arg == "-streak-max" {
+			if i+1 < len(args) {
+				val, err := strconv.Atoi(args[i+1])
+				if err == nil && val > 0 {
+					streakMax = val
+					i++
+					continue
+				}
+			}
+			return fmt.Errorf("invalid or missing value for -streak-max")
+		}
+
 		// It's a test file
 		if _, statErr := os.Stat(arg); statErr == nil {
 			timeout := parseTestTimeout(arg)
@@ -165,6 +339,8 @@ func runTests(args []string) error {
 			fmt.Printf("Warning: Test file not found: %s\n", arg)
 		}
 	}
+
+	fmt.Println("Glacic Orc(hestr)a(tor) Starting...")
 
 	// Ensure sane defaults
 	if maxSize == 0 {
@@ -205,22 +381,109 @@ func runTests(args []string) error {
 		tests = filtered
 	}
 
+	// Apply skip filtering
+	var skipCount int
+	var skippedTests []string
+
+	if streakMax > 0 {
+		// Filter by success streak
+		history, err := LoadHistory(buildDir)
+		if err == nil { // silently ignore history load errors here
+			var streakFiltered []TestJob
+			for _, t := range tests {
+				streak := history.GetStreak(t.ScriptPath)
+				if streak <= streakMax {
+					streakFiltered = append(streakFiltered, t)
+				} else {
+					skipCount++
+					skippedTests = append(skippedTests, fmt.Sprintf("%s (streak: %d)", t.ScriptPath, streak))
+				}
+			}
+			tests = streakFiltered
+		}
+	}
+
+	if onlySkipped {
+		// Only run skipped tests
+		var skippedOnly []TestJob
+		for _, t := range tests {
+			if t.Skip {
+				skippedOnly = append(skippedOnly, t)
+			}
+		}
+		skipCount = len(tests) - len(skippedOnly)
+		tests = skippedOnly
+	} else if !runSkipped {
+		// Exclude skipped tests (default behavior)
+		var notSkipped []TestJob
+		for _, t := range tests {
+			if !t.Skip {
+				notSkipped = append(notSkipped, t)
+			} else {
+				skipCount++
+				skippedTests = append(skippedTests, t.ScriptPath)
+			}
+		}
+		tests = notSkipped
+
+		// Display skipped tests
+		if len(skippedTests) > 0 {
+			fmt.Printf("Skipping %d test(s):\n", len(skippedTests))
+			for _, path := range skippedTests {
+				fmt.Printf("  ⏭  %s\n", path)
+			}
+		}
+	}
+
+	// Shuffle test order to identify ordering-dependent tests
+	rand.Shuffle(len(tests), func(i, j int) {
+		tests[i], tests[j] = tests[j], tests[i]
+	})
+
 	if len(tests) == 0 {
-		fmt.Println("No tests found")
+		if skipCount > 0 {
+			fmt.Printf("No tests found (%d skipped)\n", skipCount)
+		} else {
+			fmt.Println("No tests found")
+		}
 		return nil
 	}
 
+	skipMsg := ""
+	if skipCount > 0 && !runSkipped {
+		skipMsg = fmt.Sprintf(" (skipping %d)", skipCount)
+	}
 	if warmSize > 0 {
-		fmt.Printf("Found %d tests, running with %d warm + %d overflow workers\n", len(tests), warmSize, maxSize-warmSize)
+		fmt.Printf("Found %d tests%s, running with %d warm + %d overflow workers\n", len(tests), skipMsg, warmSize, maxSize-warmSize)
 	} else {
-		fmt.Printf("Found %d tests, running with up to %d transient workers\n", len(tests), maxSize)
+		fmt.Printf("Found %d tests%s, running with up to %d transient workers\n", len(tests), skipMsg, maxSize)
 	}
 
-	// Create test results directory
-	resultsDir := filepath.Join(cwd, "build", "test-results")
+	// Generate a unique run ID for this test session
+	runID := uuid.New().String()
+
+	// Create test results directory for this specific run
+	resultsDir := filepath.Join(cwd, "build", "test-results", runID)
 	if err := os.MkdirAll(resultsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create results dir: %w", err)
 	}
+
+	// Update 'current' symlink to point to this run's results
+	currentLink := filepath.Join(cwd, "build", "test-results", "current")
+	_ = os.Remove(currentLink) // ignore error if link doesn't exist
+	if err := os.Symlink(runID, currentLink); err != nil {
+		fmt.Printf("Warning: failed to create current symlink: %v\n", err)
+	}
+
+	// Load test history for flaky test tracking
+	history, err := LoadHistory(buildDir)
+	if err != nil {
+		fmt.Printf("Warning: failed to load test history: %v\n", err)
+		history = &TestHistory{MaxRuns: DefaultMaxRuns}
+	}
+
+	// Track results by worker for history
+	workerResults := make(map[int][]TestRunResult)
 
 	pod := NewPod(cfg, warmSize, maxSize)
 
@@ -263,6 +526,7 @@ func runTests(args []string) error {
 	var slowestTime time.Duration
 	testCount := 0
 	totalTests := len(tests)
+	var logFiles []string
 
 	for result := range pod.Results() {
 		testCount++
@@ -276,6 +540,19 @@ func runTests(args []string) error {
 		logName := testLogName(result.Job.ScriptPath)
 		logPath := filepath.Join(resultsDir, logName+".log")
 		writeTestLog(logPath, result)
+		logFiles = append(logFiles, logPath)
+
+		// Track result for history
+		workerID, _ := strconv.Atoi(result.WorkerID)
+		status := "pass"
+		if result.Error != nil || (result.Suite != nil && !result.Suite.Success()) {
+			status = "fail"
+		}
+		workerResults[workerID] = append(workerResults[workerID], TestRunResult{
+			TestPath: result.Job.ScriptPath,
+			Status:   status,
+			Duration: result.Duration,
+		})
 
 		// Check if this was a timeout
 		timedOut := result.Error != nil && strings.Contains(result.Error.Error(), "timeout")
@@ -329,6 +606,7 @@ func runTests(args []string) error {
 
 	// Summary
 	fmt.Println("\n--- Summary ---")
+	skipped += skipCount
 	fmt.Printf("Total: %d passed, %d failed, %d skipped\n", passed, failed, skipped)
 
 	// Timing stats
@@ -347,6 +625,27 @@ func runTests(args []string) error {
 		fmt.Printf("Parallelism:   %.1fx\n", parallelism)
 	}
 
+	// Build and save test history
+	var workers []WorkerRun
+	for workerID, tests := range workerResults {
+		workers = append(workers, WorkerRun{
+			WorkerID: workerID,
+			Tests:    tests,
+		})
+	}
+	// Sort workers by ID for consistent output
+	sort.Slice(workers, func(i, j int) bool {
+		return workers[i].WorkerID < workers[j].WorkerID
+	})
+
+	history.AddRun(runID, passed, failed, skipped, workers, logFiles)
+	if err := history.Save(buildDir); err != nil {
+		fmt.Printf("Warning: failed to save test history: %v\n", err)
+	}
+
+	// Print flaky test report
+	history.PrintFlakyReport(nil)
+
 	if len(failedTests) > 0 {
 		fmt.Println("\nFailed tests:")
 		for _, t := range failedTests {
@@ -360,7 +659,11 @@ func runTests(args []string) error {
 	return nil
 }
 
-func runStatus() error {
+func runStatus(args []string) error {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h" || args[0] == "help") {
+		helpStatus()
+		return nil
+	}
 	if runtime.GOOS == "linux" {
 		return runStatusVsock()
 	}
@@ -573,6 +876,8 @@ func writeTestLog(path string, result TestResult) {
 
 	// Write header
 	fmt.Fprintf(f, "# Test: %s\n", result.Job.ScriptPath)
+	fmt.Fprintf(f, "# Worker: %s\n", result.WorkerID)
+	fmt.Fprintf(f, "# Start: %s\n", result.StartTime.Format(time.RFC3339))
 	fmt.Fprintf(f, "# Duration: %s\n", formatDuration(result.Duration))
 	if result.Error != nil {
 		fmt.Fprintf(f, "# Status: FAILED\n")
@@ -623,13 +928,12 @@ func getVMConnection() (net.Conn, func(), error) {
 	fmt.Println("No active VM found, configuring temporary session...")
 
 	// Use default config
-	cwd, _ := os.Getwd()
-	buildDir := filepath.Join(cwd, "build")
+	projectRoot, buildDir := locateBuildDir()
 	cfg := Config{
 		KernelPath:    filepath.Join(buildDir, "vmlinuz"),
 		InitrdPath:    filepath.Join(buildDir, "initramfs"),
 		RootfsPath:    filepath.Join(buildDir, "rootfs.qcow2"),
-		ProjectRoot:   cwd,
+		ProjectRoot:   projectRoot,
 		ConsoleOutput: false, // Keep stdout clean for shell/exec
 	}
 
@@ -726,6 +1030,10 @@ func findFirstValidSocket() (string, error) {
 }
 
 func runShell(args []string) error {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h" || args[0] == "help") {
+		helpShell()
+		return nil
+	}
 	conn, cleanup, err := getVMConnection()
 	if err != nil {
 		return err
@@ -752,8 +1060,12 @@ func runShell(args []string) error {
 }
 
 func runExec(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("usage: exec <command>")
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+		helpExec()
+		if len(args) == 0 {
+			return fmt.Errorf("usage: exec <command>")
+		}
+		return nil
 	}
 	command := strings.Join(args, " ")
 
@@ -783,7 +1095,11 @@ func runExec(args []string) error {
 // Control file for signaling warm pool shutdown
 const warmPoolControlFile = "/tmp/glacic-orca-pool.pid"
 
-func runStop() error {
+func runStop(args []string) error {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h" || args[0] == "help") {
+		helpStop()
+		return nil
+	}
 	// Check if control file exists
 	data, err := os.ReadFile(warmPoolControlFile)
 	if err != nil {
@@ -816,4 +1132,41 @@ func runStop() error {
 	// Clean up control file
 	os.Remove(warmPoolControlFile)
 	return nil
+}
+
+// monitorResources logs system resource usage to a file
+func monitorResources(cwd string) {
+	logPath := filepath.Join(cwd, "build", "orca-resources.log")
+	f, err := os.Create(logPath)
+	if err != nil {
+		fmt.Printf("Warning: Failed to create resource log: %v\n", err)
+		return
+	}
+	defer f.Close()
+
+	fmt.Fprintf(f, "Time,Goroutines,HeapAllocMB,SysMB,OpenFiles\n")
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+
+		// Count open files (best effort)
+		openFiles := 0
+		if fds, err := os.ReadDir("/dev/fd"); err == nil {
+			openFiles = len(fds)
+		} else if fds, err := os.ReadDir("/proc/self/fd"); err == nil {
+			openFiles = len(fds)
+		}
+
+		fmt.Fprintf(f, "%s,%d,%d,%d,%d\n",
+			time.Now().Format(time.RFC3339),
+			runtime.NumGoroutine(),
+			m.HeapAlloc/1024/1024,
+			m.Sys/1024/1024,
+			openFiles,
+		)
+	}
 }

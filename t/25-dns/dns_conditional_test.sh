@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Conditional DNS Forwarding Integration Test
 # Verifies DNS queries are forwarded conditionally based on domain

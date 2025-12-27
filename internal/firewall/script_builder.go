@@ -218,8 +218,13 @@ func BuildFilterTableScript(cfg *Config, vpn *config.VPNConfig, tableName string
 	sb.AddChain("forward", "filter", "forward", 0, "drop")
 	sb.AddChain("output", "filter", "output", 0, "drop")
 
+	// Create mangle chain for UplinkManager policy routing marks
+	// Priority -150 (mangle) ensures marks are set before routing decision
+	sb.AddChain("mark_prerouting", "filter", "prerouting", -150, "accept")
+
 	// Add base rules (loopback, established/related)
-	// Loopback handled explicitly in services section to be safe, but can stay here too
+	sb.AddRule("input", "iifname \"lo\" accept")
+	sb.AddRule("output", "oifname \"lo\" accept")
 	sb.AddRule("input", "ct state established,related accept")
 	sb.AddRule("forward", "ct state established,related accept")
 	sb.AddRule("output", "ct state established,related accept")

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # State Persistence Test (Hardened)
 # Verifies: DHCP leases survive control plane restart using real client interaction and API verification.
@@ -76,7 +77,9 @@ EOF
 # 1. Start Control Plane
 diag "Starting control plane (Run 1)..."
 start_ctl "$TEST_CONFIG"
-start_api
+# state_persistence uses Daemon API, removing manual start to avoid conflict
+# start_api
+
 ok 0 "Control plane and API started"
 
 sleep 5
@@ -133,7 +136,9 @@ wait $API_PID 2>/dev/null
 sleep 2
 
 start_ctl "$TEST_CONFIG"
-start_api
+# state_persistence uses Daemon API, removing manual start to avoid conflict
+# start_api
+
 
 sleep 5
 

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Configuration Validation Test Script (TAP format)
 # Tests config validation, error handling, and edge cases

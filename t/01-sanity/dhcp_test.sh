@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # DHCP Server Integration Test Script (TAP format)
 # Tests DHCP server configuration and basic operations

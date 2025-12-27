@@ -334,6 +334,20 @@ func NewSQLiteStore(opts Options) (*SQLiteStore, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// Apply performance PRAGMAs
+	// mmap_size: Memory map the DB (up to 256MB) for zero-copy reads
+	// temp_store: Keep temporary tables/indices in RAM
+	pragmas := []string{
+		"PRAGMA mmap_size = 268435456",
+		"PRAGMA temp_store = MEMORY",
+	}
+	for _, p := range pragmas {
+		if _, err := db.Exec(p); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("failed to execute pragma %q: %w", p, err)
+		}
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Use provided clock or default to RealClock
@@ -595,15 +609,28 @@ func (s *SQLiteStore) setInternal(bucket, key string, value []byte, expiresAt ti
 	}
 
 	now := clock.Now()
+	// Optimistic version increment (will roll back on error)
 	s.version++
 	version := s.version
 
+	// Start atomic transaction
+	tx, err := s.db.Begin()
+	if err != nil {
+		s.version--
+		return err
+	}
+	defer tx.Rollback()
+
 	// Check if this is an insert or update
 	var exists bool
-	err := s.db.QueryRow(
+	err = tx.QueryRow(
 		"SELECT 1 FROM entries WHERE bucket = ? AND key = ?",
 		bucket, key,
 	).Scan(&exists)
+	if err != nil && err != sql.ErrNoRows {
+		s.version--
+		return err
+	}
 	isUpdate := err == nil
 
 	// Upsert the entry
@@ -612,7 +639,7 @@ func (s *SQLiteStore) setInternal(bucket, key string, value []byte, expiresAt ti
 		expiresAtPtr = expiresAt
 	}
 
-	_, err = s.db.Exec(`
+	_, err = tx.Exec(`
 		INSERT INTO entries (bucket, key, value, version, updated_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(bucket, key) DO UPDATE SET
@@ -641,11 +668,18 @@ func (s *SQLiteStore) setInternal(bucket, key string, value []byte, expiresAt ti
 		Version:   version,
 	}
 
-	if err := s.recordChange(change); err != nil {
+	// recordChange now uses the transaction
+	if err := s.recordChangeTx(tx, &change); err != nil {
+		s.version--
 		return err
 	}
 
-	// Notify subscribers
+	if err := tx.Commit(); err != nil {
+		s.version--
+		return err
+	}
+
+	// Notify subscribers (after commit)
 	s.notifySubscribers(change)
 
 	// Trigger write hook (e.g., for clock anchor update)
@@ -665,7 +699,13 @@ func (s *SQLiteStore) Delete(bucket, key string) error {
 		return ErrStoreClosed
 	}
 
-	result, err := s.db.Exec(
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
 		"DELETE FROM entries WHERE bucket = ? AND key = ?",
 		bucket, key,
 	)
@@ -689,7 +729,13 @@ func (s *SQLiteStore) Delete(bucket, key string) error {
 		Version:   s.version,
 	}
 
-	if err := s.recordChange(change); err != nil {
+	if err := s.recordChangeTx(tx, &change); err != nil {
+		s.version--
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		s.version--
 		return err
 	}
 
@@ -785,9 +831,23 @@ func (s *SQLiteStore) SetJSONWithTTL(bucket, key string, v interface{}, ttl time
 	return s.SetWithTTL(bucket, key, data, ttl)
 }
 
-// recordChange writes a change to the change log.
+// recordChange writes a change to the change log (legacy non-atomic).
 func (s *SQLiteStore) recordChange(change Change) error {
-	result, err := s.db.Exec(`
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if err := s.recordChangeTx(tx, &change); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// recordChangeTx writes a change to the change log using an existing transaction.
+func (s *SQLiteStore) recordChangeTx(tx *sql.Tx, change *Change) error {
+	result, err := tx.Exec(`
 		INSERT INTO changes (bucket, key, value, change_type, version, timestamp)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`, change.Bucket, change.Key, change.Value, change.Type, change.Version, change.Timestamp)

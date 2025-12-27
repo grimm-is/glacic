@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # DNS Blocklists (File) Integration Test
 # Verifies local hosts-format blocklist files work

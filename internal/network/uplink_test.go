@@ -130,7 +130,7 @@ func TestUplinkGroup_SwitchTo(t *testing.T) {
 
 	// Expect nft command for updateNewConnectionMark
 	// "nft add rule inet firewall mark_prerouting ip saddr ... comment ..."
-	mockExec.On("RunCommand", "nft", "add", "rule", "inet", "firewall", "mark_prerouting",
+	mockExec.On("RunCommand", "nft", "add", "rule", "inet", "glacic", "mark_prerouting",
 		"ip", "saddr", "192.168.1.0/24",
 		"ct", "state", "new",
 		"meta", "mark", "set", "0x200",

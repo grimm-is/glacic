@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Schema Versioning Integration Test
 # Verifies schema version validation works

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # API Sandbox Test (TAP format)
 # Tests that API sandbox DNAT rules work correctly:

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # DNS Dynamic Updates Integration Test
 # Verifies DHCP hostnames are added to DNS

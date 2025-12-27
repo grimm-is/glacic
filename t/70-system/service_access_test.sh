@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Service Access Test (TAP format)
 # Tests that service access rules work per-interface:

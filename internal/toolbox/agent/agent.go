@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -299,19 +300,61 @@ func handleTest(w io.Writer, scriptPath string) {
 
 	writeResponse(w, fmt.Sprintf("TAP_START %s", filepath.Base(scriptPath)))
 
-	cmd := exec.Command("/bin/sh", fullPath)
-	cmd.Dir = "/mnt/glacic"
+	// Create context that cancels on disconnect
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Monitor connection for closure
+	// If w is a net.Conn, we can read from it to detect closure
+	if conn, ok := w.(net.Conn); ok {
+		go func() {
+			oneByte := make([]byte, 1)
+			_, err := conn.Read(oneByte)
+			// Any read (error or data) usually means protocol violation or disconnect
+			// strictly speaking, client sends nothing during TEST.
+			// So any return from Read is a signal to stop.
+			if err != nil {
+				// Log? fmt.Printf("DEBUG: Connection closed/error during test: %v\n", err)
+				cancel()
+			}
+		}()
+	}
+
+	// Create unique temp directory for this test run
+	workDir, err := os.MkdirTemp("", "glacic-test-*")
+	if err != nil {
+		writeResponse(w, fmt.Sprintf("TAP_ERROR: Failed to create temp dir: %v", err))
+		return
+	}
+	defer os.RemoveAll(workDir) // Auto-cleanup
+
+	cmd := exec.CommandContext(ctx, "/bin/sh", fullPath)
+	cmd.Dir = workDir
 	cmd.Stdout = w
 	cmd.Stderr = w
 	cmd.Env = append(os.Environ(),
+		"GLACIC_ROOT=/mnt/glacic",
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"TERM=dumb",
 	)
 
-	err := cmd.Run()
+	// We must put the command in a new process group so we can kill children too?
+	// SysProcAttr: &syscall.SysProcAttr{Setpgid: true}
+	// But CommandContext only kills the shell. The shell *usually* propagates signals,
+	// but context cancellation sends SIGKILL (generic).
+	// To be safer, we should rely on vm_cleanup.sh for deep cleanup,
+	// but this ensures the main script dies.
+
+	err = cmd.Run()
 
 	exitCode := 0
 	if err != nil {
+		if ctx.Err() == context.Canceled {
+			// We were killed due to disconnect
+			// Don't try to write response, connection is dead.
+			fmt.Printf("Test %s killed due to disconnect\n", filepath.Base(scriptPath))
+			return
+		}
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
 		} else {

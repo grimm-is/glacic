@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # DHCP Traffic Test (TAP format)
 # Tests that DHCP traffic flows correctly:

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Conntrack Behavior Test (TAP format)
 # Tests connection tracking behavior:

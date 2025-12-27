@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # TAP Test Harness - Sanity Checks
 # Verifies the VM environment is correctly set up with capabilities required for tests.

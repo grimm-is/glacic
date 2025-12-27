@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # NAT Integration Test Script (TAP format)
 # Tests SNAT, DNAT, masquerade, and port forwarding

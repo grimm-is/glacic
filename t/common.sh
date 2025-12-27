@@ -76,6 +76,9 @@ fi
 # ============================================================================
 # Minimal Utility Wrappers (Fallback to toolbox)
 # ============================================================================
+# ============================================================================
+# Minimal Utility Wrappers (Fallback to toolbox)
+# ============================================================================
 TOOLBOX_BIN="$MOUNT_PATH/build/toolbox"
 # Fallback if testing locally
 if [ ! -x "$TOOLBOX_BIN" ]; then
@@ -94,47 +97,42 @@ link_toolbox nc
 link_toolbox jq
 link_toolbox curl
 
+# Pre-determine the best port checker? No, try all for robustness.
+# Some environments might fail nc (IPv4 vs IPv6) but succeed with netstat.
+check_port() {
+    # Try nc (fastest)
+    if command -v nc >/dev/null 2>&1; then
+        if nc -z -w 1 127.0.0.1 "$1" 2>/dev/null; then return 0; fi
+    fi
+    # Fallback to netstat
+    if command -v netstat >/dev/null 2>&1; then
+        if netstat -tln 2>/dev/null | grep -q ":$1 "; then return 0; fi
+    fi
+    # Fallback to ss
+    if command -v ss >/dev/null 2>&1; then
+        if ss -tln 2>/dev/null | grep -q ":$1 "; then return 0; fi
+    fi
+    return 1
+}
 # ============================================================================
 # Global State Reset (Ensure clean slate for each test)
 # ============================================================================
 reset_state() {
     # Only run in VM environment (check for nft/ip availability)
     if [ "$(id -u)" -eq 0 ]; then
-        # 1. Try graceful shutdown first
-        "$APP_BIN" stop 2>/dev/null || true
-        
-        # 2. Kill any lingering glacic processes (zombies from test-api, ctl, etc.)
-        pkill -9 -f "$APP_BIN" 2>/dev/null || true
-        pkill -9 -x "$BINARY_NAME" 2>/dev/null || true
-        
-        # 3. Wait briefly for processes to exit
-        sleep 0.3
-        
-        # 4. Remove control socket
-        rm -f "$CTL_SOCKET" 2>/dev/null
-        rm -f "/var/run/${BRAND_LOWER}"*.pid 2>/dev/null
-        
-        # 5. NOW wipe state directory (after processes are dead)
-        rm -rf "$STATE_DIR"/* 2>/dev/null
-        
-        # 6. Flush nftables to remove any leftover rules from previous tests
-        if command -v nft >/dev/null 2>&1; then
-             nft flush ruleset 2>/dev/null || true
-        fi
-        
-        # 7. Cleanup test namespaces and interfaces
-        ip netns del test_client 2>/dev/null || true
-        ip netns del test_server 2>/dev/null || true
-        ip link del veth-lan 2>/dev/null || true
-        ip link del veth-wan 2>/dev/null || true
-        
-        # 8. Reset IP forwarding
-        echo 0 > /proc/sys/net/ipv4/ip_forward 2>/dev/null || true
-
-        # 9. Ensure tun device exists (for VPN tests)
-        if [ ! -c /dev/net/tun ]; then
-            mkdir -p /dev/net
-            mknod /dev/net/tun c 10 200 2>/dev/null || true
+        # Use the dedicated cleanup script if available
+        # Ensure we target the exact binary name to avoid killing agents
+        export BINARY_NAME=$(basename "$APP_BIN")
+        # Use MOUNT_PATH (not PROJECT_ROOT) because PROJECT_ROOT is derived from
+        # the test directory and may be wrong (e.g., /mnt/glacic/t instead of /mnt/glacic)
+        CLEANUP_SCRIPT="$MOUNT_PATH/scripts/vm_cleanup.sh"
+        if [ -x "$CLEANUP_SCRIPT" ]; then
+            "$CLEANUP_SCRIPT"
+        else
+            # Fallback inline cleanup if script not found (e.g. during minimal mount)
+            pkill -9 -f "$BINARY_NAME" 2>/dev/null || true
+            nft flush ruleset 2>/dev/null || true
+            rm -rf "$STATE_DIR"/* 2>/dev/null
         fi
     fi
 }
@@ -311,22 +309,18 @@ run_with_timeout() {
 # ============================================================================
 
 # Wait for a port to be listening (max 5 seconds by default)
+# Optimized for low-resource environments (reduced polling)
 wait_for_port() {
     _port="$1"
     _timeout="${2:-5}"
     _i=0
-    _max=$((_timeout * 5))  # 5 checks per second (0.2s sleep)
+    _max=$((_timeout * 2))  # 2 checks per second (0.5s sleep)
 
     while [ $_i -lt $_max ]; do
-        # Try nc first, then netstat as fallback
-        if nc -z 127.0.0.1 "$_port" 2>/dev/null; then
-            return 0
-        elif netstat -tln 2>/dev/null | grep -q ":$_port "; then
-            return 0
-        elif ss -tln 2>/dev/null | grep -q ":$_port "; then
+        if check_port "$_port"; then
             return 0
         fi
-        sleep 0.2
+        sleep 0.5
         _i=$((_i + 1))
     done
 
@@ -385,7 +379,7 @@ start_ctl() {
     diag "Starting control plane with config: $_config"
     
     # Ensure clean slate
-    pkill -x glacic 2>/dev/null || true
+    pkill -x "$BINARY_NAME" 2>/dev/null || true
     rm -f "$CTL_SOCKET" 2>/dev/null
 
     # Pre-check configuration (if binary supports it)
@@ -443,16 +437,73 @@ stop_ctl() {
 # Uses 'test-api' command which runs API without sandbox isolation
 start_api() {
     export API_LOG=$(mktemp_compatible api.log)
+    
+    # Try to extract port from args (default 8080)
+    _port=8080
+    case "$*" in
+        *"-listen "*":")
+            _port=$(echo "$*" | sed 's/.*-listen [^:]*:\([0-9]*\).*/\1/')
+            ;;
+        *"-listen :"[0-9]*)
+            _port=$(echo "$*" | sed 's/.*-listen :\([0-9]*\).*/\1/')
+            ;;
+    esac
 
+    diag "Starting API server on $_port (logs: $API_LOG)"
     $APP_BIN test-api "$@" > "$API_LOG" 2>&1 &
     API_PID=$!
     track_pid $API_PID
 
-    # Wait for API to be ready (port 8080)
-    if ! wait_for_port 8080 10; then
-        echo "# API server failed to start:"
-        cat "$API_LOG" | head -20
+    # Wait for API to be ready with increased timeout (90s)
+    if ! wait_for_api_ready "$_port" 90; then
+        echo "# API server failed to start on port $_port:"
+        cat "$API_LOG" | head -50
+        fail "API server failed to start"
     fi
+    
+    # Wait for API to be actually responsive (HTTP ready)
+    # Increase to 60s for high-load parallel tests
+    if ! wait_for_api_ready "$_port" 60; then
+         echo "# API server port $_port open but unresponsive:"
+         cat "$API_LOG" | head -50
+         fail "API server unresponsive"
+    fi
+}
+
+# Wait for API to respond to HTTP requests
+# Usage: wait_for_api_ready <port> [timeout_sec]
+wait_for_api_ready() {
+    local port="$1"
+    local timeout="${2:-10}" # Default 10s
+    local url="http://127.0.0.1:$port"
+    
+    diag "Waiting for API readiness at $url..."
+    
+    local i=0
+    # Check 2x per second
+    local max=$((timeout * 2))
+    
+    while [ $i -lt $max ]; do
+        # Check if we get ANY HTTP response (even 404 is fine, just not connection reset/empty)
+        if command -v curl >/dev/null 2>&1; then
+            # curl returns 0 on HTTP success (even 404), non-zero on conn refused/empty
+            if curl -s -m 1 "$url" >/dev/null 2>&1; then
+                return 0
+            fi
+        elif command -v wget >/dev/null 2>&1; then
+             # wget returns 0 on 200, but non-zero on 404. 
+             # We want to accept 404 as "server ready".
+             # wget -S prints headers to stderr.
+             if wget -q -S -O - "$url" 2>&1 | grep -q "HTTP/"; then
+                return 0
+             fi
+        fi
+        
+        sleep 0.5
+        i=$((i + 1))
+    done
+    
+    return 1
 }
 
 # Login to API (returns token)

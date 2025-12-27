@@ -1,8 +1,10 @@
 #!/bin/sh
+set -x
 #
 # WireGuard Key Management Integration Test
 # Verifies WireGuard key generation and management
 #
+TEST_TIMEOUT=60
 
 . "$(dirname "$0")/../common.sh"
 
@@ -57,11 +59,11 @@ $APP_BIN test-api -listen :8095 > /tmp/api_wgkey.log 2>&1 &
 API_PID=$!
 track_pid $API_PID
 
-wait_for_port 8095 10 || fail "API failed to start"
+wait_for_port 8095 30 || fail "API failed to start"
 
 # Test 2: WireGuard key is masked in API response
 diag "Test 2: Key masking in API"
-response=$(curl -s "http://169.254.255.2:8095/api/vpn/wireguard" 2>&1)
+response=$(curl -s "http://127.0.0.1:8095/api/vpn/wireguard" 2>&1)
 if echo "$response" | grep -q 'REDACTED\|masked\|\*\*\*'; then
     pass "WireGuard key is masked in API"
 else

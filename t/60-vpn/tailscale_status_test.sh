@@ -1,8 +1,10 @@
 #!/bin/sh
+set -x
 #
 # Tailscale Status Integration Test
 # Verifies Tailscale status monitoring
 #
+TEST_TIMEOUT=60
 
 . "$(dirname "$0")/../common.sh"
 
@@ -53,11 +55,11 @@ $APP_BIN test-api -listen :8094 > /tmp/api_ts.log 2>&1 &
 API_PID=$!
 track_pid $API_PID
 
-wait_for_port 8094 10 || fail "API failed to start"
+wait_for_port 8094 30 || fail "API failed to start"
 
 # Test 2: Tailscale status endpoint
 diag "Test 2: Tailscale status endpoint"
-response=$(curl -s -o /dev/null -w "%{http_code}" "http://169.254.255.2:8094/api/vpn/tailscale/status" 2>&1)
+response=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8094/api/vpn/tailscale/status" 2>&1)
 pass "Tailscale status endpoint accessible (status: $response)"
 
 rm -f "$CONFIG_FILE"

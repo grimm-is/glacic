@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # UID Routing Test
 # Verifies: UID routing configuration is accepted

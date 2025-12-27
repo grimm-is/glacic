@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Network Learning Test (TAP format)
 # Tests that network learning rules work correctly:

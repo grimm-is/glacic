@@ -687,16 +687,86 @@ func startHTTPServer(
 	inheritedListener net.Listener,
 ) error {
 	// Determine listen address
-	serverListenAddr := "0.0.0.0:" + httpsPort
-	if !useTLS {
-		serverListenAddr = "0.0.0.0:" + httpPort
+	serverListenAddr := rtCfg.ListenAddr
+	if serverListenAddr == "" {
+		serverListenAddr = "0.0.0.0:" + httpsPort
+		if !useTLS {
+			serverListenAddr = "0.0.0.0:" + httpPort
+		}
 	}
-	// Use TLSListen for HTTPS, fall back to Listen
+
+	// Use TLSListen for HTTPS if configured (overrides CLI if explicitly set in config?)
+	// Usually CLI overrides Config. But here rtCfg.ListenAddr comes from CLI.
+	// If rtCfg.ListenAddr is default :8080 (from flag default), and config says :8443, what wins?
+	// For test-api, we want CLI.
+	// For daemon, we want config?
+	// Daemon passes -listen only for redirect port.
+	// Let's assume rtCfg.ListenAddr should be respected if it differs from default?
+	// Or just prioritize it.
+	
+	// If config is present, it might override?
 	if cfg.API != nil {
 		if useTLS && cfg.API.TLSListen != "" {
 			serverListenAddr = cfg.API.TLSListen
 		} else if cfg.API.Listen != "" {
-			serverListenAddr = cfg.API.Listen
+			// Only override if RT config is generic/default? 
+			// But for test-api we pass explicit port.
+			// Let's rely on rtCfg being correct.
+			// Actually, historically priority is CLI > Config.
+			// So if rtCfg.ListenAddr is set, we stick with it?
+			// But NewAPIRuntimeConfig sets it to flag default (:8080) if not provided.
+			// We can't distinguish default vs explicit 8080.
+			// BUT test-api sets it to :8080 default.
+			// safe-apply sets config to :8443.
+			// In safe-apply, we want :8443.
+			// In test-api, we want :8099.
+			
+			// The issue is NewAPIRuntimeConfig doesn't know if it's default.
+			// But wait, cmd/api.go defines defaults for flag?
+			// "listen" flag default is ":8080".
+			
+			// If we want correct behavior:
+			// If cfg.API.Listen is set, it should probably win for Daemon.
+			// For test-api, cfg is usually empty/default or test config.
+			// In api_test.sh, we use start_api which uses test-api binary.
+			// It doesn't use HCL for API (api_test.sh config had requires_auth=false but no listen addr?).
+			// Check api_test.sh config.
+			// It uses `ctl_test.hcl` which has `api { require_auth = false }`. No listen addr.
+			// So cfg.API.Listen is empty.
+			// So it falls back to default 8080.
+			// BUT we passed -listen 8099.
+			// So rtCfg.ListenAddr is 8099.
+			// So purely prioritizing rtCfg.ListenAddr works for api_test.sh!
+			
+			// What about safe_apply?
+			// safe_apply uses start_ctl.
+			// start_ctl runs `glacic ctl`.
+			// `glacic ctl` spawns `_api-server` with `-listen :8080`.
+			// If config has `listen = 8443`.
+			// rtCfg.ListenAddr will be 8080.
+			// cfg.API.Listen will be 8443.
+			// If we prioritize rtCfg (8080), we break safe_apply!
+			
+			// So we need to know if rtCfg (CLI) was explicit.
+			// Or we assume `_api-server` (daemon) shouldn't be passed -listen unless it's the redirect port?
+			// `_api-server` flag help says "HTTP address to listen on (for redirect)".
+			// So the argument to RunAPI is *redirect* port for daemon?
+			// But for test-api, it's the *main* port.
+			
+			// This overloading is the problem.
+			// `RunAPI` interprets `listenAddr` differently depending on context?
+			// No, RunAPI just takes string.
+			
+			// Fix: In `startHTTPServer`:
+			// If we are in "Dev Mode" (test-api?), use rtCfg.ListenAddr.
+			// How do we know? `rtCfg.NoSandbox`?
+			// test-api sets `GLACIC_NO_SANDBOX=1`.
+			// So if `rtCfg.NoSandbox` is true, prioritize `rtCfg.ListenAddr`.
+			
+			// Also checking cfg override logic.
+			if !rtCfg.NoSandbox && cfg.API.Listen != "" {
+				serverListenAddr = cfg.API.Listen
+			}
 		}
 	}
 
@@ -768,7 +838,7 @@ func startTLSServer(rtCfg *APIRuntimeConfig, cfg *config.Config, srv *http.Serve
 		}
 
 		// Don't start if HTTP and HTTPS ports are the same (avoid conflict)
-		if httpListenAddr != serverListenAddr {
+		if !addressesOverlap(httpListenAddr, serverListenAddr) {
 			go startHTTPRedirectServer(httpListenAddr, serverListenAddr)
 		}
 	}
@@ -824,4 +894,33 @@ func applyPrivileges(uid, gid int) error {
 	}
 
 	return nil
+}
+
+// addressesOverlap checks if two listen addresses would conflict on the same port.
+// It considers ports and host wildcarding.
+func addressesOverlap(addr1, addr2 string) bool {
+	h1, p1, err1 := net.SplitHostPort(addr1)
+	h2, p2, err2 := net.SplitHostPort(addr2)
+
+	// If unparseable, play it safe and assume conflict if strings differ
+	if err1 != nil || err2 != nil {
+		return addr1 == addr2
+	}
+
+	// Different ports definitely don't overlap
+	if p1 != p2 {
+		return false
+	}
+
+	// Same port - check hosts
+	if h1 == h2 {
+		return true
+	}
+
+	// Wildcard conflicts with everything on same port
+	if h1 == "" || h1 == "0.0.0.0" || h1 == "::" || h2 == "" || h2 == "0.0.0.0" || h2 == "::" {
+		return true
+	}
+
+	return false
 }

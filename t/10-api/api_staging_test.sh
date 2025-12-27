@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # API Staging Integration Test
 # Verifies: Staging validation, Unified Diff generation, and Discard functionality
@@ -44,22 +45,11 @@ interface "eth0" {
 EOF
 
 # Start Control Plane
-log "Starting Control Plane..."
-GLACIC_LOG_FILE=stdout $APP_BIN ctl "$CONFIG_FILE" > /tmp/ctl_staging.log 2>&1 &
-CTL_PID=$!
-track_pid $CTL_PID
+start_ctl "$CONFIG_FILE"
 
-# Wait for socket
-wait_for_file $CTL_SOCKET 10 || fail "Control plane socket not created"
-
-# Start API Server (disable sandbox)
-log "Starting API Server..."
+# Start API Server (using test-api to bypass sandbox)
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8082 > /tmp/api_staging.log 2>&1 &
-API_PID=$!
-track_pid $API_PID
-
-wait_for_port 8082 10 || fail "API server failed to start"
+start_api -listen :8082
 
 API_URL="http://127.0.0.1:8082/api"
 AUTH_HEADER="X-API-Key: gfw_staging123"
@@ -125,28 +115,28 @@ else
     fail "Staged config missing new rule: $STAGED"
 fi
 
-# Test 3: Verify Running Config IS CHANGED (Immediate Apply)
-diag "Test 3: Verify Running Config IS CHANGED (Immediate Apply)"
-RUNNING_2=$(api_get "/config/policies")
+# Test 3: Verify Running Config is UNCHANGED (Staged mode)
+diag "Test 3: Verify Running Config is UNCHANGED (Staged mode)"
+RUNNING_2=$(api_get "/config/policies?source=running")
 echo "$RUNNING_2" | grep -q "rule-staged"
-if [ $? -eq 0 ]; then
-    pass "Running config was UPDATED (Immediate Apply mode)"
+if [ $? -ne 0 ]; then
+    pass "Running config was NOT updated (Staging correct)"
 else
-    diag "Expected 'rule-staged' in running config, but not found."
+    diag "Expected 'rule-staged' NOT to be in running config."
     diag "Running Config: $RUNNING_2"
-    fail "Running config was UPDATED (Immediate Apply mode)"
+    fail "Running config was UPDATED immediately (Staging leaked)"
 fi
 
-# Test 4: Verify Diff is EMPTY (Since it was applied)
-diag "Test 4: Verify Diff is EMPTY"
+# Test 4: Verify Diff shows the change
+diag "Test 4: Verify Diff shows the change"
 DIFF=$(api_get "/config/diff")
 echo "$DIFF" | grep -q "rule-staged"
-if [ $? -ne 0 ]; then
-    pass "Diff is empty (Changes already applied)"
+if [ $? -eq 0 ]; then
+    pass "Diff contains staged changes"
 else
-    # This might happen if diff logic compares against saved file vs memory?
-    # For now, let's assume immediate apply means no pending diff.
-    pass "Diff check passed (Adaptive)"
+    diag "Expected 'rule-staged' in diff, but not found."
+    diag "Diff: $DIFF"
+    fail "Staged changes invalid or empty diff"
 fi
 
 # Skip Discard test as there is nothing to discard

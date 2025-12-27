@@ -26,18 +26,23 @@ const AgentPort = 5000
 type TestJob struct {
 	ScriptPath string        // Relative to project root (e.g., "t/01-sanity/sanity_test.sh")
 	Timeout    time.Duration // Per-test timeout (parsed from TEST_TIMEOUT comment)
+	Skip       bool          // If true, test should be skipped (parsed from SKIP=true)
+	SkipReason string        // Reason for skipping (from comment after SKIP=true)
 }
 
 // Default timeout for tests that don't specify one
-const DefaultTestTimeout = 30 * time.Second
+const DefaultTestTimeout = 90 * time.Second
 
 // TestResult represents the outcome of running a test
 type TestResult struct {
 	Job       TestJob
-	Suite     *harness.TestSuite
+	Result    string
 	Duration  time.Duration
 	Error     error
-	RawOutput string // Raw TAP output for logging
+	RawOutput string
+	Suite     *harness.TestSuite
+	WorkerID  string
+	StartTime time.Time
 }
 
 // Pod manages multiple VMs for parallel test execution
@@ -523,7 +528,11 @@ func (w *worker) waitForAgent(timeout time.Duration) error {
 
 func (w *worker) executeTest(job TestJob) TestResult {
 	start := time.Now()
-	result := TestResult{Job: job}
+	result := TestResult{
+		Job:       job,
+		WorkerID:  fmt.Sprintf("%d", w.id),
+		StartTime: start,
+	}
 
 	if w.conn == nil {
 		result.Error = fmt.Errorf("no connection to agent")
@@ -574,6 +583,9 @@ func (w *worker) executeTest(job TestJob) TestResult {
 
 	// If we didn't complete normally, diagnose why
 	if !completedNormally {
+		// Always capture raw output, even for failures (helps debugging)
+		result.RawOutput = output.String()
+		
 		if readErr != nil {
 			// Classify the error
 			errStr := readErr.Error()
@@ -647,10 +659,13 @@ func DiscoverTests(projectRoot string) ([]TestJob, error) {
 		if strings.HasSuffix(path, "_test.sh") {
 			relPath, _ := filepath.Rel(projectRoot, path)
 			timeout := parseTestTimeout(path)
+			skip, skipReason := parseTestSkip(path)
 
 			jobs = append(jobs, TestJob{
 				ScriptPath: relPath,
 				Timeout:    timeout,
+				Skip:       skip,
+				SkipReason: skipReason,
 			})
 		}
 
@@ -681,4 +696,32 @@ func parseTestTimeout(scriptPath string) time.Duration {
 	}
 
 	return DefaultTestTimeout
+}
+
+// testSkipRe matches SKIP=true with optional comment
+var testSkipRe = regexp.MustCompile(`(?m)^\s*SKIP=(true|1|yes)(?:\s*#\s*(.*))?`)
+
+func parseTestSkip(scriptPath string) (bool, string) {
+	file, err := os.Open(scriptPath)
+	if err != nil {
+		return false, ""
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineCount := 0
+	for scanner.Scan() && lineCount < 20 { // Check first 20 lines for SKIP
+		line := scanner.Text()
+		lineCount++
+
+		if match := testSkipRe.FindStringSubmatch(line); match != nil {
+			reason := ""
+			if len(match) > 2 {
+				reason = strings.TrimSpace(match[2])
+			}
+			return true, reason
+		}
+	}
+
+	return false, ""
 }

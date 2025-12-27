@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # NAT Traffic Verification Test (TAP format)
 # Tests that NAT rules actually TRANSLATE traffic, not just exist

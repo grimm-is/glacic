@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # DNS Server Integration Test Script (TAP format)
 # Tests DNS server configuration and resolution

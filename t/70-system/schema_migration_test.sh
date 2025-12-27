@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Schema Migration Integration Test
 # Verifies config auto-migration from legacy format to current schema

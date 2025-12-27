@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # Replication Integration Test
 
 TEST_TIMEOUT=90

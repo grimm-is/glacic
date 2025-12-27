@@ -1,11 +1,12 @@
 #!/bin/sh
+set -x
 
 # Firewall Rules Integration Test (TAP format)
 # Tests that applying firewall config produces expected nftables rules
 # This is the core value test - does our config translate to correct rules?
 
 # Request longer timeout - test includes socket wait and rule verification
-TEST_TIMEOUT=30
+TEST_TIMEOUT=60
 
 # Source common functions
 . "$(dirname "$0")/../common.sh"

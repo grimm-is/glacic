@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # CLI IPSet Commands Integration Test
 # Verifies the `glacic ipset` subcommands work correctly.
 #

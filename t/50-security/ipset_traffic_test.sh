@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # IPSet Traffic Blocking Test (TAP format)
 # Tests that IPSet rules actually BLOCK traffic, not just exist in nftables

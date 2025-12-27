@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Learning Endpoints Integration Test  
 # Verifies the learning API endpoints work

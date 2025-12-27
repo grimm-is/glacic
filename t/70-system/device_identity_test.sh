@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Device Identity Integration Test
 # Verifies device identity/metadata persistence
@@ -42,7 +43,7 @@ wait_for_port 8090 10 || fail "API failed to start"
 
 # Test 1: Get devices endpoint
 diag "Test 1: Devices endpoint"
-response=$(curl -s -o /dev/null -w "%{http_code}" "http://169.254.255.2:8090/api/devices" 2>&1)
+response=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8090/api/devices" 2>&1)
 if [ "$response" = "200" ] || [ "$response" = "404" ]; then
     pass "Devices endpoint accessible (status: $response)"
 else
@@ -54,7 +55,7 @@ diag "Test 2: Device identity update"
 response=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
     -H "Content-Type: application/json" \
     -d '{"name":"test-device","owner":"testuser"}' \
-    "http://169.254.255.2:8090/api/devices/00:11:22:33:44:55" 2>&1)
+    "http://127.0.0.1:8090/api/devices/00:11:22:33:44:55" 2>&1)
 if [ "$response" = "200" ] || [ "$response" = "201" ] || [ "$response" = "404" ]; then
     pass "Device identity API accessible (status: $response)"
 else

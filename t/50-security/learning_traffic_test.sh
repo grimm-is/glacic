@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Learning Traffic Test (TAP format)
 # Tests that actual traffic is captured by the learning service via nflog/ctlplane bridge.

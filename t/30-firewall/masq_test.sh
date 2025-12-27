@@ -1,12 +1,13 @@
 #!/bin/bash
 # set -e removed to handle errors manually
+set -x
 
 # Path to the Glacic binary
 # Path to the Glacic binary
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/../common.sh"
 GLACIC_BIN="$APP_BIN"
-CONFIG_FILE="t/configs/masq_match.hcl"
+CONFIG_FILE="$PROJECT_ROOT/configs/masq_match.hcl"
 
 echo "Running masquerade generation test..."
 

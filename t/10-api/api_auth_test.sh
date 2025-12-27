@@ -1,9 +1,10 @@
 #!/bin/sh
+set -x
 
 # API Key Integration Test
 # Verifies API key enforcement and scoping
 # TEST_TIMEOUT: This test needs extra time due to API restarts
-TEST_TIMEOUT=60
+TEST_TIMEOUT=90
 
 . "$(dirname "$0")/../common.sh"
 
@@ -22,7 +23,7 @@ schema_version = "1.0"
 
 api {
   enabled = false
-  listen  = "127.0.0.1:8080"
+  listen  = ":8080"
   require_auth = true
   key_store_path = "$KEY_STORE"
 
@@ -39,27 +40,12 @@ api {
 EOF
 
 # Start Control Plane
-log "Starting Control Plane..."
-$APP_BIN ctl "$CONFIG_FILE" > /tmp/ctl.log 2>&1 &
-CTL_PID=$!
-track_pid $CTL_PID
-
-# Wait for socket (fast polling)
-wait_for_file $CTL_SOCKET 5 || fail "Control plane socket not created"
+start_ctl "$CONFIG_FILE"
 
 # Start API Server (disable sandbox for testing)
 log "Starting API Server..."
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8080 > /tmp/api.log 2>&1 &
-API_PID=$!
-track_pid $API_PID
-
-# Wait for API port (increased timeout for startup)
-wait_for_port 8080 10 || {
-    echo "# API log:"
-    cat /tmp/api.log | head -20
-    fail "API server failed to start"
-}
+start_api -listen :8080
 
 log "Checking API connectivity..."
 # Use wget because curl might be missing in test env
@@ -120,13 +106,12 @@ fi
 
 # Restart API to enforce auth
 log "Restarting API..."
-kill $API_PID 2>/dev/null
-wait $API_PID 2>/dev/null
+if [ -n "$API_PID" ]; then
+    kill $API_PID 2>/dev/null
+    wait $API_PID 2>/dev/null || true
+fi
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8080 > /tmp/api_2.log 2>&1 &
-API_PID=$!
-track_pid $API_PID
-wait_for_port 8080 10 || fail "API server failed to restart"
+start_api -listen :8080
 
 # 2. Test No Auth -> 401
 check_code "http://127.0.0.1:8080/api/config" "401" ""

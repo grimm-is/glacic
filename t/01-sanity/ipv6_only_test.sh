@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # IPv6-Only Mode Integration Test
 # Verifies: All core services work with only IPv6 (no IPv4)

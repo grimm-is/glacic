@@ -42,6 +42,11 @@ func NewSecurityManager(ipsetService *firewall.IPSetService, logger *logging.Log
 func (sm *SecurityManager) RecordFailedAttempt(ip, reason string, threshold int, window time.Duration) error {
 	now := clock.Now()
 
+	// Whitelist localhost to prevent self-lockout
+	if ip == "127.0.0.1" || ip == "::1" {
+		return nil
+	}
+
 	// Get or create tracker
 	tracker, exists := sm.attempts[ip]
 	if !exists {

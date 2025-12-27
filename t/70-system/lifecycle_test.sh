@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 TEST_TIMEOUT=60
 . "$(dirname "$0")/../common.sh"
 

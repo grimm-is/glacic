@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # VPN Lockout Protection Integration Test
 # Verifies that VPN interfaces with management_access=true bypass firewall rules

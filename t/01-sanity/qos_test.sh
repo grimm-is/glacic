@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # QoS Integration Test Script (TAP format)
 # Tests traffic shaping configuration via tc/netlink

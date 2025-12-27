@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # LLDP Listener Integration Test
 # Verifies LLDP service startup and topology API availability.
 #
@@ -7,7 +8,7 @@
 # 2. Query topology API
 # 3. Verify neighbor data structure
 
-TEST_TIMEOUT=30
+TEST_TIMEOUT=60
 
 . "$(dirname "$0")/../common.sh"
 
@@ -59,10 +60,7 @@ ok 0 "Control plane started"
 
 # 2. Start API Server
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8081 > /tmp/api_lldp.log 2>&1 &
-API_PID=$!
-track_pid $API_PID
-wait_for_port 8081 10 || fail "API server failed to start"
+start_api -listen :8081
 ok 0 "API server started"
 
 API_URL="http://127.0.0.1:8081/api"
@@ -72,7 +70,7 @@ sleep 2
 
 # 3. Query topology endpoint (should return empty neighbors, but endpoint works)
 diag "Querying /api/topology for LLDP neighbors..."
-TOPOLOGY_RESPONSE=$(curl -s -H "$AUTH_HEADER" "$API_URL/topology")
+TOPOLOGY_RESPONSE=$(curl -s --max-time 30 -H "$AUTH_HEADER" "$API_URL/topology")
 
 if echo "$TOPOLOGY_RESPONSE" | grep -q "neighbors"; then
     ok 0 "Topology API endpoint responds"

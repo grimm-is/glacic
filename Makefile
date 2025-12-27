@@ -203,7 +203,7 @@ $(TOOLBOX_GUEST): $(GO_FILES)
 
 $(BUILD_DIR)/toolbox-linux: $(TOOLBOX_GUEST)
 	@ln -sf $(notdir $(TOOLBOX_GUEST)) $(BUILD_DIR)/toolbox-linux
-	@ln -sf $(notdir $(TOOLBOX_GUEST)) build/agent
+	@ln -sf $(notdir $(TOOLBOX_GUEST)) build/orca-agent
 	@ln -sf $(notdir $(TOOLBOX_GUEST)) build/prove
 	@echo "$(GREEN)✓ Guest toolbox symlinks created$(NC)"
 

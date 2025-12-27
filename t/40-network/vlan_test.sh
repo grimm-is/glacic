@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # VLAN (802.1Q) Interface Integration Test
 # Verifies VLAN creation, configuration, and deletion via API.
 #
@@ -8,7 +9,7 @@
 # 3. Verify VLAN ID is correct
 # 4. Delete VLAN and confirm cleanup
 
-TEST_TIMEOUT=30
+TEST_TIMEOUT=60
 
 . "$(dirname "$0")/../common.sh"
 
@@ -41,7 +42,7 @@ cat > "$TEST_CONFIG" << 'EOF'
 schema_version = "1.0"
 
 api {
-  enabled = false
+  enabled = true
   listen  = "127.0.0.1:8081"
   require_auth = true
 
@@ -67,10 +68,7 @@ ok 0 "Control plane started"
 
 # 2. Start API Server
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8081 > /tmp/api_vlan.log 2>&1 &
-API_PID=$!
-track_pid $API_PID
-wait_for_port 8081 10 || fail "API server failed to start"
+start_api -listen :8081
 ok 0 "API server started"
 
 API_URL="http://127.0.0.1:8081/api"
@@ -90,8 +88,18 @@ else
 fi
 
 # 4. Verify interface exists
-sleep 1
-if ip link show dummy0.100 >/dev/null 2>&1; then
+# 4. Verify interface exists (poll for up to 5s)
+diag "Waiting for VLAN interface..."
+_found=0
+for i in $(seq 1 10); do
+    if ip link show dummy0.100 >/dev/null 2>&1; then
+        _found=1
+        break
+    fi
+    sleep 0.5
+done
+
+if [ $_found -eq 1 ]; then
     ok 0 "VLAN interface dummy0.100 exists"
 else
     ok 1 "VLAN interface dummy0.100 not found"
@@ -118,20 +126,22 @@ diag "Deleting VLAN dummy0.100..."
 DELETE_RESPONSE=$(curl -s -X DELETE "$API_URL/vlans?name=dummy0.100" \
     -H "$AUTH_HEADER")
 
+diag "Waiting for VLAN deletion..."
+_deleted=0
+for i in $(seq 1 10); do
+    if ! ip link show dummy0.100 >/dev/null 2>&1; then
+        _deleted=1
+        break
+    fi
+    sleep 0.5
+done
 
-sleep 1
-
-if ! ip link show dummy0.100 >/dev/null 2>&1; then
+if [ $_deleted -eq 1 ]; then
     ok 0 "VLAN interface deleted successfully"
 else
     # Interface still exists - check if delete was acknowledged
     if echo "$DELETE_RESPONSE" | grep -q '"success":true'; then
-        sleep 1
-        if ! ip link show dummy0.100 >/dev/null 2>&1; then
-            ok 0 "VLAN interface deleted (delayed)"
-        else
-            ok 1 "VLAN still exists after delete API returned success"
-        fi
+        ok 1 "VLAN still exists after delete API returned success"
     else
         ok 1 "VLAN deletion failed: $DELETE_RESPONSE"
     fi

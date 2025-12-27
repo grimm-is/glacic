@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # API CRUD Integration Test
 # Verifies: CRUD operations for Interfaces, DHCP, and Policies
@@ -10,7 +11,15 @@ TEST_TIMEOUT=30
 
 require_root
 require_binary
-cleanup_on_exit
+# cleanup_on_exit
+cleanup_with_logs() {
+    if [ -f "$API_LOG" ]; then
+        diag "API Log Dump:"
+        cat "$API_LOG" | sed 's/^/# /'
+    fi
+    cleanup_processes
+}
+trap cleanup_with_logs EXIT INT TERM
 
 log() { echo "[TEST] $1"; }
 
@@ -44,22 +53,11 @@ interface "eth0" {
 EOF
 
 # Start Control Plane
-log "Starting Control Plane..."
-GLACIC_LOG_FILE=stdout $APP_BIN ctl "$CONFIG_FILE" > /tmp/ctl_crud.log 2>&1 &
-CTL_PID=$!
-track_pid $CTL_PID
-
-# Wait for socket
-wait_for_file $CTL_SOCKET 5 || fail "Control plane socket not created"
+start_ctl "$CONFIG_FILE"
 
 # Start API Server (disable sandbox)
-log "Starting API Server..."
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8083 > /tmp/api_crud.log 2>&1 &
-API_PID=$!
-track_pid $API_PID
-
-wait_for_port 8083 10 || fail "API server failed to start"
+start_api -listen :8083
 
 API_URL="http://127.0.0.1:8083/api"
 AUTH_HEADER="X-API-Key: gfw_admin123"

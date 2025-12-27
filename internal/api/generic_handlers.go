@@ -94,8 +94,13 @@ func (s *Server) RequireControlPlane(w http.ResponseWriter) bool {
 
 // GetConfigSnapshot gets config from control plane or returns a local snapshot.
 // Returns nil if error occurred (response already sent).
-func (s *Server) GetConfigSnapshot(w http.ResponseWriter) *config.Config {
-	if s.client != nil {
+// GetConfigSnapshot gets config from control plane or returns a local snapshot.
+// Supports ?source=running (Control Plane) or ?source=staged (Local Memory, Default)
+func (s *Server) GetConfigSnapshot(w http.ResponseWriter, r *http.Request) *config.Config {
+	source := r.URL.Query().Get("source")
+	// If source is "running", strictly require control plane fetch.
+	// We ignore "staged" explicitly here as that falls through to default.
+	if source == "running" && s.client != nil {
 		cfg, err := s.client.GetConfig()
 		if err != nil {
 			WriteError(w, http.StatusInternalServerError, err.Error())
@@ -103,6 +108,7 @@ func (s *Server) GetConfigSnapshot(w http.ResponseWriter) *config.Config {
 		}
 		return cfg
 	}
+	// Default: Return local Staged config
 	s.configMu.RLock()
 	defer s.configMu.RUnlock()
 	return s.Config.Clone()

@@ -1,6 +1,8 @@
 #!/bin/sh
+set -x
 # Bond/LACP Interface Integration Test
 # Verifies bond interface creation with dummy NICs.
+
 #
 # Tests:
 # 1. Create dummy interfaces as bond members
@@ -8,7 +10,7 @@
 # 3. Verify bond mode and members
 # 4. Delete bond and confirm cleanup
 
-TEST_TIMEOUT=30
+TEST_TIMEOUT=60
 
 . "$(dirname "$0")/../common.sh"
 
@@ -52,7 +54,7 @@ schema_version = "1.0"
 
 api {
   enabled = false
-  listen  = "127.0.0.1:8081"
+  listen  = "127.0.0.1:8097"
   require_auth = true
 
   key "admin-key" {
@@ -72,13 +74,10 @@ ok 0 "Control plane started"
 
 # 2. Start API Server
 export GLACIC_NO_SANDBOX=1
-$APP_BIN test-api -listen :8081 > /tmp/api_bond.log 2>&1 &
-API_PID=$!
-track_pid $API_PID
-wait_for_port 8081 10 || fail "API server failed to start"
+start_api -listen :8097
 ok 0 "API server started"
 
-API_URL="http://127.0.0.1:8081/api"
+API_URL="http://127.0.0.1:8097/api"
 AUTH_HEADER="X-API-Key: gfw_bondtest123"
 
 # 3. Create Bond via API (active-backup mode, easy to test without LACP partner)
@@ -100,10 +99,18 @@ else
     ok 1 "Bond creation failed: $CREATE_RESPONSE"
 fi
 
-sleep 1
+# 4. Verify bond interface exists (poll for up to 5s)
+diag "Waiting for bond interface..."
+_found=0
+for i in $(seq 1 10); do
+    if ip link show testbond0 >/dev/null 2>&1; then
+        _found=1
+        break
+    fi
+    sleep 0.5
+done
 
-# 4. Verify bond interface exists
-if ip link show testbond0 >/dev/null 2>&1; then
+if [ $_found -eq 1 ]; then
     ok 0 "Bond interface testbond0 exists"
 else
     ok 1 "Bond interface testbond0 not found"

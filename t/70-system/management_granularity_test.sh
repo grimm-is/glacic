@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # Feature Test: Management Granularity & Implicit Zones
 # tests/features/management_granularity_test.sh
 
@@ -7,7 +8,7 @@ source "$(dirname "$0")/../common.sh"
 # Configuration
 TEST_NAME="mgmt_granularity"
 GO_TEST_TAGS="integration"
-# TEST_TIMEOUT=45 # Custom timeout if needed
+TEST_TIMEOUT=60 # Custom timeout if needed
 
 # 1. Define Firewall Config (HCL)
 cat > /tmp/${TEST_NAME}.hcl <<EOF

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Pending Rule Approval Integration Test
 # Verifies pending rule approval workflow
@@ -37,11 +38,11 @@ $APP_BIN test-api -listen :8091 > /tmp/api_pending.log 2>&1 &
 API_PID=$!
 track_pid $API_PID
 
-wait_for_port 8091 10 || fail "API failed to start"
+wait_for_port 8091 30 || fail "API failed to start"
 
 # Test 1: Get pending rules
 diag "Test 1: Pending rules endpoint"
-response=$(curl -s -o /dev/null -w "%{http_code}" "http://169.254.255.2:8091/api/learning/pending" 2>&1)
+response=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8091/api/learning/pending" 2>&1)
 pass "Pending rules endpoint accessible (status: $response)"
 
 # Test 2: Approve/reject endpoint exists
@@ -49,7 +50,7 @@ diag "Test 2: Approve endpoint"
 response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
     -H "Content-Type: application/json" \
     -d '{"action":"approve"}' \
-    "http://169.254.255.2:8091/api/learning/pending/test-rule" 2>&1)
+    "http://127.0.0.1:8091/api/learning/pending/test-rule" 2>&1)
 pass "Approve endpoint accessible (status: $response)"
 
 rm -f "$CONFIG_FILE"

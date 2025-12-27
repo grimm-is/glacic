@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # UPnP/NAT-PMP Integration Test
 # Verifies UPnP service configuration

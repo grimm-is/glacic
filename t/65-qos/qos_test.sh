@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # QoS Feature Integration Test
 # Verifies QoS configuration application

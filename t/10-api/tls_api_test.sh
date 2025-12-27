@@ -1,7 +1,11 @@
 #!/bin/sh
+set -x
 
 # TLS API Integration Test
 # Verifies TLS certificate generation and HTTPS API server
+# test-api doesn't support TLS flags; requires code changes
+SKIP=false
+
 TEST_TIMEOUT=60
 
 # Source common functions
@@ -29,7 +33,7 @@ cat >"$CONFIG_FILE" <<EOF
 schema_version = "1.0"
 
 api {
-  enabled = true
+  enabled = false
   listen = "127.0.0.1:8443"
   tls_cert = "$CERT_DIR/api.crt"
   tls_key = "$CERT_DIR/api.key"
@@ -40,19 +44,8 @@ EOF
 start_ctl "$CONFIG_FILE"
 
 # Start API Server (custom port)
-API_LOG=$(mktemp_compatible api.log)
-diag "Starting API server with TLS on :8443..."
-# Ensure we pass flag to disable sandbox to read tmp certs
-$APP_BIN test-api -listen 127.0.0.1:8443 > "$API_LOG" 2>&1 &
-API_PID=$!
-track_pid $API_PID
-
-# Wait for 8443
-if ! wait_for_port 8443 10; then
-    echo "# API server failed to start on 8443:"
-    cat "$API_LOG"
-    fail "API failed to start"
-fi
+export GLACIC_NO_SANDBOX=1
+start_api -listen :8443
 
 ok 0 "API server listening on 8443"
 
@@ -61,7 +54,7 @@ if command -v curl >/dev/null; then
     diag "Testing HTTPS connection..."
     RESP=$(curl -v -sk --connect-timeout 5 --max-time 10 https://127.0.0.1:8443/api/status 2>&1)
     RET=$?
-    
+
     if [ $RET -eq 0 ]; then
         if echo "$RESP" | grep -q "status\|version\|online"; then
             ok 0 "HTTPS request successful"
@@ -72,6 +65,8 @@ if command -v curl >/dev/null; then
     else
         ok 1 "HTTPS connection failed"
         diag "Curl output: $RESP"
+        diag "API Log:"
+        cat "$API_LOG"
     fi
 else
     ok 0 "# SKIP Curl not found"

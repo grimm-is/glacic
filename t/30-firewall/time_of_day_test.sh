@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 #
 # Time-of-Day Rules Integration Test
 # Verifies firewall rules with time restrictions work

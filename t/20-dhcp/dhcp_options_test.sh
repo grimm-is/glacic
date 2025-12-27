@@ -1,6 +1,7 @@
 #!/bin/sh
 # Integration test for custom DHCP options
 set -e
+set -x
 
 TEST_TIMEOUT=20
 

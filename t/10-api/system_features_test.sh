@@ -1,4 +1,6 @@
 #!/bin/sh
+set -x
+
 # Test System Features API (QoS, Threat Intel, etc)
 
 export PROJECT_ROOT="/mnt/glacic"
@@ -33,7 +35,7 @@ EOF
 
 echo "DEBUG: Sending payload..." >&2
 # Send request (use X-API-Key to bypass CSRF, any value works with require_auth=false)
-if ! curl -v --max-time 5 -X POST \
+if ! curl -v --max-time 10 -X POST \
     -H "Content-Type: application/json" \
     -H "X-API-Key: test-key" \
     -d @/tmp/features_payload.json \

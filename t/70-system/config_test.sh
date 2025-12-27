@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # TAP Test Suite for Firewall Config CLI Commands
 # Tests get/set/validate/edit/delete functionality

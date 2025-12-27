@@ -37,7 +37,9 @@ var vmMountPath = "/mnt/" + brand.LowerName
 
 // APK packages to install in the guest
 // Minimal set based on integration test command analysis
-var apkPackages = []string{
+var apkPackages = []string
+
+{
 	// Core system (required for boot/init)
 	"linux-virt", "openrc", "util-linux",
 	
@@ -66,7 +68,14 @@ var apkPackages = []string{
 	
 	// Dev mode support (optional - can remove for production)
 	"openssh", "openssh-server", "openssh-client",
-}
+
+	// Integration Test Dependencies
+	"dnsmasq",         // for dns_test.sh
+	"frr",             // for frr_test.sh (vtysh, zebra)
+	"openssl",         // for tls_api.sh
+	"sqlite",          // for dhcp_lease_lifecycle_test.sh
+	"tcpdump",         // for ra.sh
+	"wireguard-tools", // for vpn.sh
 
 // Architecture configuration
 type ArchConfig struct {
@@ -391,8 +400,8 @@ if cat /proc/cmdline | grep -q "test_mode=true"; then
 elif cat /proc/cmdline | grep -q "agent_mode=true"; then
     echo "⚡ Starting in AGENT-ONLY mode..."
     # Run the agent binary directly (no ctl/api)
-    if [ -x ` + vmMountPath + `/build/glacic-agent ]; then
-        exec ` + vmMountPath + `/build/glacic-agent agent
+    if [ -x ` + vmMountPath + `/build/orca-agent ]; then
+        exec ` + vmMountPath + `/build/orca-agent agent
     elif [ -x ` + vmMountPath + `/build/toolbox-linux ]; then
         exec ` + vmMountPath + `/build/toolbox-linux agent
     else

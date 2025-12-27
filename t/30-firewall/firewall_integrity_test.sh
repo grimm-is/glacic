@@ -6,6 +6,7 @@
 TEST_TIMEOUT=30
 
 set -e
+set -x
 
 # Source common functions
 . "$(dirname "$0")/../common.sh"

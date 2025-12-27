@@ -2,6 +2,7 @@
 # Set timeout for this test - need time for daemon startup + API spawn
 TEST_TIMEOUT=30
 set -e
+set -x
 
 # Path to glacic binary
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

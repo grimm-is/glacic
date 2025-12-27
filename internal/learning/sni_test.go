@@ -45,7 +45,6 @@ func TestParseSNI(t *testing.T) {
 		"0002C02B" + // Ciphers
 		"0100" + // Compression
 		"0011" + // Ext Len
-		"0000000D" + // Ext Type SNI, invalid len? No, Ext len includes list length + type etc.
 		// SNI Extension Structure:
 		// Type (2) + Len (2) + ServerNameListLen (2) + NameType (1) + NameLen (2) + Name
 		// My calculation above:

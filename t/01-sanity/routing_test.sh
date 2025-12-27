@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Routing Integration Test Script (TAP format)
 # Tests static routes, policy routing, and route monitoring

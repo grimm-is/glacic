@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Interface Configuration Integration Test Script (TAP format)
 # Tests network interface, VLAN, bonding, and MTU configuration

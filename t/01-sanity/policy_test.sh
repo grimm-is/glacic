@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Zone-to-Zone Policy Integration Test Script (TAP format)
 # Tests firewall policy chains, jump rules, and zone isolation

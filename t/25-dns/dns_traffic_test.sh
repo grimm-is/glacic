@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # DNS Traffic Test (TAP format)
 # Tests that DNS traffic flows correctly:

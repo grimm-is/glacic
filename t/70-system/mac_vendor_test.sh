@@ -1,8 +1,10 @@
 #!/bin/sh
+set -x
 #
 # MAC Vendor Lookup Integration Test
 # Verifies MAC address vendor identification works
 #
+TEST_TIMEOUT=90
 
 . "$(dirname "$0")/../common.sh"
 
@@ -42,7 +44,7 @@ wait_for_port 8087 10 || fail "API failed to start"
 # Test 1: MAC vendor lookup API works
 diag "Test 1: MAC vendor lookup"
 # Apple vendor prefix 00:03:93 or common Dell 00:14:22
-response=$(curl -s "http://169.254.255.2:8087/api/mac/vendor?mac=00:03:93:00:00:00" 2>&1)
+response=$(curl -s "http://127.0.0.1:8087/api/mac/vendor?mac=00:03:93:00:00:00" 2>&1)
 if [ $? -eq 0 ]; then
     if echo "$response" | grep -qi "vendor\|apple\|unknown\|error"; then
         pass "MAC vendor lookup endpoint responds"
@@ -55,7 +57,7 @@ fi
 
 # Test 2: Device info includes vendor
 diag "Test 2: Clients endpoint includes vendor info"
-response=$(curl -s "http://169.254.255.2:8087/api/clients" 2>&1)
+response=$(curl -s "http://127.0.0.1:8087/api/clients" 2>&1)
 if [ $? -eq 0 ]; then
     pass "Clients endpoint works (includes vendor for known devices)"
 else

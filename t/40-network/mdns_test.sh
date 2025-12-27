@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 # mDNS Reflector Integration Test
 # Verifies that mDNS packets are forwarded between interfaces.
 

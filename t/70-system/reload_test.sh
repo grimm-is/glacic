@@ -4,6 +4,7 @@
 
 TEST_TIMEOUT=30
 set -e
+set -x
 
 # Path to glacic binary
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

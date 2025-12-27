@@ -30,7 +30,7 @@ func main() {
 
 	// Direct invocation (symlinks: "agent", "orca", etc)
 	switch cmd {
-	case "agent", "glacic", "glacic-agent":
+	case "agent", "orca-agent", "glacic-agent":
 		if err := agent.Run(os.Args[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "agent error: %v\n", err)
 			os.Exit(1)

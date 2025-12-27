@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # Protection Traffic Test (TAP format)
 # Tests that protection features actually DROP spoofed/bogon traffic
