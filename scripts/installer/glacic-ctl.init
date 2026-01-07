@@ -1,0 +1,14 @@
+#!/sbin/openrc-run
+
+name="glacic-ctl"
+description="Glacic Firewall Control Plane"
+command="/usr/local/bin/glacic"
+command_args="ctl /etc/glacic/glacic.hcl"
+command_background=true
+pidfile="/run/glacic-ctl.pid"
+
+depend() {
+    need localmount
+    before net
+    provide firewall
+}

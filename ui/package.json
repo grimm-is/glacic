@@ -1,0 +1,36 @@
+{
+	"name": "ui",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"dev:mock": "node mock-api.js & vite dev --port 5173",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^7.0.0",
+		"@sveltejs/adapter-static": "^3.0.10",
+		"@sveltejs/kit": "^2.49.1",
+		"@sveltejs/vite-plugin-svelte": "^5.0.3",
+		"@testing-library/svelte": "^5.2.9",
+		"jsdom": "^27.0.1",
+		"svelte": "^5.45.6",
+		"svelte-check": "^4.3.4",
+		"typescript": "^5.9.3",
+		"vite": "^6.3.5",
+		"vitest": "^3.2.4"
+	},
+	"dependencies": {
+		"@types/d3": "^7.4.3",
+		"d3": "^7.9.0",
+		"svelte-i18n": "^4.0.1"
+	}
+}

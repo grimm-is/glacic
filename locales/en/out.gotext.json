@@ -1,0 +1,3453 @@
+{
+    "language": "en",
+    "messages": [
+        {
+            "id": "Start failed: {Err}",
+            "message": "Start failed: {Err}",
+            "translation": "Start failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Stop failed: {Err}",
+            "message": "Stop failed: {Err}",
+            "translation": "Stop failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Control plane failed: {Err}",
+            "message": "Control plane failed: {Err}",
+            "translation": "Control plane failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Apply failed: {Err}",
+            "message": "Apply failed: {Err}",
+            "translation": "Apply failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Check failed: {Err}",
+            "message": "Check failed: {Err}",
+            "translation": "Check failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Err}",
+            "message": "{Err}",
+            "translation": "{Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Show failed: {Err}",
+            "message": "Show failed: {Err}",
+            "translation": "Show failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Test run failed: {Err}",
+            "message": "Test run failed: {Err}",
+            "translation": "Test run failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "mcast failed: {Err}",
+            "message": "mcast failed: {Err}",
+            "translation": "mcast failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "mdns-publish failed: {Err}",
+            "message": "mdns-publish failed: {Err}",
+            "translation": "mdns-publish failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "dhcp-request failed: {Err}",
+            "message": "dhcp-request failed: {Err}",
+            "translation": "dhcp-request failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error determining current binary path: {Err}",
+            "message": "Error determining current binary path: {Err}",
+            "translation": "Error determining current binary path: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Name} version {Version}",
+            "message": "{Name} version {Version}",
+            "translation": "{Name} version {Version}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "brand.Name"
+                },
+                {
+                    "id": "Version",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "brand.Version"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Build: {BuildTime}",
+            "message": "Build: {BuildTime}",
+            "translation": "Build: {BuildTime}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "BuildTime",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "brand.BuildTime"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: --binary is required for remote upgrade",
+            "message": "Error: --binary is required for remote upgrade",
+            "translation": "Error: --binary is required for remote upgrade",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Error: --api-key is required for remote upgrade",
+            "message": "Error: --api-key is required for remote upgrade",
+            "translation": "Error: --api-key is required for remote upgrade",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to get remote status: {Err}",
+            "message": "Failed to get remote status: {Err}",
+            "translation": "Failed to get remote status: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: remote did not report architecture",
+            "message": "Error: remote did not report architecture",
+            "translation": "Error: remote did not report architecture",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Remote: {RemoteURL} (version {Version}, arch {RemoteArch})",
+            "message": "Remote: {RemoteURL} (version {Version}, arch {RemoteArch})",
+            "translation": "Remote: {RemoteURL} (version {Version}, arch {RemoteArch})",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "RemoteURL",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "*remoteURL"
+                },
+                {
+                    "id": "Version",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "status.Version"
+                },
+                {
+                    "id": "RemoteArch",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "remoteArch"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Remote upgrade failed: {Err}",
+            "message": "Remote upgrade failed: {Err}",
+            "translation": "Remote upgrade failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Remote upgrade initiated successfully!",
+            "message": "Remote upgrade initiated successfully!",
+            "translation": "Remote upgrade initiated successfully!",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Bytes uploaded: {Bytes}",
+            "message": "Bytes uploaded: {Bytes}",
+            "translation": "Bytes uploaded: {Bytes}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Bytes",
+                    "string": "%[1]d",
+                    "type": "int64",
+                    "underlyingType": "int64",
+                    "argNum": 1,
+                    "expr": "result.Bytes"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Checksum: {Checksum}",
+            "message": "Checksum: {Checksum}",
+            "translation": "Checksum: {Checksum}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Checksum",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "result.Checksum"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Message: {Message}",
+            "message": "Message: {Message}",
+            "translation": "Message: {Message}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Message",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "result.Message"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Detected staged binary: {StagedPath}",
+            "message": "Detected staged binary: {StagedPath}",
+            "translation": "Detected staged binary: {StagedPath}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "StagedPath",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "stagedPath"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Reload failed: {Err}",
+            "message": "Reload failed: {Err}",
+            "translation": "Reload failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "No detailed help available for '{Args2}'",
+            "message": "No detailed help available for '{Args2}'",
+            "translation": "No detailed help available for '{Args2}'",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Args2",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "os.Args[2]"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Unknown command: {Args1}",
+            "message": "Unknown command: {Args1}",
+            "translation": "Unknown command: {Args1}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Args1",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "os.Args[1]"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Name} - {Description}\n\nUsage:\n  {LowerName} \u003ccommand\u003e [options]\n\nCore Commands:\n  start     Start the firewall daemon\n            Options: --foreground (-f), --dry-run (-n), --config (-c) \u003cfile\u003e\n  stop      Stop the running daemon\n  reload    Reload configuration (hot reload)\n  status    Show daemon status\n\nManagement Commands:\n  api       Manage API keys (alias: apikey)\n            Subcommands: generate, list, revoke, help\n  config    Manage firewall configuration (HCL)\n            Subcommands: show, edit, validate, export\n  ipset     Manage IPSet blocklists\n            Subcommands: list, update, add, remove, info\n\nUtility Commands:\n  check     Validate configuration file\n            Options: --verbose (-v)\n  show      Display firewall rules\n            Options: --summary (-s), --remote (-r) \u003curl\u003e, --api-key (-k) \u003ckey\u003e\n  log       View and stream system logs\n            Options: -f (follow), -n (lines), --remote \u003curl\u003e\n  diff      Compare two configuration files\n  import    Import configuration from other firewalls\n  console   Interactive TUI dashboard\n            Options: --remote \u003curl\u003e, --api-key \u003ckey\u003e, --insecure, --debug\n  setup     First-run setup wizard\n            Options: --config-dir (-d)\n  reset     Factory reset (--confirm/-y required)\n            Options: --config-dir (-d)\n  upgrade   Seamless upgrade with socket handoff\n            Options: --binary (-b) \u003cpath\u003e, --self, --remote (-r), --api-key (-k)\n\nExamples:\n  {LowerName_1} start                          # Start in background\n  {LowerName_2} start --foreground             # Start in foreground (debug)\n  {LowerName_3} start --dry-run                # Dry run (show what would happen)\n  {LowerName_4} stop                           # Stop the daemon\n  {LowerName_5} api generate --name \"monitor\" --preset readonly\n  {LowerName_6} check -v /etc/glacic/glacic.hcl\n  {LowerName_7} show --remote https://192.168.1.1:8443 --api-key xxx\n  {LowerName_8} log -f\n\nFor command-specific help: {LowerName_9} help \u003ccommand\u003e",
+            "message": "{Name} - {Description}\n\nUsage:\n  {LowerName} \u003ccommand\u003e [options]\n\nCore Commands:\n  start     Start the firewall daemon\n            Options: --foreground (-f), --dry-run (-n), --config (-c) \u003cfile\u003e\n  stop      Stop the running daemon\n  reload    Reload configuration (hot reload)\n  status    Show daemon status\n\nManagement Commands:\n  api       Manage API keys (alias: apikey)\n            Subcommands: generate, list, revoke, help\n  config    Manage firewall configuration (HCL)\n            Subcommands: show, edit, validate, export\n  ipset     Manage IPSet blocklists\n            Subcommands: list, update, add, remove, info\n\nUtility Commands:\n  check     Validate configuration file\n            Options: --verbose (-v)\n  show      Display firewall rules\n            Options: --summary (-s), --remote (-r) \u003curl\u003e, --api-key (-k) \u003ckey\u003e\n  log       View and stream system logs\n            Options: -f (follow), -n (lines), --remote \u003curl\u003e\n  diff      Compare two configuration files\n  import    Import configuration from other firewalls\n  console   Interactive TUI dashboard\n            Options: --remote \u003curl\u003e, --api-key \u003ckey\u003e, --insecure, --debug\n  setup     First-run setup wizard\n            Options: --config-dir (-d)\n  reset     Factory reset (--confirm/-y required)\n            Options: --config-dir (-d)\n  upgrade   Seamless upgrade with socket handoff\n            Options: --binary (-b) \u003cpath\u003e, --self, --remote (-r), --api-key (-k)\n\nExamples:\n  {LowerName_1} start                          # Start in background\n  {LowerName_2} start --foreground             # Start in foreground (debug)\n  {LowerName_3} start --dry-run                # Dry run (show what would happen)\n  {LowerName_4} stop                           # Stop the daemon\n  {LowerName_5} api generate --name \"monitor\" --preset readonly\n  {LowerName_6} check -v /etc/glacic/glacic.hcl\n  {LowerName_7} show --remote https://192.168.1.1:8443 --api-key xxx\n  {LowerName_8} log -f\n\nFor command-specific help: {LowerName_9} help \u003ccommand\u003e",
+            "translation": "{Name} - {Description}\n\nUsage:\n  {LowerName} \u003ccommand\u003e [options]\n\nCore Commands:\n  start     Start the firewall daemon\n            Options: --foreground (-f), --dry-run (-n), --config (-c) \u003cfile\u003e\n  stop      Stop the running daemon\n  reload    Reload configuration (hot reload)\n  status    Show daemon status\n\nManagement Commands:\n  api       Manage API keys (alias: apikey)\n            Subcommands: generate, list, revoke, help\n  config    Manage firewall configuration (HCL)\n            Subcommands: show, edit, validate, export\n  ipset     Manage IPSet blocklists\n            Subcommands: list, update, add, remove, info\n\nUtility Commands:\n  check     Validate configuration file\n            Options: --verbose (-v)\n  show      Display firewall rules\n            Options: --summary (-s), --remote (-r) \u003curl\u003e, --api-key (-k) \u003ckey\u003e\n  log       View and stream system logs\n            Options: -f (follow), -n (lines), --remote \u003curl\u003e\n  diff      Compare two configuration files\n  import    Import configuration from other firewalls\n  console   Interactive TUI dashboard\n            Options: --remote \u003curl\u003e, --api-key \u003ckey\u003e, --insecure, --debug\n  setup     First-run setup wizard\n            Options: --config-dir (-d)\n  reset     Factory reset (--confirm/-y required)\n            Options: --config-dir (-d)\n  upgrade   Seamless upgrade with socket handoff\n            Options: --binary (-b) \u003cpath\u003e, --self, --remote (-r), --api-key (-k)\n\nExamples:\n  {LowerName_1} start                          # Start in background\n  {LowerName_2} start --foreground             # Start in foreground (debug)\n  {LowerName_3} start --dry-run                # Dry run (show what would happen)\n  {LowerName_4} stop                           # Stop the daemon\n  {LowerName_5} api generate --name \"monitor\" --preset readonly\n  {LowerName_6} check -v /etc/glacic/glacic.hcl\n  {LowerName_7} show --remote https://192.168.1.1:8443 --api-key xxx\n  {LowerName_8} log -f\n\nFor command-specific help: {LowerName_9} help \u003ccommand\u003e",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "brand.Name"
+                },
+                {
+                    "id": "Description",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "brand.Description"
+                },
+                {
+                    "id": "LowerName",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "brand.LowerName"
+                },
+                {
+                    "id": "LowerName_1",
+                    "string": "%[4]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 4,
+                    "expr": "brand.LowerName"
+                },
+                {
+                    "id": "LowerName_2",
+                    "string": "%[5]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 5,
+                    "expr": "brand.LowerName"
+                },
+                {
+                    "id": "LowerName_3",
+                    "string": "%[6]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 6,
+                    "expr": "brand.LowerName"
+                },
+                {
+                    "id": "LowerName_4",
+                    "string": "%[7]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 7,
+                    "expr": "brand.LowerName"
+                },
+                {
+                    "id": "LowerName_5",
+                    "string": "%[8]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 8,
+                    "expr": "brand.LowerName"
+                },
+                {
+                    "id": "LowerName_6",
+                    "string": "%[9]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 9,
+                    "expr": "brand.LowerName"
+                },
+                {
+                    "id": "LowerName_7",
+                    "string": "%[10]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 10,
+                    "expr": "brand.LowerName"
+                },
+                {
+                    "id": "LowerName_8",
+                    "string": "%[11]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 11,
+                    "expr": "brand.LowerName"
+                },
+                {
+                    "id": "LowerName_9",
+                    "string": "%[12]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 12,
+                    "expr": "brand.LowerName"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Waiting for previous API instance to release lock... ({I}/{LockRetryCount})",
+            "message": "Waiting for previous API instance to release lock... ({I}/{LockRetryCount})",
+            "translation": "Waiting for previous API instance to release lock... ({I}/{LockRetryCount})",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "I",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "i"
+                },
+                {
+                    "id": "LockRetryCount",
+                    "string": "%[2]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 2,
+                    "expr": "lockRetryCount"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Name} API Key Management\n\nUsage:\n  {BinaryName} apikey \u003ccommand\u003e [options]\n\nCommands:\n  generate    Generate a new API key\n  list        List all API keys\n  revoke      Revoke an API key\n  help        Show this help\n\nGenerate Options:\n  --name \u003cname\u003e           Name for the key (required)\n  --permissions \u003cperms\u003e   Comma-separated permissions (required)\n  --expires \u003cduration\u003e    Expiration (e.g., \"24h\", \"7d\", \"30d\")\n  --allowed-ips \u003cips\u003e     Comma-separated allowed IPs\n  --rate-limit \u003crpm\u003e      Requests per minute limit\n  --description \u003cdesc\u003e    Description\n  --json, -j              Output in JSON format (for scripting)\n\nPermission Values:\n  Read:   config:read, uplinks:read, firewall:read, dhcp:read, dns:read,\n          learning:read, metrics:read, health:read, logs:read, read:*\n  Write:  config:write, uplinks:write, firewall:write, dhcp:write,\n          dns:write, learning:write, write:*\n  Admin:  admin:keys, admin:system, admin:backup, admin:*\n  All:    * (full access)\n\nPreset Permissions:\n  --preset readonly       Read-only access to all resources\n  --preset uplink         Uplink management (read/write uplinks, read health)\n  --preset monitoring     Metrics, health, and logs (read-only)\n  --preset admin          Full administrative access\n\nExamples:\n  # Generate a read-only key\n  {BinaryName_1} apikey generate --name \"monitoring\" --preset readonly\n\n  # Generate an uplink control key for your script\n  {BinaryName_2} apikey generate --name \"vpn-switcher\" --preset uplink --expires 365d\n\n  # Generate a full admin key\n  {BinaryName_3} apikey generate --name \"admin-key\" --preset admin\n\n  # Generate a key with specific permissions\n  {BinaryName_4} apikey generate --name \"custom\" --permissions \"uplinks:read,uplinks:write\"\n\n  # Generate a key restricted to specific IPs\n  {BinaryName_5} apikey generate --name \"local-only\" --preset admin --allowed-ips \"127.0.0.1,192.168.1.0/24\"",
+            "message": "{Name} API Key Management\n\nUsage:\n  {BinaryName} apikey \u003ccommand\u003e [options]\n\nCommands:\n  generate    Generate a new API key\n  list        List all API keys\n  revoke      Revoke an API key\n  help        Show this help\n\nGenerate Options:\n  --name \u003cname\u003e           Name for the key (required)\n  --permissions \u003cperms\u003e   Comma-separated permissions (required)\n  --expires \u003cduration\u003e    Expiration (e.g., \"24h\", \"7d\", \"30d\")\n  --allowed-ips \u003cips\u003e     Comma-separated allowed IPs\n  --rate-limit \u003crpm\u003e      Requests per minute limit\n  --description \u003cdesc\u003e    Description\n  --json, -j              Output in JSON format (for scripting)\n\nPermission Values:\n  Read:   config:read, uplinks:read, firewall:read, dhcp:read, dns:read,\n          learning:read, metrics:read, health:read, logs:read, read:*\n  Write:  config:write, uplinks:write, firewall:write, dhcp:write,\n          dns:write, learning:write, write:*\n  Admin:  admin:keys, admin:system, admin:backup, admin:*\n  All:    * (full access)\n\nPreset Permissions:\n  --preset readonly       Read-only access to all resources\n  --preset uplink         Uplink management (read/write uplinks, read health)\n  --preset monitoring     Metrics, health, and logs (read-only)\n  --preset admin          Full administrative access\n\nExamples:\n  # Generate a read-only key\n  {BinaryName_1} apikey generate --name \"monitoring\" --preset readonly\n\n  # Generate an uplink control key for your script\n  {BinaryName_2} apikey generate --name \"vpn-switcher\" --preset uplink --expires 365d\n\n  # Generate a full admin key\n  {BinaryName_3} apikey generate --name \"admin-key\" --preset admin\n\n  # Generate a key with specific permissions\n  {BinaryName_4} apikey generate --name \"custom\" --permissions \"uplinks:read,uplinks:write\"\n\n  # Generate a key restricted to specific IPs\n  {BinaryName_5} apikey generate --name \"local-only\" --preset admin --allowed-ips \"127.0.0.1,192.168.1.0/24\"",
+            "translation": "{Name} API Key Management\n\nUsage:\n  {BinaryName} apikey \u003ccommand\u003e [options]\n\nCommands:\n  generate    Generate a new API key\n  list        List all API keys\n  revoke      Revoke an API key\n  help        Show this help\n\nGenerate Options:\n  --name \u003cname\u003e           Name for the key (required)\n  --permissions \u003cperms\u003e   Comma-separated permissions (required)\n  --expires \u003cduration\u003e    Expiration (e.g., \"24h\", \"7d\", \"30d\")\n  --allowed-ips \u003cips\u003e     Comma-separated allowed IPs\n  --rate-limit \u003crpm\u003e      Requests per minute limit\n  --description \u003cdesc\u003e    Description\n  --json, -j              Output in JSON format (for scripting)\n\nPermission Values:\n  Read:   config:read, uplinks:read, firewall:read, dhcp:read, dns:read,\n          learning:read, metrics:read, health:read, logs:read, read:*\n  Write:  config:write, uplinks:write, firewall:write, dhcp:write,\n          dns:write, learning:write, write:*\n  Admin:  admin:keys, admin:system, admin:backup, admin:*\n  All:    * (full access)\n\nPreset Permissions:\n  --preset readonly       Read-only access to all resources\n  --preset uplink         Uplink management (read/write uplinks, read health)\n  --preset monitoring     Metrics, health, and logs (read-only)\n  --preset admin          Full administrative access\n\nExamples:\n  # Generate a read-only key\n  {BinaryName_1} apikey generate --name \"monitoring\" --preset readonly\n\n  # Generate an uplink control key for your script\n  {BinaryName_2} apikey generate --name \"vpn-switcher\" --preset uplink --expires 365d\n\n  # Generate a full admin key\n  {BinaryName_3} apikey generate --name \"admin-key\" --preset admin\n\n  # Generate a key with specific permissions\n  {BinaryName_4} apikey generate --name \"custom\" --permissions \"uplinks:read,uplinks:write\"\n\n  # Generate a key restricted to specific IPs\n  {BinaryName_5} apikey generate --name \"local-only\" --preset admin --allowed-ips \"127.0.0.1,192.168.1.0/24\"",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "brand.Name"
+                },
+                {
+                    "id": "BinaryName",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "brand.BinaryName"
+                },
+                {
+                    "id": "BinaryName_1",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "brand.BinaryName"
+                },
+                {
+                    "id": "BinaryName_2",
+                    "string": "%[4]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 4,
+                    "expr": "brand.BinaryName"
+                },
+                {
+                    "id": "BinaryName_3",
+                    "string": "%[5]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 5,
+                    "expr": "brand.BinaryName"
+                },
+                {
+                    "id": "BinaryName_4",
+                    "string": "%[6]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 6,
+                    "expr": "brand.BinaryName"
+                },
+                {
+                    "id": "BinaryName_5",
+                    "string": "%[7]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 7,
+                    "expr": "brand.BinaryName"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "API Key: {FullKey}",
+            "message": "API Key: {FullKey}",
+            "translation": "API Key: {FullKey}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FullKey",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "fullKey"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "ID:          {ID}",
+            "message": "ID:          {ID}",
+            "translation": "ID:          {ID}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "ID",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "keyInfo.ID"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Name:        {Name}",
+            "message": "Name:        {Name}",
+            "translation": "Name:        {Name}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "keyInfo.Name"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Prefix:      {KeyPrefix}",
+            "message": "Prefix:      {KeyPrefix}",
+            "translation": "Prefix:      {KeyPrefix}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "KeyPrefix",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "keyInfo.KeyPrefix"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Permissions: {Permissions}",
+            "message": "Permissions: {Permissions}",
+            "translation": "Permissions: {Permissions}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Permissions",
+                    "string": "%[1]v",
+                    "type": "[]grimm.is/glacic/internal/api/storage.Permission",
+                    "underlyingType": "[]grimm.is/glacic/internal/api/storage.Permission",
+                    "argNum": 1,
+                    "expr": "keyInfo.Permissions"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Expires:     {RFC3339}",
+            "message": "Expires:     {RFC3339}",
+            "translation": "Expires:     {RFC3339}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "RFC3339",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "keyInfo.ExpiresAt.Format(time.RFC3339)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Allowed IPs: {AllowedIPs}",
+            "message": "Allowed IPs: {AllowedIPs}",
+            "translation": "Allowed IPs: {AllowedIPs}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "AllowedIPs",
+                    "string": "%[1]v",
+                    "type": "[]string",
+                    "underlyingType": "[]string",
+                    "argNum": 1,
+                    "expr": "keyInfo.AllowedIPs"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Rate Limit:  {RateLimit} req/min",
+            "message": "Rate Limit:  {RateLimit} req/min",
+            "translation": "Rate Limit:  {RateLimit} req/min",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "RateLimit",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "keyInfo.RateLimit"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "curl -H \"Authorization: Bearer {FullKey}\" http://localhost:8080/api/...",
+            "message": "curl -H \"Authorization: Bearer {FullKey}\" http://localhost:8080/api/...",
+            "translation": "curl -H \"Authorization: Bearer {FullKey}\" http://localhost:8080/api/...",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FullKey",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "fullKey"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "curl -H \"X-API-Key: {FullKey}\" http://localhost:8080/api/...",
+            "message": "curl -H \"X-API-Key: {FullKey}\" http://localhost:8080/api/...",
+            "translation": "curl -H \"X-API-Key: {FullKey}\" http://localhost:8080/api/...",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FullKey",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "fullKey"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Key {Id} revoked.",
+            "message": "Key {Id} revoked.",
+            "translation": "Key {Id} revoked.",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Id",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "id"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: {Err}",
+            "message": "Error: {Err}",
+            "translation": "Error: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Configuration valid!",
+            "message": "Configuration valid!",
+            "translation": "Configuration valid!",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Schema Version: {SchemaVersion}",
+            "message": "Schema Version: {SchemaVersion}",
+            "translation": "Schema Version: {SchemaVersion}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "SchemaVersion",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "cfg.SchemaVersion"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Interfaces: {Interfaces}",
+            "message": "Interfaces: {Interfaces}",
+            "translation": "Interfaces: {Interfaces}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Interfaces",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "len(cfg.Interfaces)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Zones: {Zones}",
+            "message": "Zones: {Zones}",
+            "translation": "Zones: {Zones}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Zones",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "len(cfg.Zones)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Policies: {Policies}",
+            "message": "Policies: {Policies}",
+            "translation": "Policies: {Policies}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Policies",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "len(cfg.Policies)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Migration: {OriginalVersion} -\u003e {CurrentVersion}",
+            "message": "Migration: {OriginalVersion} -\u003e {CurrentVersion}",
+            "translation": "Migration: {OriginalVersion} -\u003e {CurrentVersion}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "OriginalVersion",
+                    "string": "%[1]s",
+                    "type": "grimm.is/glacic/internal/config.SchemaVersion",
+                    "underlyingType": "struct{Major int; Minor int}",
+                    "argNum": 1,
+                    "expr": "result.OriginalVersion"
+                },
+                {
+                    "id": "CurrentVersion",
+                    "string": "%[2]s",
+                    "type": "grimm.is/glacic/internal/config.SchemaVersion",
+                    "underlyingType": "struct{Major int; Minor int}",
+                    "argNum": 2,
+                    "expr": "result.CurrentVersion"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error generating firewall rules: {Err}",
+            "message": "Error generating firewall rules: {Err}",
+            "translation": "Error generating firewall rules: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error initializing firewall manager: {Err}",
+            "message": "Error initializing firewall manager: {Err}",
+            "translation": "Error initializing firewall manager: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Name}\t{VLANs}\t{Dhcp}\t{Ipv4}\t{Ipv6}\t{Zone}",
+            "message": "{Name}\t{VLANs}\t{Dhcp}\t{Ipv4}\t{Ipv6}\t{Zone}",
+            "translation": "{Name}\t{VLANs}\t{Dhcp}\t{Ipv4}\t{Ipv6}\t{Zone}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "iface.Name"
+                },
+                {
+                    "id": "VLANs",
+                    "string": "%[2]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 2,
+                    "expr": "len(iface.VLANs)"
+                },
+                {
+                    "id": "Dhcp",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "dhcp"
+                },
+                {
+                    "id": "Ipv4",
+                    "string": "%[4]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 4,
+                    "expr": "ipv4"
+                },
+                {
+                    "id": "Ipv6",
+                    "string": "%[5]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 5,
+                    "expr": "ipv6"
+                },
+                {
+                    "id": "Zone",
+                    "string": "%[6]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 6,
+                    "expr": "zone"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Name}\t{Ifaces}",
+            "message": "{Name}\t{Ifaces}",
+            "translation": "{Name}\t{Ifaces}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "z.Name"
+                },
+                {
+                    "id": "Ifaces",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "ifaces"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{From}\t{To}\t{Rules}",
+            "message": "{From}\t{To}\t{Rules}",
+            "translation": "{From}\t{To}\t{Rules}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "From",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "p.From"
+                },
+                {
+                    "id": "To",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "p.To"
+                },
+                {
+                    "id": "Rules",
+                    "string": "%[3]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 3,
+                    "expr": "len(p.Rules)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Unknown config command: {Args0}",
+            "message": "Unknown config command: {Args0}",
+            "translation": "Unknown config command: {Args0}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Args0",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "args[0]"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to connect to control plane: {Err}",
+            "message": "Failed to connect to control plane: {Err}",
+            "translation": "Failed to connect to control plane: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Make sure 'firewall ctl' is running first.",
+            "message": "Make sure 'firewall ctl' is running first.",
+            "translation": "Make sure 'firewall ctl' is running first.",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to get configuration: {Err}",
+            "message": "Failed to get configuration: {Err}",
+            "translation": "Failed to get configuration: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{HCL}",
+            "message": "{HCL}",
+            "translation": "{HCL}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "HCL",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "reply.HCL"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Invalid output format: {Output}",
+            "message": "Invalid output format: {Output}",
+            "translation": "Invalid output format: {Output}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Output",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "*output"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to read config file: {Err}",
+            "message": "Failed to read config file: {Err}",
+            "translation": "Failed to read config file: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to read from stdin: {Err}",
+            "message": "Failed to read from stdin: {Err}",
+            "translation": "Failed to read from stdin: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Configuration validation failed: {Err}",
+            "message": "Configuration validation failed: {Err}",
+            "translation": "Configuration validation failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Apply this configuration? [y/N]:",
+            "message": "Apply this configuration? [y/N]:",
+            "translation": "Apply this configuration? [y/N]:",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: Failed to create backup: {Err}",
+            "message": "Warning: Failed to create backup: {Err}",
+            "translation": "Warning: Failed to create backup: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: Failed to create backup: {Error}",
+            "message": "Warning: Failed to create backup: {Error}",
+            "translation": "Warning: Failed to create backup: {Error}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Error",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "backupReply.Error"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Backup created: version {Version}",
+            "message": "Backup created: version {Version}",
+            "translation": "Backup created: version {Version}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Version",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "backupReply.Backup.Version"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to set configuration: {Err}",
+            "message": "Failed to set configuration: {Err}",
+            "translation": "Failed to set configuration: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error applying configuration: {Error}",
+            "message": "Error applying configuration: {Error}",
+            "translation": "Error applying configuration: {Error}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Error",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "reply.Error"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "You can restore from backup version {Version} if needed",
+            "message": "You can restore from backup version {Version} if needed",
+            "translation": "You can restore from backup version {Version} if needed",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Version",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "backupReply.Backup.Version"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Validation failed: {Err}",
+            "message": "Validation failed: {Err}",
+            "translation": "Validation failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to create temporary file: {Err}",
+            "message": "Failed to create temporary file: {Err}",
+            "translation": "Failed to create temporary file: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to write temporary file: {Err}",
+            "message": "Failed to write temporary file: {Err}",
+            "translation": "Failed to write temporary file: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Editor failed: {Err}",
+            "message": "Editor failed: {Err}",
+            "translation": "Editor failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to read edited file: {Err}",
+            "message": "Failed to read edited file: {Err}",
+            "translation": "Failed to read edited file: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Options: [r]etry, [a]bort, [e]dit again:",
+            "message": "Options: [r]etry, [a]bort, [e]dit again:",
+            "translation": "Options: [r]etry, [a]bort, [e]dit again:",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to apply configuration: {Err}",
+            "message": "Failed to apply configuration: {Err}",
+            "translation": "Failed to apply configuration: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Usage: firewall config delete \u003csection-type\u003e [label1] [label2]...",
+            "message": "Usage: firewall config delete \u003csection-type\u003e [label1] [label2]...",
+            "translation": "Usage: firewall config delete \u003csection-type\u003e [label1] [label2]...",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Examples: firewall config delete dhcp",
+            "message": "Examples: firewall config delete dhcp",
+            "translation": "Examples: firewall config delete dhcp",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "firewall config delete interface eth0",
+            "message": "firewall config delete interface eth0",
+            "translation": "firewall config delete interface eth0",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "firewall config delete policy lan wan",
+            "message": "firewall config delete policy lan wan",
+            "translation": "firewall config delete policy lan wan",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "firewall config delete policy \"allow ssh\" (by name)",
+            "message": "firewall config delete policy \"allow ssh\" (by name)",
+            "translation": "firewall config delete policy \"allow ssh\" (by name)",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Delete {SectionType}",
+            "message": "Delete {SectionType}",
+            "translation": "Delete {SectionType}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "SectionType",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "sectionType"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "with labels {Labels}",
+            "message": "with labels {Labels}",
+            "translation": "with labels {Labels}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Labels",
+                    "string": "%[1]v",
+                    "type": "[]string",
+                    "underlyingType": "[]string",
+                    "argNum": 1,
+                    "expr": "labels"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "? [y/N]:",
+            "message": "? [y/N]:",
+            "translation": "? [y/N]:",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to delete section: {Err}",
+            "message": "Failed to delete section: {Err}",
+            "translation": "Failed to delete section: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error deleting section: {Error}",
+            "message": "Error deleting section: {Error}",
+            "translation": "Error deleting section: {Error}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Error",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "reply.Error"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Successfully deleted {SectionType}",
+            "message": "Successfully deleted {SectionType}",
+            "translation": "Successfully deleted {SectionType}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "SectionType",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "sectionType"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to load config file: {Err}",
+            "message": "Failed to load config file: {Err}",
+            "translation": "Failed to load config file: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Migration failed: {Err}",
+            "message": "Migration failed: {Err}",
+            "translation": "Migration failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Canonicalization failed: {Err}",
+            "message": "Canonicalization failed: {Err}",
+            "translation": "Canonicalization failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to generate HCL: {Err}",
+            "message": "Failed to generate HCL: {Err}",
+            "translation": "Failed to generate HCL: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to save migrated config: {Err}",
+            "message": "Failed to save migrated config: {Err}",
+            "translation": "Failed to save migrated config: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Successfully migrated {TargetFile} to schema version {SchemaVersion}",
+            "message": "Successfully migrated {TargetFile} to schema version {SchemaVersion}",
+            "translation": "Successfully migrated {TargetFile} to schema version {SchemaVersion}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "TargetFile",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "targetFile"
+                },
+                {
+                    "id": "SchemaVersion",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "cf.Config.SchemaVersion"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to enable debug logging: {Err}",
+            "message": "Failed to enable debug logging: {Err}",
+            "translation": "Failed to enable debug logging: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: --api-key is required for remote connection",
+            "message": "Error: --api-key is required for remote connection",
+            "translation": "Error: --api-key is required for remote connection",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Error running console: {Err}",
+            "message": "Error running console: {Err}",
+            "translation": "Error running console: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Clock anchor loaded: {RFC3339}",
+            "message": "Clock anchor loaded: {RFC3339}",
+            "translation": "Clock anchor loaded: {RFC3339}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "RFC3339",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "savedTime.Format(time.RFC3339)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: System time ({RFC3339}) appears unreasonable. Last known good time was {RFC3339_1}. Waiting for NTP sync.",
+            "message": "Warning: System time ({RFC3339}) appears unreasonable. Last known good time was {RFC3339_1}. Waiting for NTP sync.",
+            "translation": "Warning: System time ({RFC3339}) appears unreasonable. Last known good time was {RFC3339_1}. Waiting for NTP sync.",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "RFC3339",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "now.Format(time.RFC3339)"
+                },
+                {
+                    "id": "RFC3339_1",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "savedTime.Format(time.RFC3339)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: System time ({RFC3339}) appears unreasonable and no anchor file exists.",
+            "message": "Warning: System time ({RFC3339}) appears unreasonable and no anchor file exists.",
+            "translation": "Warning: System time ({RFC3339}) appears unreasonable and no anchor file exists.",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "RFC3339",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "now.Format(time.RFC3339)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: --input is required",
+            "message": "Error: --input is required",
+            "translation": "Error: --input is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Error: unsupported type '{ImportType}'",
+            "message": "Error: unsupported type '{ImportType}'",
+            "translation": "Error: unsupported type '{ImportType}'",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "ImportType",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "importType"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Parsed backup file: {InputFile} (Type: {ImportType})",
+            "message": "Parsed backup file: {InputFile} (Type: {ImportType})",
+            "translation": "Parsed backup file: {InputFile} (Type: {ImportType})",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "InputFile",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "inputFile"
+                },
+                {
+                    "id": "ImportType",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "importType"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error parsing backup: {Err}",
+            "message": "Error parsing backup: {Err}",
+            "translation": "Error parsing backup: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Found: {Interfaces} interfaces, {FilterRules} filter rules, {NATRules} NAT rules",
+            "message": "Found: {Interfaces} interfaces, {FilterRules} filter rules, {NATRules} NAT rules",
+            "translation": "Found: {Interfaces} interfaces, {FilterRules} filter rules, {NATRules} NAT rules",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Interfaces",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "len(result.Interfaces)"
+                },
+                {
+                    "id": "FilterRules",
+                    "string": "%[2]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 2,
+                    "expr": "len(result.FilterRules)"
+                },
+                {
+                    "id": "NATRules",
+                    "string": "%[3]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 3,
+                    "expr": "len(result.NATRules)"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error writing config: {Err}",
+            "message": "Error writing config: {Err}",
+            "translation": "Error writing config: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Configuration written to {OutputConfig}",
+            "message": "Configuration written to {OutputConfig}",
+            "translation": "Configuration written to {OutputConfig}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "OutputConfig",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "outputConfig"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "- {Step}",
+            "message": "- {Step}",
+            "translation": "- {Step}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Step",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "step"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Unknown ipset command: {Args0}",
+            "message": "Unknown ipset command: {Args0}",
+            "translation": "Unknown ipset command: {Args0}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Args0",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "args[0]"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: Failed to connect to API server: {Err}",
+            "message": "Error: Failed to connect to API server: {Err}",
+            "translation": "Error: Failed to connect to API server: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: API server returned status {StatusCode}",
+            "message": "Error: API server returned status {StatusCode}",
+            "translation": "Error: API server returned status {StatusCode}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "StatusCode",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "resp.StatusCode"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: Failed to read response: {Err}",
+            "message": "Error: Failed to read response: {Err}",
+            "translation": "Error: Failed to read response: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: Failed to parse response: {Err}",
+            "message": "Error: Failed to parse response: {Err}",
+            "translation": "Error: Failed to parse response: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "IPSets ({Count} total):",
+            "message": "IPSets ({Count} total):",
+            "translation": "IPSets ({Count} total):",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Count",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "listResp.Count"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{NAME} {TYPE} {SOURCE} {ENTRIES} {AGE} {NEXT_UPDATE}",
+            "message": "{NAME} {TYPE} {SOURCE} {ENTRIES} {AGE} {NEXT_UPDATE}",
+            "translation": "{NAME} {TYPE} {SOURCE} {ENTRIES} {AGE} {NEXT_UPDATE}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "NAME",
+                    "string": "%-20[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "\"NAME\""
+                },
+                {
+                    "id": "TYPE",
+                    "string": "%-12[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "\"TYPE\""
+                },
+                {
+                    "id": "SOURCE",
+                    "string": "%-12[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "\"SOURCE\""
+                },
+                {
+                    "id": "ENTRIES",
+                    "string": "%-10[4]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 4,
+                    "expr": "\"ENTRIES\""
+                },
+                {
+                    "id": "AGE",
+                    "string": "%-15[5]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 5,
+                    "expr": "\"AGE\""
+                },
+                {
+                    "id": "NEXT_UPDATE",
+                    "string": "%[6]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 6,
+                    "expr": "\"NEXT UPDATE\""
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Name} {Type} {Source} {EntriesCount} {Age} {NextUpdate}",
+            "message": "{Name} {Type} {Source} {EntriesCount} {Age} {NextUpdate}",
+            "translation": "{Name} {Type} {Source} {EntriesCount} {Age} {NextUpdate}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%-20[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "ipset.Name"
+                },
+                {
+                    "id": "Type",
+                    "string": "%-12[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "ipset.Type"
+                },
+                {
+                    "id": "Source",
+                    "string": "%-12[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "ipset.Source"
+                },
+                {
+                    "id": "EntriesCount",
+                    "string": "%-10[4]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 4,
+                    "expr": "ipset.EntriesCount"
+                },
+                {
+                    "id": "Age",
+                    "string": "%-15[5]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 5,
+                    "expr": "ipset.Age"
+                },
+                {
+                    "id": "NextUpdate",
+                    "string": "%[6]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 6,
+                    "expr": "nextUpdate"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: IPSet name is required",
+            "message": "Error: IPSet name is required",
+            "translation": "Error: IPSet name is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Usage: firewall ipset show \u003cname\u003e",
+            "message": "Usage: firewall ipset show \u003cname\u003e",
+            "translation": "Usage: firewall ipset show \u003cname\u003e",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Error: IPSet '{Name}' not found",
+            "message": "Error: IPSet '{Name}' not found",
+            "translation": "Error: IPSet '{Name}' not found",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "name"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "IPSet Details:",
+            "message": "IPSet Details:",
+            "translation": "IPSet Details:",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Name:         {Name}",
+            "message": "Name:         {Name}",
+            "translation": "Name:         {Name}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "ipset.Name"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Type:         {Type}",
+            "message": "Type:         {Type}",
+            "translation": "Type:         {Type}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Type",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "ipset.Type"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Source:       {Source}",
+            "message": "Source:       {Source}",
+            "translation": "Source:       {Source}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Source",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "ipset.Source"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Source URL:   {SourceURL}",
+            "message": "Source URL:   {SourceURL}",
+            "translation": "Source URL:   {SourceURL}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "SourceURL",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "ipset.SourceURL"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Entries:      {EntriesCount}",
+            "message": "Entries:      {EntriesCount}",
+            "translation": "Entries:      {EntriesCount}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "EntriesCount",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "ipset.EntriesCount"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Last Update:  {Format2006_01_02_150405}",
+            "message": "Last Update:  {Format2006_01_02_150405}",
+            "translation": "Last Update:  {Format2006_01_02_150405}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Format2006_01_02_150405",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "ipset.LastUpdate.Format(\"2006-01-02 15:04:05\")"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Age:          {Age}",
+            "message": "Age:          {Age}",
+            "translation": "Age:          {Age}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Age",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "ipset.Age"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Next Update:  {Format2006_01_02_150405}",
+            "message": "Next Update:  {Format2006_01_02_150405}",
+            "translation": "Next Update:  {Format2006_01_02_150405}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Format2006_01_02_150405",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "ipset.NextUpdate.Format(\"2006-01-02 15:04:05\")"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Usage: firewall ipset update \u003cname\u003e",
+            "message": "Usage: firewall ipset update \u003cname\u003e",
+            "translation": "Usage: firewall ipset update \u003cname\u003e",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Usage: firewall ipset refresh \u003cname\u003e",
+            "message": "Usage: firewall ipset refresh \u003cname\u003e",
+            "translation": "Usage: firewall ipset refresh \u003cname\u003e",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Error: Cache command is required",
+            "message": "Error: Cache command is required",
+            "translation": "Error: Cache command is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Usage: firewall ipset cache \u003cinfo|clear\u003e",
+            "message": "Usage: firewall ipset cache \u003cinfo|clear\u003e",
+            "translation": "Usage: firewall ipset cache \u003cinfo|clear\u003e",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Unknown cache command: {Args0}",
+            "message": "Unknown cache command: {Args0}",
+            "translation": "Unknown cache command: {Args0}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Args0",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "args[0]"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "IPSet Cache Information:",
+            "message": "IPSet Cache Information:",
+            "translation": "IPSet Cache Information:",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Cached Lists: {CachedLists}",
+            "message": "Cached Lists: {CachedLists}",
+            "translation": "Cached Lists: {CachedLists}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "CachedLists",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "cacheInfo.CachedLists"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Total Size:   {TotalSize} bytes",
+            "message": "Total Size:   {TotalSize} bytes",
+            "translation": "Total Size:   {TotalSize} bytes",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "TotalSize",
+                    "string": "%[1]d",
+                    "type": "int64",
+                    "underlyingType": "int64",
+                    "argNum": 1,
+                    "expr": "cacheInfo.TotalSize"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Cache Dir:    {CacheDir}",
+            "message": "Cache Dir:    {CacheDir}",
+            "translation": "Cache Dir:    {CacheDir}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "CacheDir",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "cacheInfo.CacheDir"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: Failed to create request: {Err}",
+            "message": "Error: Failed to create request: {Err}",
+            "translation": "Error: Failed to create request: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Connected to {RemoteURL}",
+            "message": "Connected to {RemoteURL}",
+            "translation": "Connected to {RemoteURL}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "RemoteURL",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "remoteURL"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Server Certificate Fingerprint: {SeenFingerprint}",
+            "message": "Server Certificate Fingerprint: {SeenFingerprint}",
+            "translation": "Server Certificate Fingerprint: {SeenFingerprint}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "SeenFingerprint",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "apiClient.SeenFingerprint"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "To pin this certificate, use --fingerprint {SeenFingerprint}",
+            "message": "To pin this certificate, use --fingerprint {SeenFingerprint}",
+            "translation": "To pin this certificate, use --fingerprint {SeenFingerprint}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "SeenFingerprint",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "apiClient.SeenFingerprint"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error polling logs: {Err}",
+            "message": "Error polling logs: {Err}",
+            "translation": "Error polling logs: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Timestamp} [{Level}] {Source}: {Message}",
+            "message": "{Timestamp} [{Level}] {Source}: {Message}",
+            "translation": "{Timestamp} [{Level}] {Source}: {Message}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Timestamp",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "e.Timestamp"
+                },
+                {
+                    "id": "Level",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "e.Level"
+                },
+                {
+                    "id": "Source",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "e.Source"
+                },
+                {
+                    "id": "Message",
+                    "string": "%[4]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 4,
+                    "expr": "e.Message"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to determine executable path: {Err}",
+            "message": "Failed to determine executable path: {Err}",
+            "translation": "Failed to determine executable path: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Monitor: Failed to start child: {Err}",
+            "message": "Monitor: Failed to start child: {Err}",
+            "translation": "Monitor: Failed to start child: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Monitor: Started glacic ctl (pid={Pid})",
+            "message": "Monitor: Started glacic ctl (pid={Pid})",
+            "translation": "Monitor: Started glacic ctl (pid={Pid})",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Pid",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "cmd.Process.Pid"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Monitor: Forwarding signal {Sig} to child...",
+            "message": "Monitor: Forwarding signal {Sig} to child...",
+            "translation": "Monitor: Forwarding signal {Sig} to child...",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Sig",
+                    "string": "%[1]v",
+                    "type": "os.Signal",
+                    "underlyingType": "interface{Signal(); String() string}",
+                    "argNum": 1,
+                    "expr": "sig"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Monitor: Child crashed with exit code {ExitCode} (err: {Err}). Restarting...",
+            "message": "Monitor: Child crashed with exit code {ExitCode} (err: {Err}). Restarting...",
+            "translation": "Monitor: Child crashed with exit code {ExitCode} (err: {Err}). Restarting...",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "ExitCode",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "exitCode"
+                },
+                {
+                    "id": "Err",
+                    "string": "%[2]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 2,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Monitor: Detected crash loop ({FastCrashCount} fast crashes). Backing off for 30s...",
+            "message": "Monitor: Detected crash loop ({FastCrashCount} fast crashes). Backing off for 30s...",
+            "translation": "Monitor: Detected crash loop ({FastCrashCount} fast crashes). Backing off for 30s...",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "FastCrashCount",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "fastCrashCount"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Validating configuration: {ConfigFile}",
+            "message": "Validating configuration: {ConfigFile}",
+            "translation": "Validating configuration: {ConfigFile}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "ConfigFile",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "configFile"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Sending SIGHUP to process {Pid}...",
+            "message": "Sending SIGHUP to process {Pid}...",
+            "translation": "Sending SIGHUP to process {Pid}...",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Pid",
+                    "string": "%[1]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 1,
+                    "expr": "pid"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: setup must run as root",
+            "message": "Error: setup must run as root",
+            "translation": "Error: setup must run as root",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Setup failed: {Err}",
+            "message": "Setup failed: {Err}",
+            "translation": "Setup failed: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: failed to initialize auth: {Err}",
+            "message": "Warning: failed to initialize auth: {Err}",
+            "translation": "Warning: failed to initialize auth: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: failed to create admin user: {Err}",
+            "message": "Warning: failed to create admin user: {Err}",
+            "translation": "Warning: failed to create admin user: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "1. Start the firewall:  {LowerName} start",
+            "message": "1. Start the firewall:  {LowerName} start",
+            "translation": "1. Start the firewall:  {LowerName} start",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "LowerName",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "brand.LowerName"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "2. Access the UI:       https://{LANIP}/",
+            "message": "2. Access the UI:       https://{LANIP}/",
+            "translation": "2. Access the UI:       https://{LANIP}/",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "LANIP",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "result.LANIP"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: reset must run as root",
+            "message": "Error: reset must run as root",
+            "translation": "Error: reset must run as root",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Error reading config dir: {Err}",
+            "message": "Error reading config dir: {Err}",
+            "translation": "Error reading config dir: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: failed to remove {Path}: {Err}",
+            "message": "Warning: failed to remove {Path}: {Err}",
+            "translation": "Warning: failed to remove {Path}: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Path",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "path"
+                },
+                {
+                    "id": "Err",
+                    "string": "%[2]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 2,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: Removing stale PID file {PidFile}",
+            "message": "Warning: Removing stale PID file {PidFile}",
+            "translation": "Warning: Removing stale PID file {PidFile}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "PidFile",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "pidFile"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Started {Name} (PID: {Pid})",
+            "message": "Started {Name} (PID: {Pid})",
+            "translation": "Started {Name} (PID: {Pid})",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "brand.Name"
+                },
+                {
+                    "id": "Pid",
+                    "string": "%[2]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 2,
+                    "expr": "pid"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Logs: {LogFile}",
+            "message": "Logs: {LogFile}",
+            "translation": "Logs: {LogFile}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "LogFile",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "logFile"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Error: Daemon exited immediately.",
+            "message": "Error: Daemon exited immediately.",
+            "translation": "Error: Daemon exited immediately.",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Log output:",
+            "message": "Log output:",
+            "translation": "Log output:",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "{Line}",
+            "message": "{Line}",
+            "translation": "{Line}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Line",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "line"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Is the daemon running? Start with: glacic ctl \u003cconfig\u003e",
+            "message": "Is the daemon running? Start with: glacic ctl \u003cconfig\u003e",
+            "translation": "Is the daemon running? Start with: glacic ctl \u003cconfig\u003e",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to get status: {Err}",
+            "message": "Failed to get status: {Err}",
+            "translation": "Failed to get status: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Uptime:  {Uptime}",
+            "message": "Uptime:  {Uptime}",
+            "translation": "Uptime:  {Uptime}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Uptime",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "status.Uptime"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Config:  {ConfigFile}",
+            "message": "Config:  {ConfigFile}",
+            "translation": "Config:  {ConfigFile}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "ConfigFile",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "status.ConfigFile"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: Failed to get services: {Err}",
+            "message": "Warning: Failed to get services: {Err}",
+            "translation": "Warning: Failed to get services: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Name__} {State}",
+            "message": "{Name__} {State}",
+            "translation": "{Name__} {State}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name__",
+                    "string": "%-12[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "svc.Name + \":\""
+                },
+                {
+                    "id": "State",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "state"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Warning: Failed to get interfaces: {Err}",
+            "message": "Warning: Failed to get interfaces: {Err}",
+            "translation": "Warning: Failed to get interfaces: {Err}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Err",
+                    "string": "%[1]v",
+                    "type": "error",
+                    "underlyingType": "interface{Error() string}",
+                    "argNum": 1,
+                    "expr": "err"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{Name} {Zone} {State} {Ips}",
+            "message": "{Name} {Zone} {State} {Ips}",
+            "translation": "{Name} {Zone} {State} {Ips}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%-10[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "iface.Name"
+                },
+                {
+                    "id": "Zone",
+                    "string": "%-6[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "iface.Zone"
+                },
+                {
+                    "id": "State",
+                    "string": "%-8[3]s",
+                    "type": "grimm.is/glacic/internal/ctlplane.InterfaceState",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "iface.State"
+                },
+                {
+                    "id": "Ips",
+                    "string": "%[4]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 4,
+                    "expr": "ips"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Stopping {Name} (PID: {Pid})...",
+            "message": "Stopping {Name} (PID: {Pid})...",
+            "translation": "Stopping {Name} (PID: {Pid})...",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "Name",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "brand.Name"
+                },
+                {
+                    "id": "Pid",
+                    "string": "%[2]d",
+                    "type": "int",
+                    "underlyingType": "int",
+                    "argNum": 2,
+                    "expr": "pid"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "Method not allowed",
+            "message": "Method not allowed",
+            "translation": "Method not allowed",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Version is required",
+            "message": "Version is required",
+            "translation": "Version is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Version parameter required",
+            "message": "Version parameter required",
+            "translation": "Version parameter required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Invalid version",
+            "message": "Invalid version",
+            "translation": "Invalid version",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "max_backups must be at least 1",
+            "message": "max_backups must be at least 1",
+            "translation": "max_backups must be at least 1",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Control plane not connected",
+            "message": "Control plane not connected",
+            "translation": "Control plane not connected",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Invalid request body",
+            "message": "Invalid request body",
+            "translation": "Invalid request body",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Task ID required",
+            "message": "Task ID required",
+            "translation": "Task ID required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Control plane client not connected",
+            "message": "Control plane client not connected",
+            "translation": "Control plane client not connected",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to clone config",
+            "message": "Failed to clone config",
+            "translation": "Failed to clone config",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to read request body",
+            "message": "Failed to read request body",
+            "translation": "Failed to read request body",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Invalid DNS configuration format",
+            "message": "Invalid DNS configuration format",
+            "translation": "Invalid DNS configuration format",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Device ID is required",
+            "message": "Device ID is required",
+            "translation": "Device ID is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "MAC and IdentityID are required",
+            "message": "MAC and IdentityID are required",
+            "translation": "MAC and IdentityID are required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "MAC is required",
+            "message": "MAC is required",
+            "translation": "MAC is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Section type required (use ?type=dhcp)",
+            "message": "Section type required (use ?type=dhcp)",
+            "translation": "Section type required (use ?type=dhcp)",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Interface name required",
+            "message": "Interface name required",
+            "translation": "Interface name required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "name parameter required",
+            "message": "name parameter required",
+            "translation": "name parameter required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Configuration not loaded",
+            "message": "Configuration not loaded",
+            "translation": "Configuration not loaded",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "CIDR is required",
+            "message": "CIDR is required",
+            "translation": "CIDR is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "IP address is required",
+            "message": "IP address is required",
+            "translation": "IP address is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Control Plane Disconnected",
+            "message": "Control Plane Disconnected",
+            "translation": "Control Plane Disconnected",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Too many requests in batch",
+            "message": "Too many requests in batch",
+            "translation": "Too many requests in batch",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Rate limit exceeded for batch",
+            "message": "Rate limit exceeded for batch",
+            "translation": "Rate limit exceeded for batch",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Certificate not found",
+            "message": "Certificate not found",
+            "translation": "Certificate not found",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Collector not initialized",
+            "message": "Collector not initialized",
+            "translation": "Collector not initialized",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "policy_name and relative_to are required",
+            "message": "policy_name and relative_to are required",
+            "translation": "policy_name and relative_to are required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Policy not found",
+            "message": "Policy not found",
+            "translation": "Policy not found",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "policy_name is required",
+            "message": "policy_name is required",
+            "translation": "policy_name is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "rule_name and relative_to are required",
+            "message": "rule_name and relative_to are required",
+            "translation": "rule_name and relative_to are required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Rule not found",
+            "message": "Rule not found",
+            "translation": "Rule not found",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Page not found",
+            "message": "Page not found",
+            "translation": "Page not found",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Too many login attempts. Please try again later.",
+            "message": "Too many login attempts. Please try again later.",
+            "translation": "Too many login attempts. Please try again later.",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Auth not configured",
+            "message": "Auth not configured",
+            "translation": "Auth not configured",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Invalid credentials",
+            "message": "Invalid credentials",
+            "translation": "Invalid credentials",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Too many setup attempts. Please try again later.",
+            "message": "Too many setup attempts. Please try again later.",
+            "translation": "Too many setup attempts. Please try again later.",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Admin already exists",
+            "message": "Admin already exists",
+            "translation": "Admin already exists",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Username and password required",
+            "message": "Username and password required",
+            "translation": "Username and password required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Failed to initialize auth",
+            "message": "Failed to initialize auth",
+            "translation": "Failed to initialize auth",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Username required",
+            "message": "Username required",
+            "translation": "Username required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "User not found",
+            "message": "User not found",
+            "translation": "User not found",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Cannot delete admin user",
+            "message": "Cannot delete admin user",
+            "translation": "Cannot delete admin user",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Missing 'checksum' field",
+            "message": "Missing 'checksum' field",
+            "translation": "Missing 'checksum' field",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Missing 'arch' field",
+            "message": "Missing 'arch' field",
+            "translation": "Missing 'arch' field",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "MAC address is required",
+            "message": "MAC address is required",
+            "translation": "MAC address is required",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        }
+    ]
+}

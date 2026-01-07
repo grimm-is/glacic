@@ -1,0 +1,3077 @@
+openapi: 3.0.0
+info:
+  title: Glacic API
+  description: Glacic Network Appliance Control Plane API
+  version: 1.0.0
+paths:
+  /api/config:
+    get:
+      summary: Get Full Config
+      description: ""
+      tags:
+      - Configuration
+      requestbody: null
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: ""
+                properties: {}
+                items: null
+                ref: '#/components/schemas/Config'
+                description: ""
+                format: ""
+    post: null
+    put: null
+    delete: null
+  /api/config/policies:
+    get:
+      summary: Get Firewall Policies
+      description: ""
+      tags:
+      - Firewall
+      requestbody: null
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                properties: {}
+                items:
+                  type: ""
+                  properties: {}
+                  items: null
+                  ref: '#/components/schemas/Policy'
+                  description: ""
+                  format: ""
+                ref: ""
+                description: ""
+                format: ""
+    post: null
+    put: null
+    delete: null
+  /api/interfaces:
+    get:
+      summary: Get Interfaces
+      description: ""
+      tags:
+      - Network
+      requestbody: null
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                properties: {}
+                items:
+                  type: ""
+                  properties: {}
+                  items: null
+                  ref: '#/components/schemas/Interface'
+                  description: ""
+                  format: ""
+                ref: ""
+                description: ""
+                format: ""
+    post: null
+    put: null
+    delete: null
+  /api/status:
+    get:
+      summary: Get System Status
+      description: ""
+      tags:
+      - System
+      requestbody: null
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: ""
+                properties: {}
+                items: null
+                ref: '#/components/schemas/Status'
+                description: ""
+                format: ""
+    post: null
+    put: null
+    delete: null
+components:
+  schemas:
+    Config:
+      type: object
+      properties:
+        anomaly_detection:
+          type: object
+          properties:
+            alert_cooldown:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            baseline_window:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            drop_stddev:
+              type: number
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            min_samples:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            port_scan_threshold:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            spike_stddev:
+              type: number
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        api:
+          type: object
+          properties:
+            bootstrap_key:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            cors_origins:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            disable_sandbox:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            key_store_path:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            keys:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: APIKeyConfig
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            letsencrypt:
+              type: object
+              properties:
+                cache_dir:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                domain:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                email:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                enabled:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                staging:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            listen:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            require_auth:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            tls_cert:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            tls_key:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        ddns:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            hostname:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            interface:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            interval:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            provider:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            record_id:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            token:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            username:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            zone_id:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dhcp:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            external_lease_file:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            mode:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            scopes:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DHCPScope
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dns:
+          type: object
+          properties:
+            conditional_forwarders:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: ConditionalForward
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            dnssec:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            forwarders:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            inspect:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSInspect
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            mode:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            recursive:
+              type: object
+              properties:
+                aggressive_nsec:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                auto_update_root_hints:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                harden_below_nxdomain:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                harden_dnssec_stripped:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                harden_glue:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                harden_referral_path:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                max_concurrent:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                max_depth:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                prefetch:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                prefetch_key:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                qname_minimisation:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                query_timeout:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                root_hints_file:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            serve:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSServe
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            upstream_dnscrypt:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSCryptUpstream
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            upstream_doh:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSOverHTTPS
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            upstream_dot:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSOverTLS
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            upstream_timeout:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dns_server:
+          type: object
+          properties:
+            allowlist:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            authoritative_for:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            blocked_address:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            blocked_ttl:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            blocklists:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSBlocklist
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            cache_enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            cache_max_ttl:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            cache_min_ttl:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            cache_size:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            conditional_forwarders:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: ConditionalForward
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            dhcp_integration:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            dnscrypt_server:
+              type: object
+              properties:
+                cert_file:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                cert_ttl:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                enabled:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                es_version:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                listen_addr:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                provider_name:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                public_key_file:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                secret_key_file:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            dnssec:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            doh_server:
+              type: object
+              properties:
+                cert_file:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                domain:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                enabled:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                key_file:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                listen_addr:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                path:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                use_letsencrypt:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            dot_server:
+              type: object
+              properties:
+                cert_file:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                enabled:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                key_file:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                listen_addr:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            expand_hosts:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            forwarders:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            hosts:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSHostEntry
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            listen_on:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            listen_port:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            local_domain:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            mode:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            negative_cache_ttl:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            query_logging:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            rate_limit_per_sec:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            rebind_protection:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            recursive:
+              type: object
+              properties:
+                aggressive_nsec:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                auto_update_root_hints:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                harden_below_nxdomain:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                harden_dnssec_stripped:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                harden_glue:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                harden_referral_path:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                max_concurrent:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                max_depth:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                prefetch:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                prefetch_key:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                qname_minimisation:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                query_timeout:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                root_hints_file:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            upstream_dnscrypt:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSCryptUpstream
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            upstream_doh:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSOverHTTPS
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            upstream_dot:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSOverTLS
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            upstream_timeout:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            zones:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: DNSZone
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        enable_flow_offload:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        features:
+          type: object
+          properties:
+            integrity_monitoring:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            network_learning:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            qos:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            threat_intel:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        frr:
+          type: object
+          properties:
+            bgp:
+              type: object
+              properties:
+                asn:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                neighbors:
+                  type: array
+                  properties: {}
+                  items:
+                    type: object
+                    properties: {}
+                    items: null
+                    ref: ""
+                    description: Neighbor
+                    format: ""
+                  ref: ""
+                  description: ""
+                  format: ""
+                networks:
+                  type: array
+                  properties: {}
+                  items:
+                    type: string
+                    properties: {}
+                    items: null
+                    ref: ""
+                    description: ""
+                    format: ""
+                  ref: ""
+                  description: ""
+                  format: ""
+                router_id:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            ospf:
+              type: object
+              properties:
+                areas:
+                  type: array
+                  properties: {}
+                  items:
+                    type: object
+                    properties: {}
+                    items: null
+                    ref: ""
+                    description: OSPFArea
+                    format: ""
+                  ref: ""
+                  description: ""
+                  format: ""
+                networks:
+                  type: array
+                  properties: {}
+                  items:
+                    type: string
+                    properties: {}
+                    items: null
+                    ref: ""
+                    description: ""
+                    format: ""
+                  ref: ""
+                  description: ""
+                  format: ""
+                router_id:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        interfaces:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: Interface
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        ip_forwarding:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        ipsets:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: IPSet
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        mark_rules:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: MarkRule
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        mdns:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            interfaces:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        mss_clamping:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        multi_wan:
+          type: object
+          properties:
+            connections:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: WANLink
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            health_check:
+              type: object
+              properties:
+                http_check:
+                  type: string
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                interval:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                targets:
+                  type: array
+                  properties: {}
+                  items:
+                    type: string
+                    properties: {}
+                    items: null
+                    ref: ""
+                    description: ""
+                    format: ""
+                  ref: ""
+                  description: ""
+                  format: ""
+                threshold:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                timeout:
+                  type: integer
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            mode:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        nat:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: NATRule
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        notifications:
+          type: object
+          properties:
+            channels:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: NotificationChannel
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        policies:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: Policy
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        policy_routes:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: PolicyRoute
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        protections:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: InterfaceProtection
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        qos_policies:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: QoSPolicy
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        replication:
+          type: object
+          properties:
+            listen_addr:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            mode:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            primary_addr:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            secret_key:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        routes:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: Route
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        routing_tables:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: RoutingTable
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        rule_learning:
+          type: object
+          properties:
+            auto_approve:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            cache_size:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            ignore_networks:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            inline_mode:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            learning_mode:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            log_group:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            rate_limit:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            retention_days:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        scheduled_rules:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: ScheduledRule
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        scheduler:
+          type: object
+          properties:
+            backup_dir:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            backup_enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            backup_retention_days:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            backup_schedule:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            dns_refresh_hours:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            ipset_refresh_hours:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        schema_version:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        state_dir:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        syslog:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            facility:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            host:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            port:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            protocol:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            tag:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        threat_intel:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            interval:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            sources:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: ThreatSource
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        uid_routing:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: UIDRouting
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        uplink_groups:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: UplinkGroup
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        upnp:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            external_interface:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            internal_interfaces:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            secure_mode:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        vpn:
+          type: object
+          properties:
+            6to4:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: SixToFourConfig
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            interface_prefix_zones:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            tailscale:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: TailscaleConfig
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            wireguard:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: WireGuardConfig
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        zones:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: Zone
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+      items: null
+      ref: ""
+      description: ""
+      format: ""
+    DHCPServer:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        external_lease_file:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        mode:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        scopes:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: DHCPScope
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+      items: null
+      ref: ""
+      description: ""
+      format: ""
+    Interface:
+      type: object
+      properties:
+        access_web_ui:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        bond:
+          type: object
+          properties:
+            interfaces:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            mode:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        description:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dhcp:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dhcp_client:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dhcp_v6:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        disable_anti_lockout:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        disabled:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        gateway:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        gateway_v6:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        ipv4:
+          type: array
+          properties: {}
+          items:
+            type: string
+            properties: {}
+            items: null
+            ref: ""
+            description: ""
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        ipv6:
+          type: array
+          properties: {}
+          items:
+            type: string
+            properties: {}
+            items: null
+            ref: ""
+            description: ""
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        management:
+          type: object
+          properties:
+            api:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            icmp:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            snmp:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            ssh:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            syslog:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            web:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            web_ui:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        mtu:
+          type: integer
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        name:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        new_zone:
+          type: object
+          properties:
+            action:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            color:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            description:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            dhcp:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            dst:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            external:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            interface:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            interfaces:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            ipsets:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            ipv4:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            ipv6:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            management:
+              type: object
+              properties:
+                api:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                icmp:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                snmp:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                ssh:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                syslog:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                web:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                web_ui:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            matches:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: ZoneMatch
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            name:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            networks:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            services:
+              type: object
+              properties:
+                captive_portal:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                custom_ports:
+                  type: array
+                  properties: {}
+                  items:
+                    type: object
+                    properties: {}
+                    items: null
+                    ref: ""
+                    description: ZoneServicePort
+                    format: ""
+                  ref: ""
+                  description: ""
+                  format: ""
+                dhcp:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                dns:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+                ntp:
+                  type: boolean
+                  properties: {}
+                  items: null
+                  ref: ""
+                  description: ""
+                  format: ""
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            src:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            vlan:
+              type: integer
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        ra:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        table:
+          type: integer
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        tls:
+          type: object
+          properties:
+            cert_file:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            domains:
+              type: array
+              properties: {}
+              items:
+                type: string
+                properties: {}
+                items: null
+                ref: ""
+                description: ""
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            email:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            hostname:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            key_file:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            mode:
+              type: string
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        vlans:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: VLAN
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        web_ui_port:
+          type: integer
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        zone:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+      items: null
+      ref: ""
+      description: ""
+      format: ""
+    NATRule:
+      type: object
+      properties:
+        description:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dest_ip:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dest_port:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        in_interface:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        mark:
+          type: integer
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        name:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        out_interface:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        proto:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        snat_ip:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        src_ip:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        to_ip:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        to_port:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        type:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+      items: null
+      ref: ""
+      description: ""
+      format: ""
+    Policy:
+      type: object
+      properties:
+        action:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        description:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        disabled:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        from:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        inherits:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        log:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        log_prefix:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        masquerade:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        name:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        priority:
+          type: integer
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        rules:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: PolicyRule
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        to:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+      items: null
+      ref: ""
+      description: ""
+      format: ""
+    Status:
+      type: object
+      properties:
+        config_file:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        firewall_active:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        firewall_applied:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        running:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        safe_mode:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        uptime:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+      items: null
+      ref: ""
+      description: ""
+      format: ""
+    Zone:
+      type: object
+      properties:
+        action:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        color:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        description:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dhcp:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        dst:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        external:
+          type: boolean
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        interface:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        interfaces:
+          type: array
+          properties: {}
+          items:
+            type: string
+            properties: {}
+            items: null
+            ref: ""
+            description: ""
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        ipsets:
+          type: array
+          properties: {}
+          items:
+            type: string
+            properties: {}
+            items: null
+            ref: ""
+            description: ""
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        ipv4:
+          type: array
+          properties: {}
+          items:
+            type: string
+            properties: {}
+            items: null
+            ref: ""
+            description: ""
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        ipv6:
+          type: array
+          properties: {}
+          items:
+            type: string
+            properties: {}
+            items: null
+            ref: ""
+            description: ""
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        management:
+          type: object
+          properties:
+            api:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            icmp:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            snmp:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            ssh:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            syslog:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            web:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            web_ui:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        matches:
+          type: array
+          properties: {}
+          items:
+            type: object
+            properties: {}
+            items: null
+            ref: ""
+            description: ZoneMatch
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        name:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        networks:
+          type: array
+          properties: {}
+          items:
+            type: string
+            properties: {}
+            items: null
+            ref: ""
+            description: ""
+            format: ""
+          ref: ""
+          description: ""
+          format: ""
+        services:
+          type: object
+          properties:
+            captive_portal:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            custom_ports:
+              type: array
+              properties: {}
+              items:
+                type: object
+                properties: {}
+                items: null
+                ref: ""
+                description: ZoneServicePort
+                format: ""
+              ref: ""
+              description: ""
+              format: ""
+            dhcp:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            dns:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+            ntp:
+              type: boolean
+              properties: {}
+              items: null
+              ref: ""
+              description: ""
+              format: ""
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        src:
+          type: string
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+        vlan:
+          type: integer
+          properties: {}
+          items: null
+          ref: ""
+          description: ""
+          format: ""
+      items: null
+      ref: ""
+      description: ""
+      format: ""

@@ -13,8 +13,6 @@ test_mount_*/
 *.log
 test_output.txt
 net_test_fail.txt
-tests/backups/
-tests/results/
 coverage.out
 *.test
 
@@ -60,3 +58,4 @@ internal/brand/brand.env
 vendor/
 /vendor/
 /local/
+ui/src/locales/keys_found.txt

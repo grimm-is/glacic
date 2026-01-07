@@ -1,0 +1,46 @@
+<pfsense>
+    <version>2.5.2</version>
+    <interfaces>
+        <wan>
+            <if>em0</if>
+        </wan>
+        <lan>
+            <if>em1</if>
+            <ipaddr>192.168.1.1</ipaddr>
+            <subnet>24</subnet>
+        </lan>
+    </interfaces>
+    <dhcpd>
+        <lan>
+            <enable/>
+            <range>
+                <from>192.168.1.100</from>
+                <to>192.168.1.200</to>
+            </range>
+        </lan>
+    </dhcpd>
+    <nat>
+        <rule>
+            <target>192.168.1.50</target>
+            <local-port>80</local-port>
+            <interface>wan</interface>
+            <protocol>tcp</protocol>
+            <destination>
+                <network>wanip</network>
+                <port>80</port>
+            </destination>
+            <descr>Web Server</descr>
+        </rule>
+        <outbound>
+            <mode>automatic</mode>
+        </outbound>
+    </nat>
+    <aliases>
+        <alias>
+            <name>WebServers</name>
+            <type>network</type>
+            <address>192.168.1.10 192.168.1.11</address>
+            <descr>Web Server Farm</descr>
+        </alias>
+    </aliases>
+</pfsense>

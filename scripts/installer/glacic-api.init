@@ -1,0 +1,13 @@
+#!/sbin/openrc-run
+
+name="glacic-api"
+description="Glacic Firewall API & UI"
+command="/usr/local/bin/glacic"
+command_args="api"
+command_background=true
+pidfile="/run/glacic-api.pid"
+
+depend() {
+    need glacic-ctl
+    after firewall
+}
